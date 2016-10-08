@@ -2,7 +2,8 @@
   "Test examples from RFC 7049 Appendix A."
   (:require
     [clojure.test :refer :all]
-    [clj-cbor.core :as cbor])
+    [clj-cbor.core :as cbor]
+    [clj-cbor.data :refer [simple-value]])
   (:import
     javax.xml.bind.DatatypeConverter))
 
@@ -64,12 +65,9 @@
     (is (true? (decode-hex "f5")))
     (is (nil? (decode-hex "f6")))
     (is (cbor/undefined? (decode-hex "f7")))
-;  | simple(16)                   | 0xf0                               |
-;  |                              |                                    |
-;  | simple(24)                   | 0xf818                             |
-;  |                              |                                    |
-;  | simple(255)                  | 0xf8ff                             |
-    )
+    (is (= (data/simple-value 16) (decode-hex "f0")))
+    (is (= (data/simple-value 24) (decode-hex "f818")))
+    (is (= (data/simple-value 255) (decode-hex "f8ff"))))
   (testing "tagged values"
 ;  | 0("2013-03-21T20:04:00Z")    | 0xc074323031332d30332d32315432303a |
 ;  |                              | 30343a30305a                       |
