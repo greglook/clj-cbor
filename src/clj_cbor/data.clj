@@ -3,7 +3,7 @@
 
 
 (def major-types
-  "Vector of major type keywords, indexed by the three-bit values 0-7."
+  "Vector of major type keywords, indexed by the three-bit values 0-7. (§2.1)"
   [:unsigned-integer
    :negative-integer
    :byte-string
@@ -11,7 +11,7 @@
    :data-array
    :data-map
    :tagged-value
-   :special-value])
+   :simple-value])
 
 
 (def length-information-types
@@ -24,7 +24,7 @@
    :indefinite 31})
 
 
-(def special-information-types
+(def simple-information-types
   "Set of keywords designating the types of additional information."
   {:false             20
    :true              21
@@ -67,11 +67,26 @@
     (Undefined. meta-map)))
 
 
-(def undefined (Undefined. nil))
-
-
-;; Remove automatic constructor function.
+; Remove automatic constructor function.
 (ns-unmap *ns* '->Undefined)
+
+
+(def undefined
+  "Base singleton undefined value."
+  (Undefined. nil))
+
+
+(defn undefined*
+  "Constructs a new undefined value with metadata about why it has been
+  constructed."
+  [reason-key & {:as data}]
+  (Undefined. {:cbor/cause (assoc data :type reason-key)}))
+
+
+(defn undefined?
+  "Predicate which returns true if `x` is a CBOR undefined value."
+  [x]
+  (instance? Undefined x))
 
 
 
@@ -106,6 +121,10 @@
     (SimpleValue. n meta-map)))
 
 
+; Remove automatic constructor function.
+(ns-unmap *ns* '->SimpleValue)
+
+
 (defn simple-value
   "Constructs a simple type for the given number."
   [^long n]
@@ -117,5 +136,12 @@
     (SimpleValue. n nil)))
 
 
-;; Remove automatic constructor function.
-(ns-unmap *ns* '->SimpleValue)
+(defn boolean?
+  [x]
+  (or (true? x) (false? x)))
+
+
+(let [byte-array-class (class (byte-array 0))]
+  (defn bytes?
+    [x]
+    (instance? byte-array-class x)))
