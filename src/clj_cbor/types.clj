@@ -82,6 +82,9 @@
       nil)))
 
 
+(deftype Undefined [])
+
+
 (defn decode-initial
   "Returns a vector of the major type keyword and additional information number
   encoded by the initial byte."

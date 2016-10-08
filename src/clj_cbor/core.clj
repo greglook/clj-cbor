@@ -1,8 +1,11 @@
 (ns clj-cbor.core
   (:require
     [arrangement.core :as order]
+    [clj-cbor.types :as ctypes]
     [clojure.string :as str]
-    [multicodec.core :as codec]))
+    [multicodec.core :as codec])
+  (:import
+    clj_cbor.types.Undefined))
 
 
 (defrecord CBORCodec
@@ -45,4 +48,4 @@
 (defn undefined?
   "Predicate which returns true if `x` is a CBOR undefined value."
   [x]
-  false)
+  (instance? Undefined x))
