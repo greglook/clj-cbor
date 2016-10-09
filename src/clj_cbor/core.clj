@@ -1,6 +1,8 @@
 (ns clj-cbor.core
   (:require
-    [clj-cbor.data :as data])
+    [clj-cbor.decoder :as decoder]
+    [clj-cbor.data :as data]
+    [clojure.java.io :as io])
   (:import
     (clj_cbor.data
       SimpleValue
@@ -9,10 +11,7 @@
 
 (defn decode
   [content]
-  nil)
-
-
-(defn undefined?
-  "Predicate which returns true if `x` is a CBOR undefined value."
-  [x]
-  (instance? Undefined x))
+  (let [input (if (string? content)
+                (java.io.ByteArrayInputStream. (.getBytes ^String content))
+                (io/input-stream content))]
+    (decoder/decode-value input)))

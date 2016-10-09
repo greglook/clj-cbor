@@ -4,8 +4,10 @@
     [clojure.string :as str])
   (:import
     (java.io
+      ByteArrayOutputStream
       DataInputStream
-      EOFException)))
+      EOFException
+      InputStream)))
 
 
 ;; ## Error Handling
@@ -41,7 +43,7 @@
   [initial-byte]
   (bit-and initial-byte 0x1F))
 
-
+#_
 (defn- length-info
   "Determines the additional length information encoded by the initial byte.
   Returns a number for values 0 - 23 or a keyword designating one of the
@@ -58,7 +60,7 @@
         (28 29 30) nil
         31 :indefinite))))
 
-
+#_
 (defn simple-info
   "Determines the simple type from the additional information encoded by the
   initial byte of Major Type 7 `:simple-value`. (§2.3)"
@@ -110,25 +112,68 @@
   (let [value (read-length input info)]
     (if (= :indefinite value)
       (*error-handler*
-           ::definite-length-required
-           "Encoded integers cannot have indefinite length."
-           nil)
+        ::definite-length-required
+        "Encoded integers cannot have indefinite length."
+        nil)
       value)))
+
+
+(defn- read-byte-string
+  [^DataInputStream input length]
+  (let [buffer (byte-array length)]
+    (.readFully input buffer)
+    buffer))
+
+
+(defn- read-byte-chunks
+  "Reads a sequence of byte-string chunks, followed by a break code."
+  [^DataInputStream input]
+  (let [buffer (ByteArrayOutputStream.)]
+    (loop []
+      (let [initial-byte (.readUnsignedByte input)
+            mtype (major-type initial-byte)
+            info (additional-information initial-byte)]
+        (case mtype
+          :byte-string
+          (let [length (read-length input info)]
+            (if (= length :indefinite)
+              ; Illegal indefinite-length chunk.
+              (*error-handler*
+                ::definite-length-required
+                "Streaming byte string chunks must have a definite length."
+                nil)
+              ; Append byte chunk to buffer.
+              (do (.write buffer (read-byte-string input length))
+                  (recur))))
+
+          :simple-value
+          (if (= info 31)
+            ; Break code.
+            (.toByteArray buffer)
+            ; Illegal simple value.
+            (*error-handler*
+              ::illegal-chunk
+              (str "Streaming byte strings may not contain simple-value " info)
+              nil))
+
+          ; Some other illegal value.
+          (*error-handler*
+            ::illegal-chunk
+            (str "Streaming byte strings may not contain major-type " mtype)
+            nil))))))
 
 
 (defn- read-bytes
   "Reads a sequence of bytes from the input stream."
   [^DataInputStream input info]
   (let [length (read-length input info)]
-    (if (= :indefinite length)
+    (if (= length :indefinite)
       ; Read sequence of definite-length byte strings. §2.2.2
       (loop [value (read-value input)]
         ; Two valid cases: definite-length byte array chunks, or break code
         ,,,)
       ; Read definite-length byte string.
-      (let [buffer (byte-array length)]
-        (.readFully input buffer)
-        buffer))))
+      (read-byte-string input length))))
 
 
 (defn- read-array
@@ -152,7 +197,7 @@
   ,,,)
 
 
-(defn read-value
+(defn- read-value
   "Reads a single CBOR value from the input stream."
   [^DataInputStream input]
   (let [initial-byte (.readUnsignedByte input)
@@ -169,10 +214,10 @@
       :simple-value     (read-simple input info))))
 
 
-(defn- decode-value
-  [^DataInputStream input {:keys [eof]}]
+(defn decode-value
+  [^InputStream input & {:keys [eof]}]
   (try
-    (read-value input)
+    (read-value (DataInputStream. input))
     (catch EOFException ex
       ; TODO: use dynamic handler?
       (if (nil? eof)

@@ -4,6 +4,7 @@
     [clj-cbor.decoder :as cd]))
 
 
+#_
 (deftest major-types
   (testing "unsigned integers"
     (is (= (cd/decode-initial 2r00000000) [:unsigned-integer 0]))
