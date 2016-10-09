@@ -90,42 +90,45 @@
     buffer))
 
 
+(defn- join-byte-chunks
+  "Reducing function which joins byte array chunks into a single contiguous
+  byte-array."
+  ([]
+   (ByteArrayOutputStream.))
+  ([^ByteArrayOutputStream buffer]
+   (.toByteArray buffer))
+  ([^ByteArrayOutputStream buffer ^bytes chunk]
+   (.write buffer chunk)
+   buffer))
+
+
 (defn- read-byte-chunks
   "Reads a sequence of byte-string chunks, followed by a break code. §2.2.2"
   [^DataInputStream input]
   (let [buffer (ByteArrayOutputStream.)]
     (loop []
-      (let [initial-byte (.readUnsignedByte input)
-            mtype (major-type initial-byte)
-            info (additional-information initial-byte)]
-        (case mtype
-          :byte-string
-          (let [length (read-length input info)]
-            (if (= length :indefinite)
-              ; Illegal indefinite-length chunk.
+      (let [initial-byte (.readUnsignedByte input)]
+        (if (= initial-byte data/break)
+          ; Break code.
+          (.toByteArray buffer)
+          ; Read next byte chunk.
+          (let [mtype (major-type initial-byte)
+                info (additional-information initial-byte)]
+            (if (= mtype :byte-string)
+              ; Byte string chunk.
+              (let [length (read-length input info)]
+                (if (= length :indefinite)
+                  ; Illegal indefinite-length chunk.
+                  (*error-handler*
+                    ::definite-length-required
+                    "Streaming byte string chunks must have a definite length.")
+                  ; Append byte chunk to buffer.
+                  (do (.write buffer (read-bytes input length))
+                      (recur))))
+              ; Illegal chunk type.
               (*error-handler*
-                ::definite-length-required
-                "Streaming byte string chunks must have a definite length."
-                nil)
-              ; Append byte chunk to buffer.
-              (do (.write buffer (read-byte-string input length))
-                  (recur))))
-
-          :simple-value
-          (if (= info 31)
-            ; Break code.
-            (.toByteArray buffer)
-            ; Illegal simple value.
-            (*error-handler*
-              ::illegal-chunk
-              (str "Streaming byte strings may not contain simple-value " info)
-              nil))
-
-          ; Some other illegal value.
-          (*error-handler*
-            ::illegal-chunk
-            (str "Streaming byte strings may not contain major-type " mtype)
-            nil))))))
+                ::illegal-chunk
+                (str "Streaming byte strings may not contain chunks of type " mtype)))))))))
 
 
 (defn- read-byte-string
