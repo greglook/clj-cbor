@@ -150,10 +150,3 @@
   (defn byte-array?
     [x]
     (instance? byte-array-class x)))
-
-
-(defn bytes=
-  [a b]
-  (or (identical? a b)
-      (and (= (count a) (count b))
-           (= (seq a) (seq b)))))

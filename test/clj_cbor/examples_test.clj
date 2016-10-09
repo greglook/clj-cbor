@@ -94,10 +94,12 @@
 
 
 (deftest byte-strings
-;  | h''                          | 0x40                               |
-;  |                              |                                    |
-;  | h'01020304'                  | 0x4401020304                       |
-)
+  (let [bytes= (fn [expected value]
+                 (and (data/byte-array? value)
+                      (= (seq expected) (seq value))))]
+  (is (bytes= [] (decode-hex "40")))
+  (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
+  (is (bytes= [1 2 3 4 5] (decode-hex "5f42010243030405ff")))))
 
 
 (deftest text-strings
@@ -107,7 +109,8 @@
   (is (= "\"\\" (decode-hex "62225c")))
   (is (= "\u00fc" (decode-hex "62c3bc")))
   (is (= "\u6c34" (decode-hex "63e6b0b4")))
-  (is (= "\ud800\udd51" (decode-hex "64f0908591"))))
+  (is (= "\ud800\udd51" (decode-hex "64f0908591")))
+  (is (= "streaming" (decode-hex "7f657374726561646d696e67ff"))))
 
 
 (deftest data-arrays
@@ -128,10 +131,6 @@
 
 
 (deftest streaming-data
-;  | (_ h'0102', h'030405')       | 0x5f42010243030405ff               |
-;  |                              |                                    |
-;  | (_ "strea", "ming")          | 0x7f657374726561646d696e67ff       |
-;  |                              |                                    |
 ;  | [_ ]                         | 0x9fff                             |
 ;  |                              |                                    |
 ;  | [_ 1, [2, 3], [_ 4, 5]]      | 0x9f018202039f0405ffff             |
