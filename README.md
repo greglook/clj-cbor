@@ -1,7 +1,8 @@
 clj-cbor
 ========
 
-A Clojure library designed to encode and decode [CBOR](http://cbor.io/) data.
+A native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
+specification.
 
 ## Usage
 
