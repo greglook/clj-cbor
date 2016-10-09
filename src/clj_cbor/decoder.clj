@@ -149,10 +149,50 @@
   [^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
-      ; Read sequence of definite-length byte strings. §2.2.2
+      ; Read sequence of definite-length byte strings.
       (read-byte-chunks input)
       ; Read definite-length byte string.
       (read-bytes input length))))
+
+
+(defn- read-text-chunks
+  "Reads a sequence of text-string chunks, followed by a break code. §2.2.2"
+  [^DataInputStream input]
+  (let [buffer (StringBuilder.)]
+    (loop []
+      (let [initial-byte (.readUnsignedByte input)]
+        (if (= initial-byte data/break)
+          ; Break code.
+          (.toString buffer)
+          ; Read next byte chunk.
+          (let [mtype (major-type initial-byte)
+                info (additional-information initial-byte)]
+            (if (= mtype :text-string)
+              ; Text string chunk.
+              (let [length (read-length input info)]
+                (if (= length :indefinite)
+                  ; Illegal indefinite-length chunk.
+                  (*error-handler*
+                    ::definite-length-required
+                    "Streaming text string chunks must have a definite length.")
+                  ; Append text chunk to buffer.
+                  (do (.append buffer (String. (read-bytes input length) "UTF-8"))
+                      (recur))))
+              ; Illegal chunk type.
+              (*error-handler*
+                ::illegal-chunk
+                (str "Streaming text strings may not contain chunks of type " mtype)))))))))
+
+
+(defn- read-text-string
+  "Reads a sequence of bytes from the input stream."
+  [^DataInputStream input info]
+  (let [length (read-length input info)]
+    (if (= length :indefinite)
+      ; Read sequence of definite-length text strings.
+      (read-text-chunks input)
+      ; Read definite-length text string.
+      (String. (read-bytes input length) "UTF-8"))))
 
 
 (defn- read-array
@@ -185,8 +225,8 @@
     (case mtype
       :unsigned-integer (read-integer input info)
       :negative-integer (- -1 (read-integer input info))
-      :byte-string      (read-bytes input info)
-      :text-string      (String. (read-bytes input info) "UTF-8")
+      :byte-string      (read-byte-string input info)
+      :text-string      (read-text-string input info)
       :data-array       (read-array input info)
       :data-map         (read-map input info)
       :tagged-value     (read-tagged input info)
