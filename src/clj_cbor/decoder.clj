@@ -44,6 +44,40 @@
   (bit-and initial-byte 0x1F))
 
 
+(defn- read-bytes
+  "Reads `length` bytes from the input stream and returns them as a byte
+  array."
+  ^bytes
+  [^DataInputStream input length]
+  (let [buffer (byte-array length)]
+    (.readFully input buffer)
+    buffer))
+
+
+(defn- read-unsigned-long
+  "Reads an unsigned long value from the input stream. If the value overflows
+  into the negative, it is promoted to a bigint."
+  [^DataInputStream input]
+  (let [value (.readLong input)]
+    (if (neg? value)
+      ; Overflow, promote to BigInt.
+      (->>
+        (byte-array
+          [(bit-and 0xFF (bit-shift-right value  0))
+           (bit-and 0xFF (bit-shift-right value  8))
+           (bit-and 0xFF (bit-shift-right value 16))
+           (bit-and 0xFF (bit-shift-right value 24))
+           (bit-and 0xFF (bit-shift-right value 32))
+           (bit-and 0xFF (bit-shift-right value 40))
+           (bit-and 0xFF (bit-shift-right value 48))
+           (bit-and 0xFF (bit-shift-right value 56))])
+        (byte-array)
+        (java.math.BigInteger. 1)
+        (bigint))
+      ; Value fits in a long, return directly.
+      value)))
+
+
 (defn- read-length
   "Reads a size integer from the initial bytes of the input stream."
   [^DataInputStream input info]
@@ -54,12 +88,13 @@
     (case info
       24 (.readUnsignedByte input)
       25 (.readUnsignedShort input)
-      26 (bit-and (.readInt input) 0xFFFF)
-      27 (.readLong input)  ; FIXME: might overflow
-      (28 29 30) (*error-handler*
-                   ::reserved-length
-                   (format "Additional information length code %d is reserved."
-                           info))
+      26 (bit-and (.readInt input) 0xFFFFFFFF)
+      27 (read-unsigned-long input)
+      (28 29 30)
+        (*error-handler*
+          ::reserved-length
+          (format "Additional information length code %d is reserved."
+                  info))
       31 :indefinite)))
 
 
@@ -78,28 +113,6 @@
         ::definite-length-required
         "Encoded integers cannot have indefinite length.")
       value)))
-
-
-(defn- read-bytes
-  "Reads `length` bytes from the input stream and returns them as a byte
-  array."
-  ^bytes
-  [^DataInputStream input length]
-  (let [buffer (byte-array length)]
-    (.readFully input buffer)
-    buffer))
-
-
-(defn- join-byte-chunks
-  "Reducing function which joins byte array chunks into a single contiguous
-  byte-array."
-  ([]
-   (ByteArrayOutputStream.))
-  ([^ByteArrayOutputStream buffer]
-   (.toByteArray buffer))
-  ([^ByteArrayOutputStream buffer ^bytes chunk]
-   (.write buffer chunk)
-   buffer))
 
 
 (defn- read-byte-chunks
