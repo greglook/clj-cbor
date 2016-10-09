@@ -37,6 +37,11 @@
    :break             31})
 
 
+(def break
+  "Value of the break code."
+  0xFF)
+
+
 
 ;; ## Undefined Value
 
@@ -142,6 +147,13 @@
 
 
 (let [byte-array-class (class (byte-array 0))]
-  (defn bytes?
+  (defn byte-array?
     [x]
     (instance? byte-array-class x)))
+
+
+(defn bytes=
+  [a b]
+  (or (identical? a b)
+      (and (= (count a) (count b))
+           (= (seq a) (seq b)))))

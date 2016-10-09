@@ -14,9 +14,9 @@
 
 (defn decoder-exception!
   "Default behavior for decoding errors."
-  [error-type message data]
+  [error-type message]
   (throw (ex-info (str "Decoding failure: " message)
-                  (assoc data :error error-type))))
+                  {:error error-type})))
 
 
 (def ^:dynamic *error-handler*
@@ -28,7 +28,7 @@
 
 ;; ## Initial Byte Decoding
 
-(defn major-type
+(defn- major-type
   "Determines the major type keyword encoded by the initial byte. §2.1"
   [initial-byte]
   (-> initial-byte
@@ -38,46 +38,10 @@
       (data/major-types)))
 
 
-(defn additional-information
+(defn- additional-information
   "Determines the additional information encoded by the initial byte."
   [initial-byte]
   (bit-and initial-byte 0x1F))
-
-#_
-(defn- length-info
-  "Determines the additional length information encoded by the initial byte.
-  Returns a number for values 0 - 23 or a keyword designating one of the
-  `additional-information-types`."
-  [initial-byte]
-  (let [value (additional-information initial-byte)]
-    (if (< value 24)
-      value
-      (case value
-        24 :uint8
-        25 :uint16
-        26 :uint32
-        27 :uint64
-        (28 29 30) nil
-        31 :indefinite))))
-
-#_
-(defn simple-info
-  "Determines the simple type from the additional information encoded by the
-  initial byte of Major Type 7 `:simple-value`. (§2.3)"
-  [initial-byte]
-  (let [value (additional-information initial-byte)]
-    (case value
-      20 :false
-      21 :true
-      22 :null
-      23 :undefined
-      24 :simple-value-byte
-      25 :float16
-      26 :float32
-      27 :float64
-      (28 29 30) nil
-      31 :break
-      nil)))
 
 
 (defn- read-length
@@ -95,8 +59,7 @@
       (28 29 30) (*error-handler*
                    ::reserved-length
                    (format "Additional information length code %d is reserved."
-                           info)
-                   nil)
+                           info))
       31 :indefinite)))
 
 
@@ -113,12 +76,14 @@
     (if (= :indefinite value)
       (*error-handler*
         ::definite-length-required
-        "Encoded integers cannot have indefinite length."
-        nil)
+        "Encoded integers cannot have indefinite length.")
       value)))
 
 
-(defn- read-byte-string
+(defn- read-bytes
+  "Reads `length` bytes from the input stream and returns them as a byte
+  array."
+  ^bytes
   [^DataInputStream input length]
   (let [buffer (byte-array length)]
     (.readFully input buffer)
@@ -126,7 +91,7 @@
 
 
 (defn- read-byte-chunks
-  "Reads a sequence of byte-string chunks, followed by a break code."
+  "Reads a sequence of byte-string chunks, followed by a break code. §2.2.2"
   [^DataInputStream input]
   (let [buffer (ByteArrayOutputStream.)]
     (loop []
@@ -163,17 +128,15 @@
             nil))))))
 
 
-(defn- read-bytes
+(defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings. §2.2.2
-      (loop [value (read-value input)]
-        ; Two valid cases: definite-length byte array chunks, or break code
-        ,,,)
+      (read-byte-chunks input)
       ; Read definite-length byte string.
-      (read-byte-string input length))))
+      (read-bytes input length))))
 
 
 (defn- read-array
