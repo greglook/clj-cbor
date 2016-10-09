@@ -50,28 +50,31 @@
 
 
 (deftest floating-point-numbers
-  (is (= 0.0 (decode-hex "f90000")))
-  (is (= -0.0 (decode-hex "f98000")))
-  (is (= 1.0 (decode-hex "f93c00")))
-  (is (= 1.1 (decode-hex "fb3ff199999999999a")))
-  (is (= 1.5 (decode-hex "f93e00")))
-  (is (= 65504.0 (decode-hex "f97bff")))
-  (is (= 100000.0 (decode-hex "fa47c35000")))
-  (is (= 3.4028234663852886e+38 (decode-hex "fa7f7fffff")))
-  (is (= 1.0e+300 (decode-hex "fb7e37e43c8800759c")))
-  (is (= 5.960464477539063e-8 (decode-hex "f90001")))
-  (is (= 0.00006103515625 (decode-hex "f90400")))
-  (is (= -4.0 (decode-hex "f9c400")))
-  (is (= -4.1 (decode-hex "fbc010666666666666")))
-  (testing "float16 special values"
+  (testing "half-precision"
+    (is (instance? Float (decode-hex "f90000")))
+    (is (= 0.0 (decode-hex "f90000")))
+    (is (= -0.0 (decode-hex "f98000")))
+    (is (= 1.0 (decode-hex "f93c00")))
+    (is (= 1.5 (decode-hex "f93e00")))
+    (is (= 65504.0 (decode-hex "f97bff")))
+    (is (= 5.960464477539063e-8 (decode-hex "f90001")))
+    (is (= 0.00006103515625 (decode-hex "f90400")))
+    (is (= -4.0 (decode-hex "f9c400")))
     (is (Float/isNaN (decode-hex "f97e00")))
     (is (= Float/POSITIVE_INFINITY (decode-hex "f97c00")))
     (is (= Float/NEGATIVE_INFINITY (decode-hex "f9fc00"))))
-  (testing "float32 special values"
+  (testing "single-precision"
+    (is (instance? Float (decode-hex "fa47c35000")))
+    (is (= 100000.0 (decode-hex "fa47c35000")))
+    (is (= 3.4028234663852886e+38 (decode-hex "fa7f7fffff")))
     (is (Float/isNaN (decode-hex "fa7fc00000")))
     (is (= Float/POSITIVE_INFINITY (decode-hex "fa7f800000")))
     (is (= Float/NEGATIVE_INFINITY (decode-hex "faff800000"))))
-  (testing "float64 special values"
+  (testing "double-precision"
+    (is (instance? Double (decode-hex "fb7ff8000000000000")))
+    (is (= 1.1 (decode-hex "fb3ff199999999999a")))
+    (is (= 1.0e+300 (decode-hex "fb7e37e43c8800759c")))
+    (is (= -4.1 (decode-hex "fbc010666666666666")))
     (is (Double/isNaN (decode-hex "fb7ff8000000000000")))
     (is (= Double/POSITIVE_INFINITY (decode-hex "fb7ff0000000000000")))
     (is (= Double/NEGATIVE_INFINITY (decode-hex "fbfff0000000000000")))))

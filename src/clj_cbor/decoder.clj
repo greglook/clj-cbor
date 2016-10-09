@@ -211,9 +211,58 @@
   ,,,)
 
 
+(defn- read-float16
+  "Reads a half-precision IEEE floating-point number from two bytes."
+  [^DataInputStream input]
+  (let [combine (fn [sign exp mant]
+                  (Float/intBitsToFloat
+                    (bit-or (if (zero? sign) 0 Integer/MIN_VALUE)
+                            (bit-shift-left (bit-or exp mant) 13))))
+        value (.readUnsignedShort input)
+        sign (bit-and value 0x8000)
+        exp  (bit-and value 0x7c00)
+        mant (bit-and value 0x03ff)]
+    (cond
+      ; NaN and Infinite values.
+      (= exp 0x7c00)
+        (combine sign 0x3fc00 mant)
+
+      ; Normalized value.
+      (not (zero? exp))
+        (combine sign (+ exp 0x1c000) mant)
+
+      ; Subnormal value.
+      (not (zero? mant))
+        (loop [exp 0x1c400
+               mant mant]
+          (if (zero? (bit-and mant 0x400))
+            (recur (- exp 0x400) (bit-shift-left mant 1))
+            (combine sign exp (bit-and mant 0x3ff))))
+
+      ; +/- 0
+      :else
+        (combine sign exp mant))))
+
+
 (defn- read-simple
+  "Reads a simple value from the input."
   [^DataInputStream input info]
-  ,,,)
+  (case info
+    20 false
+    21 true
+    22 nil
+    23 data/undefined
+    24 (data/simple-value (.readUnsignedByte input))
+    25 (read-float16 input)
+    26 (.readFloat input)
+    27 (.readDouble input)
+    (28 29 30)
+      (*error-handler*
+        ::reserved-simple
+        (format "Additional information simple-value code %d is reserved."
+                info))
+    31 ::break
+    (data/simple-value info)))
 
 
 (defn- read-value
