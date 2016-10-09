@@ -14,28 +14,39 @@
 
 
 (deftest unsigned-integers
-  (is (= 0 (decode-hex "00")))
-  (is (= 1 (decode-hex "01")))
-  (is (= 10 (decode-hex "0a")))
-  (is (= 23 (decode-hex "17")))
-  (is (= 24 (decode-hex "1818")))
-  (is (= 25 (decode-hex "1819")))
-  (is (= 100 (decode-hex "1864")))
-  (is (= 1000 (decode-hex "1903e8")))
-  (is (= 1000000 (decode-hex "1a000f4240")))
-  (is (= 1000000000000 (decode-hex "1b000000e8d4a51000")))
-  (is (= 18446744073709551615 (decode-hex "1bffffffffffffffff")))
-  (is (= 18446744073709551616 (decode-hex "c249010000000000000000"))))
+  (testing "direct values"
+    (is (= 0 (decode-hex "00")))
+    (is (= 1 (decode-hex "01")))
+    (is (= 10 (decode-hex "0a")))
+    (is (= 23 (decode-hex "17"))))
+  (testing "uint8"
+    (is (= 24 (decode-hex "1818")))
+    (is (= 25 (decode-hex "1819")))
+    (is (= 100 (decode-hex "1864"))))
+  (testing "uint16"
+    (is (= 1000 (decode-hex "1903e8"))))
+  (testing "uint32"
+    (is (= 1000000 (decode-hex "1a000f4240"))))
+  (testing "uint64"
+    (is (= 1000000000000 (decode-hex "1b000000e8d4a51000")))
+    (is (= 18446744073709551615 (decode-hex "1bffffffffffffffff"))))
+  #_
+  (testing "bignum"
+    (is (= 18446744073709551616 (decode-hex "c249010000000000000000")))))
 
 
 (deftest negative-integers
-  (testing "negative integers"
-    (is (= -18446744073709551616 (decode-hex "3bffffffffffffffff")))
-    (is (= -18446744073709551617 (decode-hex "c349010000000000000000")))
+  (testing "direct values"
     (is (= -1 (decode-hex "20")))
-    (is (= -10 (decode-hex "29")))
+    (is (= -10 (decode-hex "29"))))
+  (testing "int8"
     (is (= -100 (decode-hex "3863")))
-    (is (= -1000 (decode-hex "3903e7")))))
+    (is (= -1000 (decode-hex "3903e7"))))
+  (testing "int64"
+    (is (= -18446744073709551616 (decode-hex "3bffffffffffffffff"))))
+  #_
+  (testing "bignum"
+    (is (= -18446744073709551617 (decode-hex "c349010000000000000000")))))
 
 
 (deftest floating-point-numbers
