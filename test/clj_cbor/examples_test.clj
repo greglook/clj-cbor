@@ -53,16 +53,16 @@
   (is (= -4.0 (decode-hex "f9c400")))
   (is (= -4.1 (decode-hex "fbc010666666666666")))
   (testing "float16 special values"
+    (is (Float/isNaN (decode-hex "f97e00")))
     (is (= Float/POSITIVE_INFINITY (decode-hex "f97c00")))
-    (is (= Float/NaN (decode-hex "f97e00")))
     (is (= Float/NEGATIVE_INFINITY (decode-hex "f9fc00"))))
   (testing "float32 special values"
+    (is (Float/isNaN (decode-hex "fa7fc00000")))
     (is (= Float/POSITIVE_INFINITY (decode-hex "fa7f800000")))
-    (is (= Float/NaN (decode-hex "fa7fc00000")))
     (is (= Float/NEGATIVE_INFINITY (decode-hex "faff800000"))))
   (testing "float64 special values"
+    (is (Double/isNaN (decode-hex "fb7ff8000000000000")))
     (is (= Double/POSITIVE_INFINITY (decode-hex "fb7ff0000000000000")))
-    (is (= Double/NaN (decode-hex "fb7ff8000000000000")))
     (is (= Double/NEGATIVE_INFINITY (decode-hex "fbfff0000000000000")))))
 
 
