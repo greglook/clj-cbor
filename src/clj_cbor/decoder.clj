@@ -320,6 +320,7 @@
 
 
 (defn decode-value
+  "Reads a single CBOR-encoded value from the input stream."
   [^InputStream input & {:keys [eof]}]
   (try
     (let [data-input (DataInputStream. input)
