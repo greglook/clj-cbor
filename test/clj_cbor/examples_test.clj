@@ -29,10 +29,7 @@
     (is (= 1000000 (decode-hex "1a000f4240"))))
   (testing "uint64"
     (is (= 1000000000000 (decode-hex "1b000000e8d4a51000")))
-    (is (= 18446744073709551615 (decode-hex "1bffffffffffffffff"))))
-  #_
-  (testing "bignum"
-    (is (= 18446744073709551616 (decode-hex "c249010000000000000000")))))
+    (is (= 18446744073709551615 (decode-hex "1bffffffffffffffff")))))
 
 
 (deftest negative-integers
@@ -43,10 +40,7 @@
     (is (= -100 (decode-hex "3863")))
     (is (= -1000 (decode-hex "3903e7"))))
   (testing "int64"
-    (is (= -18446744073709551616 (decode-hex "3bffffffffffffffff"))))
-  #_
-  (testing "bignum"
-    (is (= -18446744073709551617 (decode-hex "c349010000000000000000")))))
+    (is (= -18446744073709551616 (decode-hex "3bffffffffffffffff")))))
 
 
 (deftest floating-point-numbers
@@ -90,7 +84,12 @@
   (is (= (data/simple-value 255) (decode-hex "f8ff"))))
 
 
+#_
 (deftest tagged-values
+  (testing "bignum"
+    (is (=  18446744073709551616 (decode-hex "c249010000000000000000")))
+    (is (= -18446744073709551617 (decode-hex "c349010000000000000000"))))
+
 ;  | 0("2013-03-21T20:04:00Z")    | 0xc074323031332d30332d32315432303a |
 ;  |                              | 30343a30305a                       |
 ;  |                              |                                    |
