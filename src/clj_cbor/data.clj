@@ -39,7 +39,18 @@
 
 (def break
   "Value of the break code."
-  0xFF)
+  0xFF) ; TODO: use an Object singleton?
+
+
+(defn boolean?
+  [x]
+  (or (true? x) (false? x)))
+
+
+(let [byte-array-class (class (byte-array 0))]
+  (defn byte-array?
+    [x]
+    (instance? byte-array-class x)))
 
 
 
@@ -132,21 +143,5 @@
 
 (defn simple-value
   "Constructs a simple type for the given number."
-  [^long n]
-  (case n
-    20 false
-    21 true
-    22 nil
-    23 undefined
-    (SimpleValue. n nil)))
-
-
-(defn boolean?
-  [x]
-  (or (true? x) (false? x)))
-
-
-(let [byte-array-class (class (byte-array 0))]
-  (defn byte-array?
-    [x]
-    (instance? byte-array-class x)))
+  [n]
+  (SimpleValue. n nil))

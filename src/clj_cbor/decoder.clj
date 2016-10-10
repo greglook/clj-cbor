@@ -243,7 +243,8 @@
 
 (defn- read-tagged
   [^DataInputStream input info]
-  ,,,)
+  ; FIXME: implement
+  (throw (RuntimeException. "NYI")))
 
 
 (defn- read-float16
