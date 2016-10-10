@@ -99,12 +99,6 @@
   (Undefined. {:cbor/cause (assoc data :type reason-key)}))
 
 
-(defn undefined?
-  "Predicate which returns true if `x` is a CBOR undefined value."
-  [x]
-  (instance? Undefined x))
-
-
 
 ;; ## Simple Values
 

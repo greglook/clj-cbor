@@ -78,7 +78,7 @@
   (is (false? (decode-hex "f4")))
   (is (true? (decode-hex "f5")))
   (is (nil? (decode-hex "f6")))
-  (is (data/undefined? (decode-hex "f7")))
+  (is (= data/undefined (decode-hex "f7")))
   (is (= (data/simple-value 16) (decode-hex "f0")))
   (is (= (data/simple-value 24) (decode-hex "f818")))
   (is (= (data/simple-value 255) (decode-hex "f8ff"))))
