@@ -258,10 +258,12 @@
     27 (.readDouble input)
     (28 29 30)
       (*error-handler*
-        ::reserved-simple
+        ::reserved-simple-type
         (format "Additional information simple-value code %d is reserved."
                 info))
-    31 ::break
+    31 (*error-handler*
+         ::unexpected-break
+         "Break encountered outside streaming context.")
     (data/simple-value info)))
 
 
