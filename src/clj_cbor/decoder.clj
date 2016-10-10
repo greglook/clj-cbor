@@ -192,7 +192,19 @@
 (defn- read-array
   "Reads an array of items from the input stream."
   [^DataInputStream input info]
-  ,,,)
+  (let [length (read-length input info)]
+    (if (= length :indefinite)
+      ; Read streaming sequence of elements.
+      (read-value-stream
+        input
+        (fn build-array
+          ([] [])
+          ([xs] xs)
+          ([xs v] (conj xs v)))
+        (constantly true)
+        true)
+      ; Read `length` elements.
+      (vec (take length (repeatedly #(read-value input (.readUnsignedByte input))))))))
 
 
 (defn- read-map
