@@ -204,12 +204,41 @@
         (constantly true)
         true)
       ; Read `length` elements.
-      (vec (take length (repeatedly #(read-value input (.readUnsignedByte input))))))))
+      (->>
+        (repeatedly #(read-value input (.readUnsignedByte input)))
+        (take length)
+        (vec)))))
 
 
 (defn- read-map
   [^DataInputStream input info]
-  ,,,)
+  (let [length (read-length input info)]
+    (if (= length :indefinite)
+      ; Read streaming sequence of key/value entries.
+      (read-value-stream
+        input
+        (fn build-map
+          ([] [{}])
+          ([[m k :as state]]
+           (if (= 1 (count state))
+             m
+             (*error-handler*
+               ::missing-map-value
+               (str "Streaming map did not contain a value for key: "
+                    (pr-str k)))))
+          ([[m k :as state] e]
+           (if (= 1 (count state))
+             ; Save key and wait for value.
+             [m e]
+             ; Add completed entry to map.
+             [(assoc m k e)])))
+        (constantly true)
+        true)
+      ; Read `length` entry pairs.
+      (->>
+        (repeatedly #(read-value input (.readUnsignedByte input)))
+        (take (* 2 length))
+        (apply hash-map)))))
 
 
 (defn- read-tagged
