@@ -28,20 +28,16 @@
 
 ;; ## Initial Byte Decoding
 
-(defn- major-type
-  "Determines the major type keyword encoded by the initial byte. §2.1"
+(defn- decode-header
+  "Determines the major type keyword and additional information encoded by the
+  header byte. §2.1"
   [initial-byte]
-  (-> initial-byte
-      (bit-and 0xE0)
-      (bit-shift-right 5)
-      (bit-and 0x07)
-      (data/major-types)))
-
-
-(defn- additional-information
-  "Determines the additional information encoded by the initial byte."
-  [initial-byte]
-  (bit-and initial-byte 0x1F))
+  [(-> initial-byte
+       (bit-and 0xE0)
+       (bit-shift-right 5)
+       (bit-and 0x07)
+       (data/major-types))
+   (bit-and initial-byte 0x1F)])
 
 
 (defn- read-bytes
@@ -114,8 +110,7 @@
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (let [mtype (major-type initial-byte)
-              info (additional-information initial-byte)]
+        (let [[mtype info] (decode-header initial-byte)]
           (cond
             ; Illegal element type.
             (not (valid-type? mtype))
@@ -306,8 +301,7 @@
 (defn- read-value
   "Reads a single CBOR value from the input stream."
   [^DataInputStream input initial-byte]
-  (let [mtype (major-type initial-byte)
-        info (additional-information initial-byte)]
+  (let [[mtype info] (decode-header initial-byte)]
     (case mtype
       :unsigned-integer (read-integer input info)
       :negative-integer (- -1 (read-integer input info))
