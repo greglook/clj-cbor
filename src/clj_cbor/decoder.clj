@@ -104,6 +104,36 @@
 (declare read-value)
 
 
+(defn- read-value-stream
+  "Reads values from the input in a streaming fashion, using the given reducing
+  function and optional type predicate."
+  [^DataInputStream input reducer valid-type? allow-indefinite]
+  (loop [state (reducer)]
+    (let [initial-byte (.readUnsignedByte input)]
+      (if (= initial-byte data/break)
+        ; Break code, finish up result.
+        (reducer state)
+        ; Read next value.
+        (let [mtype (major-type initial-byte)
+              info (additional-information initial-byte)]
+          (cond
+            ; Illegal element type.
+            (not (valid-type? mtype))
+              (*error-handler*
+                ::illegal-chunk
+                (str "Stream may not contain values of type " mtype))
+
+            ; Illegal indefinite-length chunk.
+            (and (= info 31) (not allow-indefinite))
+              (*error-handler*
+                ::definite-length-required
+                "Stream chunks must have a definite length.")
+
+            ; Reduce state with next value.
+            :else
+              (recur (reducer state (read-value input initial-byte)))))))))
+
+
 (defn- read-integer
   "Reads an unsigned integer from the input stream."
   [^DataInputStream input info]
@@ -115,73 +145,26 @@
       value)))
 
 
-(defn- read-byte-chunks
-  "Reads a sequence of byte-string chunks, followed by a break code. §2.2.2"
-  [^DataInputStream input]
-  (let [buffer (ByteArrayOutputStream.)]
-    (loop []
-      (let [initial-byte (.readUnsignedByte input)]
-        (if (= initial-byte data/break)
-          ; Break code.
-          (.toByteArray buffer)
-          ; Read next byte chunk.
-          (let [mtype (major-type initial-byte)
-                info (additional-information initial-byte)]
-            (if (= mtype :byte-string)
-              ; Byte string chunk.
-              (let [length (read-length input info)]
-                (if (= length :indefinite)
-                  ; Illegal indefinite-length chunk.
-                  (*error-handler*
-                    ::definite-length-required
-                    "Streaming byte string chunks must have a definite length.")
-                  ; Append byte chunk to buffer.
-                  (do (.write buffer (read-bytes input length))
-                      (recur))))
-              ; Illegal chunk type.
-              (*error-handler*
-                ::illegal-chunk
-                (str "Streaming byte strings may not contain chunks of type " mtype)))))))))
-
-
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
-      (read-byte-chunks input)
+      (read-value-stream
+        input
+        (fn build-bytes
+          ([]
+           (ByteArrayOutputStream.))
+          ([buffer]
+           (.toByteArray ^ByteArrayOutputStream buffer))
+          ([buffer v]
+           (.write ^ByteArrayOutputStream buffer ^bytes v)
+           buffer))
+        #{:byte-string}
+        false)
       ; Read definite-length byte string.
       (read-bytes input length))))
-
-
-(defn- read-text-chunks
-  "Reads a sequence of text-string chunks, followed by a break code. §2.2.2"
-  [^DataInputStream input]
-  (let [buffer (StringBuilder.)]
-    (loop []
-      (let [initial-byte (.readUnsignedByte input)]
-        (if (= initial-byte data/break)
-          ; Break code.
-          (.toString buffer)
-          ; Read next byte chunk.
-          (let [mtype (major-type initial-byte)
-                info (additional-information initial-byte)]
-            (if (= mtype :text-string)
-              ; Text string chunk.
-              (let [length (read-length input info)]
-                (if (= length :indefinite)
-                  ; Illegal indefinite-length chunk.
-                  (*error-handler*
-                    ::definite-length-required
-                    "Streaming text string chunks must have a definite length.")
-                  ; Append text chunk to buffer.
-                  (do (.append buffer (String. (read-bytes input length) "UTF-8"))
-                      (recur))))
-              ; Illegal chunk type.
-              (*error-handler*
-                ::illegal-chunk
-                (str "Streaming text strings may not contain chunks of type " mtype)))))))))
 
 
 (defn- read-text-string
@@ -190,7 +173,18 @@
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
-      (read-text-chunks input)
+      (read-value-stream
+        input
+        (fn build-text
+          ([]
+           (StringBuilder.))
+          ([buffer]
+           (str buffer))
+          ([buffer v]
+           (.append ^StringBuilder buffer ^String v)
+           buffer))
+        #{:text-string}
+        false)
       ; Read definite-length text string.
       (String. (read-bytes input length) "UTF-8"))))
 
@@ -269,9 +263,8 @@
 
 (defn- read-value
   "Reads a single CBOR value from the input stream."
-  [^DataInputStream input]
-  (let [initial-byte (.readUnsignedByte input)
-        mtype (major-type initial-byte)
+  [^DataInputStream input initial-byte]
+  (let [mtype (major-type initial-byte)
         info (additional-information initial-byte)]
     (case mtype
       :unsigned-integer (read-integer input info)
@@ -287,7 +280,9 @@
 (defn decode-value
   [^InputStream input & {:keys [eof]}]
   (try
-    (read-value (DataInputStream. input))
+    (let [data-input (DataInputStream. input)
+          initial-byte (.readUnsignedByte data-input)]
+      (read-value data-input initial-byte))
     (catch EOFException ex
       ; TODO: use dynamic handler?
       (if (nil? eof)
