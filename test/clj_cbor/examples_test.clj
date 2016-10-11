@@ -8,6 +8,12 @@
     javax.xml.bind.DatatypeConverter))
 
 
+(defn bytes=
+  [expected value]
+  (and (data/bytes? value)
+       (= (seq expected) (seq value))))
+
+
 (defn- decode-hex
   [string]
   (cbor/decode (DatatypeConverter/parseHexBinary string)))
@@ -87,8 +93,8 @@
 #_
 (deftest tagged-values
   (testing "bignum"
-    (is (=  18446744073709551616 (decode-hex "c249010000000000000000")))
-    (is (= -18446744073709551617 (decode-hex "c349010000000000000000"))))
+    (is (=  18446744073709551616N (decode-hex "c249010000000000000000")))
+    (is (= -18446744073709551617N (decode-hex "c349010000000000000000"))))
 
 ;  | 0("2013-03-21T20:04:00Z")    | 0xc074323031332d30332d32315432303a |
 ;  |                              | 30343a30305a                       |
@@ -107,12 +113,9 @@
 
 
 (deftest byte-strings
-  (let [bytes= (fn [expected value]
-                 (and (data/bytes? value)
-                      (= (seq expected) (seq value))))]
-    (is (bytes= [] (decode-hex "40")))
-    (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
-    (is (bytes= [1 2 3 4 5] (decode-hex "5f42010243030405ff")))))
+  (is (bytes= [] (decode-hex "40")))
+  (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
+  (is (bytes= [1 2 3 4 5] (decode-hex "5f42010243030405ff"))))
 
 
 (deftest text-strings
