@@ -119,10 +119,11 @@
   (read-value* decoder input (.readUnsignedByte input)))
 
 
-(defn- read-value-stream
-  "Reads values from the input in a streaming fashion, using the given reducing
-  function and optional type predicate."
-  [decoder ^DataInputStream input outer-type reducer valid-type? allow-indefinite]
+(defn- read-chunks
+  "Reads chunks from the input in a streaming fashion, combining them with the
+  given reducing function. All chunks must have the given major type and
+  definite length."
+  [decoder ^DataInputStream input chunk-type reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
       (if (== header data/break)
@@ -132,20 +133,33 @@
         (let [[mtype info] (decode-header header)]
           (cond
             ; Illegal element type.
-            (not (valid-type? mtype))
+            (not= chunk-type mtype)
               (*error-handler*
                 ::illegal-chunk
-                (str outer-type " stream may not contain values of type " mtype))
+                (str chunk-type " stream may not contain chunks of type " mtype))
 
             ; Illegal indefinite-length chunk.
-            (and (= info 31) (not allow-indefinite))
+            (= info 31)
               (*error-handler*
                 ::definite-length-required
-                (str outer-type " stream elements must have a definite length"))
+                (str chunk-type " stream chunks must have a definite length"))
 
             ; Reduce state with next value.
             :else
               (recur (reducer state (read-value* decoder input header)))))))))
+
+
+(defn- read-value-stream
+  "Reads values from the input in a streaming fashion, combining them with the
+  given reducing function."
+  [decoder ^DataInputStream input reducer]
+  (loop [state (reducer)]
+    (let [header (.readUnsignedByte input)]
+      (if (== header data/break)
+        ; Break code, finish up result.
+        (reducer state)
+        ; Read next value.
+        (recur (reducer state (read-value* decoder input header)))))))
 
 
 
@@ -162,26 +176,45 @@
       value)))
 
 
+(defn- read-negative-integer
+  "Reads a negative integer from the input stream."
+  [decoder input info]
+  (- -1 (read-integer decoder input info)))
+
+
+(defn- concat-bytes
+  "Reducing function which builds a contiguous byte-array from a sequence of
+  byte-array chunks."
+  ([]
+   (ByteArrayOutputStream.))
+  ([buffer]
+   (.toByteArray ^ByteArrayOutputStream buffer))
+  ([buffer v]
+   (.write ^ByteArrayOutputStream buffer ^bytes v)
+   buffer))
+
+
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
   (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
-      (read-value-stream
-        decoder input :byte-string
-        (fn build-bytes
-          ([]
-           (ByteArrayOutputStream.))
-          ([buffer]
-           (.toByteArray ^ByteArrayOutputStream buffer))
-          ([buffer v]
-           (.write ^ByteArrayOutputStream buffer ^bytes v)
-           buffer))
-        #{:byte-string}
-        false)
+      (read-chunks decoder input :byte-string concat-bytes)
       ; Read definite-length byte string.
       (read-bytes input length))))
+
+
+(defn- concat-text
+  "Reducing function which builds a contiguous string from a sequence of string
+  chunks."
+  ([]
+   (StringBuilder.))
+  ([buffer]
+   (str buffer))
+  ([buffer v]
+   (.append ^StringBuilder buffer ^String v)
+   buffer))
 
 
 (defn- read-text-string
@@ -190,20 +223,16 @@
   (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
-      (read-value-stream
-        decoder input :text-string
-        (fn build-text
-          ([]
-           (StringBuilder.))
-          ([buffer]
-           (str buffer))
-          ([buffer v]
-           (.append ^StringBuilder buffer ^String v)
-           buffer))
-        #{:text-string}
-        false)
+      (read-chunks decoder input :text-string concat-text)
       ; Read definite-length text string.
       (String. (read-bytes input length) "UTF-8"))))
+
+
+(defn- build-array
+  "Reducing function which builds a vector to represent a data array."
+  ([] [])
+  ([xs] xs)
+  ([xs v] (conj xs v)))
 
 
 (defn- read-array
@@ -212,14 +241,7 @@
   (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
-      (read-value-stream
-        decoder input :data-array
-        (fn build-array
-          ([] [])
-          ([xs] xs)
-          ([xs v] (conj xs v)))
-        (constantly true)
-        true)
+      (read-value-stream decoder input build-array)
       ; Read `length` elements.
       (->>
         (repeatedly #(read-value decoder input))
@@ -227,35 +249,43 @@
         (vec)))))
 
 
+(defn- build-map
+  "Reducing function which builds a map from a sequence of alternating key and
+  value elements."
+  ([]
+   [{}])
+  ([[m k :as state]]
+   (if (= 1 (count state))
+     m
+     (*error-handler*
+       ::missing-map-value
+       (str "Streaming map did not contain a value for key: "
+            (pr-str k)))))
+  ([[m k :as state] e]
+   (if (= 1 (count state))
+     (if (contains? m e)
+       ; Duplicate key error.
+       (*error-handler*
+         ::duplicate-map-key
+         (str "Streaming map contains duplicate key: "
+              (pr-str e)))
+       ; Save key and wait for value.
+       [m e])
+     ; Add completed entry to map.
+     [(assoc m k e)])))
+
+
 (defn- read-map
   [decoder ^DataInputStream input info]
   (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
-      (read-value-stream
-        decoder input :data-map
-        (fn build-map
-          ([] [{}])
-          ([[m k :as state]]
-           (if (= 1 (count state))
-             m
-             (*error-handler*
-               ::missing-map-value
-               (str "Streaming map did not contain a value for key: "
-                    (pr-str k)))))
-          ([[m k :as state] e]
-           (if (= 1 (count state))
-             ; Save key and wait for value.
-             [m e]
-             ; Add completed entry to map.
-             [(assoc m k e)])))
-        (constantly true)
-        true)
+      (read-value-stream decoder input build-map)
       ; Read `length` entry pairs.
       (->>
         (repeatedly #(read-value decoder input))
         (take (* 2 length))
-        (apply hash-map)))))
+        (transduce identity build-map)))))
 
 
 (defn- read-tagged
@@ -302,7 +332,7 @@
     (let [[mtype info] (decode-header header)]
       (case mtype
         :unsigned-integer (read-integer this input info)
-        :negative-integer (- -1 (read-integer this input info))
+        :negative-integer (read-negative-integer this input info)
         :byte-string      (read-byte-string this input info)
         :text-string      (read-text-string this input info)
         :data-array       (read-array this input info)
