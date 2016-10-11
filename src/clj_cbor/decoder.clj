@@ -96,18 +96,29 @@
 
 
 
-;; ## Major Type Readers
+;; ## Reader Functions
 
-(declare read-value)
+(defprotocol Decoder
+
+  (read-value*
+    [decoder input initial-byte]
+    "Reads a single value from the `DataInputStream`, given the just-read
+    initial byte."))
+
+
+(defn read-value
+  "Reads a single value from the `DataInputStream`."
+  [decoder ^DataInputStream input]
+  (read-value* decoder input (.readUnsignedByte input)))
 
 
 (defn- read-value-stream
   "Reads values from the input in a streaming fashion, using the given reducing
   function and optional type predicate."
-  [^DataInputStream input outer-type reducer valid-type? allow-indefinite opts]
+  [decoder ^DataInputStream input outer-type reducer valid-type? allow-indefinite]
   (loop [state (reducer)]
     (let [initial-byte (.readUnsignedByte input)]
-      (if (= initial-byte data/break)
+      (if (== initial-byte data/break)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -127,12 +138,15 @@
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (read-value input initial-byte opts)))))))))
+              (recur (reducer state (read-value* decoder input initial-byte)))))))))
 
+
+
+;; ## Major Types
 
 (defn- read-integer
   "Reads an unsigned integer from the input stream."
-  [^DataInputStream input info]
+  [_ ^DataInputStream input info]
   (let [value (read-length input info)]
     (if (= :indefinite value)
       (*error-handler*
@@ -143,12 +157,12 @@
 
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
-  [^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
       (read-value-stream
-        input :byte-string
+        decoder input :byte-string
         (fn build-bytes
           ([]
            (ByteArrayOutputStream.))
@@ -165,12 +179,12 @@
 
 (defn- read-text-string
   "Reads a sequence of bytes from the input stream."
-  [^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
       (read-value-stream
-        input :text-string
+        decoder input :text-string
         (fn build-text
           ([]
            (StringBuilder.))
@@ -187,12 +201,12 @@
 
 (defn- read-array
   "Reads an array of items from the input stream."
-  [^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
       (read-value-stream
-        input :data-array
+        decoder input :data-array
         (fn build-array
           ([] [])
           ([xs] xs)
@@ -201,18 +215,18 @@
         true)
       ; Read `length` elements.
       (->>
-        (repeatedly #(read-value input (.readUnsignedByte input)))
+        (repeatedly #(read-value decoder input))
         (take length)
         (vec)))))
 
 
 (defn- read-map
-  [^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (let [length (read-length input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
       (read-value-stream
-        input :data-map
+        decoder input :data-map
         (fn build-map
           ([] [{}])
           ([[m k :as state]]
@@ -232,20 +246,20 @@
         true)
       ; Read `length` entry pairs.
       (->>
-        (repeatedly #(read-value input (.readUnsignedByte input)))
+        (repeatedly #(read-value decoder input))
         (take (* 2 length))
         (apply hash-map)))))
 
 
 (defn- read-tagged
-  [^DataInputStream input info opts]
+  [decoder ^DataInputStream input info]
   ; FIXME: implement
   (throw (RuntimeException. "NYI")))
 
 
 (defn- read-simple
   "Reads a simple value from the input."
-  [^DataInputStream input info]
+  [_ ^DataInputStream input info]
   (case info
     20 false
     21 true
@@ -266,28 +280,32 @@
     (data/simple-value info)))
 
 
-(defn- read-value
-  "Reads a single CBOR value from the input stream."
-  [^DataInputStream input initial-byte opts]
-  (let [[mtype info] (decode-header initial-byte)]
-    (case mtype
-      :unsigned-integer (read-integer input info)
-      :negative-integer (- -1 (read-integer input info))
-      :byte-string      (read-byte-string input info)
-      :text-string      (read-text-string input info)
-      :data-array       (read-array input info)
-      :data-map         (read-map input info)
-      :tagged-value     (read-tagged input info opts)
-      :simple-value     (read-simple input info))))
+(defrecord CBORDecoder
+  []
+
+  Decoder
+
+  (read-value*
+    [this input initial-byte]
+    (let [[mtype info] (decode-header initial-byte)]
+      (case mtype
+        :unsigned-integer (read-integer this input info)
+        :negative-integer (- -1 (read-integer this input info))
+        :byte-string      (read-byte-string this input info)
+        :text-string      (read-text-string this input info)
+        :data-array       (read-array this input info)
+        :data-map         (read-map this input info)
+        :tagged-value     (read-tagged this input info)
+        :simple-value     (read-simple this input info)))))
 
 
 (defn decode-value
   "Reads a single CBOR-encoded value from the input stream."
-  [^InputStream input & {:keys [eof] :as opts}]
+  [^InputStream input & {:keys [eof]}]
   (try
     (let [data-input (DataInputStream. input)
-          initial-byte (.readUnsignedByte data-input)]
-      (read-value data-input initial-byte opts))
+          decoder (map->CBORDecoder {})]
+      (read-value decoder data-input))
     (catch EOFException ex
       ; TODO: use dynamic handler?
       (if (nil? eof)
