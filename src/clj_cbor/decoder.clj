@@ -32,13 +32,13 @@
 (defn- decode-header
   "Determines the major type keyword and additional information encoded by the
   header byte. §2.1"
-  [initial-byte]
-  [(-> initial-byte
+  [header]
+  [(-> header
        (bit-and 0xE0)
        (bit-shift-right 5)
        (bit-and 0x07)
        (data/major-types))
-   (bit-and initial-byte 0x1F)])
+   (bit-and header 0x1F)])
 
 
 (defn- read-bytes
@@ -100,7 +100,7 @@
 (defprotocol Decoder
 
   (read-value*
-    [decoder input initial-byte]
+    [decoder input header]
     "Reads a single value from the `DataInputStream`, given the just-read
     initial byte.")
 
@@ -120,12 +120,12 @@
   function and optional type predicate."
   [decoder ^DataInputStream input outer-type reducer valid-type? allow-indefinite]
   (loop [state (reducer)]
-    (let [initial-byte (.readUnsignedByte input)]
-      (if (== initial-byte data/break)
+    (let [header (.readUnsignedByte input)]
+      (if (== header data/break)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (let [[mtype info] (decode-header initial-byte)]
+        (let [[mtype info] (decode-header header)]
           (cond
             ; Illegal element type.
             (not (valid-type? mtype))
@@ -141,7 +141,7 @@
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (read-value* decoder input initial-byte)))))))))
+              (recur (reducer state (read-value* decoder input header)))))))))
 
 
 
@@ -285,14 +285,16 @@
     (data/simple-value info)))
 
 
+;; ## Decoder Implementations
+
 (defrecord ValueDecoder
   []
 
   Decoder
 
   (read-value*
-    [this input initial-byte]
-    (let [[mtype info] (decode-header initial-byte)]
+    [this input header]
+    (let [[mtype info] (decode-header header)]
       (case mtype
         :unsigned-integer (read-integer this input info)
         :negative-integer (- -1 (read-integer this input info))

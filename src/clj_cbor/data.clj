@@ -37,7 +37,7 @@
    :break             31})
 
 
-(def break
+(def ^:const break
   "Value of the break code."
   0xFF)
 
