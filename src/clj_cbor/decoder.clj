@@ -102,7 +102,11 @@
   (read-value*
     [decoder input initial-byte]
     "Reads a single value from the `DataInputStream`, given the just-read
-    initial byte."))
+    initial byte.")
+
+  (unknown-tag
+    [decoder tag value]
+    "Return a representation for an unknown tagged value."))
 
 
 (defn read-value
@@ -252,8 +256,10 @@
 
 (defn- read-tagged
   [decoder ^DataInputStream input info]
-  ; FIXME: implement
-  (throw (RuntimeException. "NYI")))
+  (let [tag (read-int input info)
+        value (read-value decoder input)
+        handler (get-in decoder [:tag-handlers tag] unknown-tag)]
+    (handler decoder tag value)))
 
 
 (defn- read-simple
@@ -295,7 +301,12 @@
         :data-array       (read-array this input info)
         :data-map         (read-map this input info)
         :tagged-value     (read-tagged this input info)
-        :simple-value     (read-simple this input info)))))
+        :simple-value     (read-simple this input info))))
+
+  (unknown-tag
+    [this tag value]
+    (prn :unknown-tag tag value)
+    nil))
 
 
 (defn decode-value
