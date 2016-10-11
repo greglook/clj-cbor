@@ -59,15 +59,14 @@
     (if (neg? value)
       ; Overflow, promote to BigInt.
       (->>
-        (byte-array
-          [(bit-and 0xFF (bit-shift-right value  0))
-           (bit-and 0xFF (bit-shift-right value  8))
-           (bit-and 0xFF (bit-shift-right value 16))
-           (bit-and 0xFF (bit-shift-right value 24))
-           (bit-and 0xFF (bit-shift-right value 32))
-           (bit-and 0xFF (bit-shift-right value 40))
-           (bit-and 0xFF (bit-shift-right value 48))
-           (bit-and 0xFF (bit-shift-right value 56))])
+        [(bit-and 0xFF (bit-shift-right value  0))
+         (bit-and 0xFF (bit-shift-right value  8))
+         (bit-and 0xFF (bit-shift-right value 16))
+         (bit-and 0xFF (bit-shift-right value 24))
+         (bit-and 0xFF (bit-shift-right value 32))
+         (bit-and 0xFF (bit-shift-right value 40))
+         (bit-and 0xFF (bit-shift-right value 48))
+         (bit-and 0xFF (bit-shift-right value 56))]
         (byte-array)
         (java.math.BigInteger. 1)
         (bigint))
@@ -75,7 +74,7 @@
       value)))
 
 
-(defn- read-length
+(defn- read-int
   "Reads a size integer from the initial bytes of the input stream."
   [^DataInputStream input info]
   (if (< info 24)
@@ -90,7 +89,7 @@
       (28 29 30)
         (*error-handler*
           ::reserved-length
-          (format "Additional information length code %d is reserved."
+          (format "Additional information int code %d is reserved."
                   info))
       31 :indefinite)))
 
@@ -147,7 +146,7 @@
 (defn- read-integer
   "Reads an unsigned integer from the input stream."
   [_ ^DataInputStream input info]
-  (let [value (read-length input info)]
+  (let [value (read-int input info)]
     (if (= :indefinite value)
       (*error-handler*
         ::definite-length-required
@@ -158,7 +157,7 @@
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-length input info)]
+  (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
       (read-value-stream
@@ -180,7 +179,7 @@
 (defn- read-text-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-length input info)]
+  (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
       (read-value-stream
@@ -202,7 +201,7 @@
 (defn- read-array
   "Reads an array of items from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-length input info)]
+  (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
       (read-value-stream
@@ -222,7 +221,7 @@
 
 (defn- read-map
   [decoder ^DataInputStream input info]
-  (let [length (read-length input info)]
+  (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
       (read-value-stream
@@ -280,7 +279,7 @@
     (data/simple-value info)))
 
 
-(defrecord CBORDecoder
+(defrecord ValueDecoder
   []
 
   Decoder
@@ -304,10 +303,15 @@
   [^InputStream input & {:keys [eof]}]
   (try
     (let [data-input (DataInputStream. input)
-          decoder (map->CBORDecoder {})]
+          decoder (map->ValueDecoder {})]
       (read-value decoder data-input))
     (catch EOFException ex
       ; TODO: use dynamic handler?
       (if (nil? eof)
         (throw ex)
         eof))))
+
+
+;; Ideas:
+;; - StrictDecoder
+;; - AnalyzingDecoder
