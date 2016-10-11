@@ -2,7 +2,10 @@
   (:require
     [arrangement.core :as order]
     [clj-cbor.data :as data :refer [boolean? bytes?]]
-    [clojure.string :as str]))
+    [clojure.string :as str])
+  (:import
+    (java.io
+      DataOutputStream)))
 
 
 (defprotocol Encoder
@@ -53,67 +56,65 @@
   ; Primitive Types
 
   (encode-nil
-    [this ^DataOutputStream out]
-    (.writeByte out 2r11110110)
+    [this out]
+    (.writeByte ^DataOutputStream out 2r11110110)
     1)
 
   (encode-boolean
-    [this ^DataOutputStream out x]
-    (if x
-      (.writeByte out 2r11110101)
-      (.writeByte out 2r11110100))
+    [this out x]
+    (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
     1)
 
   (encode-bytes
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-string
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-symbol
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-keyword
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-number
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   ; Collection Types
 
   (encode-seq
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-vector
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-set
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-map
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   ; Special Types
 
   (encode-record
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-tagged
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,)
 
   (encode-unknown
-    [this ^DataOutputStream out x]
+    [this out x]
     ,,,))
 
 
