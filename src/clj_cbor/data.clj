@@ -43,12 +43,14 @@
 
 
 (defn boolean?
+  "Predicate which returns true if `x` is a boolean value."
   [x]
   (or (true? x) (false? x)))
 
 
 (let [byte-array-class (class (byte-array 0))]
   (defn bytes?
+    "Predicate which returns true if `x` is a byte-array."
     [x]
     (instance? byte-array-class x)))
 
