@@ -9,4 +9,10 @@
 
   :dependencies
   [[org.clojure/clojure "1.8.0"]
-   [mvxcvi/arrangement "1.1.0"]])
+   [mvxcvi/arrangement "1.1.0"]]
+
+  :codox
+  {:metadata {:doc/format :markdown}
+   :source-uri "https://github.com/greglook/clj-cbor/blob/master/{filepath}#L{line}"
+   :doc-paths ["doc/extra"]
+   :output-path "doc/api"})
