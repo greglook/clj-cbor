@@ -108,7 +108,7 @@
 
 (deftest byte-strings
   (let [bytes= (fn [expected value]
-                 (and (data/byte-array? value)
+                 (and (data/bytes? value)
                       (= (seq expected) (seq value))))]
     (is (bytes= [] (decode-hex "40")))
     (is (bytes= [1 2 3 4] (decode-hex "4401020304")))

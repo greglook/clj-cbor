@@ -39,7 +39,7 @@
 
 (def break
   "Value of the break code."
-  0xFF) ; TODO: use an Object singleton?
+  0xFF)
 
 
 (defn boolean?
@@ -48,7 +48,7 @@
 
 
 (let [byte-array-class (class (byte-array 0))]
-  (defn byte-array?
+  (defn bytes?
     [x]
     (instance? byte-array-class x)))
 
