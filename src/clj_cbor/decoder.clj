@@ -106,7 +106,11 @@
 
   (unknown-tag
     [decoder tag value]
-    "Return a representation for an unknown tagged value."))
+    "Return a representation for an unknown tagged value.")
+
+  (unknown-simple
+    [decoder value]
+    "Return a representation for an unknown simple value."))
 
 
 (defn read-value
@@ -264,7 +268,7 @@
 
 (defn- read-simple
   "Reads a simple value from the input."
-  [_ ^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (case info
     20 false
     21 true
@@ -282,7 +286,8 @@
     31 (*error-handler*
          ::unexpected-break
          "Break encountered outside streaming context.")
-    (data/simple-value info)))
+    (unknown-simple decoder info)))
+
 
 
 ;; ## Decoder Implementations
@@ -308,7 +313,11 @@
   (unknown-tag
     [this tag value]
     (prn :unknown-tag tag value)
-    nil))
+    nil)
+
+  (unknown-simple
+    [this value]
+    (data/simple-value value)))
 
 
 (defn decode-value
