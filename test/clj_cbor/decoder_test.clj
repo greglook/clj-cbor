@@ -1,5 +1,5 @@
-(ns clj-cbor.examples-test
-  "Test examples from RFC 7049 Appendix A."
+(ns clj-cbor.decoder-test
+  "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]

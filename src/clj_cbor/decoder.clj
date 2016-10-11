@@ -11,6 +11,31 @@
       InputStream)))
 
 
+;; ## Decoder Protocol
+
+(defprotocol Decoder
+
+  (read-value*
+    [decoder input header]
+    "Reads a single value from the `DataInputStream`, given the just-read
+    initial byte.")
+
+  (unknown-tag
+    [decoder tag value]
+    "Return a representation for an unknown tagged value.")
+
+  (unknown-simple
+    [decoder value]
+    "Return a representation for an unknown simple value."))
+
+
+(defn read-value
+  "Reads a single value from the `DataInputStream`."
+  [decoder ^DataInputStream input]
+  (read-value* decoder input (.readUnsignedByte input)))
+
+
+
 ;; ## Error Handling
 
 (defn decoder-exception!
@@ -22,7 +47,7 @@
 
 (def ^:dynamic *error-handler*
   "Dynamic error handler which can be bound to a function which will be called
-  with a type keyword, a message, and an optional map of extra data."
+  with a type keyword and a message."
   decoder-exception!)
 
 
@@ -76,7 +101,7 @@
 
 (defn- read-int
   "Reads a size integer from the initial bytes of the input stream."
-  [^DataInputStream input info]
+  [^DataInputStream input ^long info]
   (if (< info 24)
     ; Info codes less than 24 directly represent the number.
     info
@@ -96,28 +121,6 @@
 
 
 ;; ## Reader Functions
-
-(defprotocol Decoder
-
-  (read-value*
-    [decoder input header]
-    "Reads a single value from the `DataInputStream`, given the just-read
-    initial byte.")
-
-  (unknown-tag
-    [decoder tag value]
-    "Return a representation for an unknown tagged value.")
-
-  (unknown-simple
-    [decoder value]
-    "Return a representation for an unknown simple value."))
-
-
-(defn read-value
-  "Reads a single value from the `DataInputStream`."
-  [decoder ^DataInputStream input]
-  (read-value* decoder input (.readUnsignedByte input)))
-
 
 (defn- read-chunks
   "Reads chunks from the input in a streaming fashion, combining them with the
@@ -298,7 +301,7 @@
 
 (defn- read-simple
   "Reads a simple value from the input."
-  [decoder ^DataInputStream input info]
+  [decoder ^DataInputStream input ^long info]
   (case info
     20 false
     21 true
