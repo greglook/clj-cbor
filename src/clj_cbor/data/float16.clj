@@ -69,7 +69,7 @@
       (< value 0x33000000)
         sign
 
-      ; Fix subnormal value.
+      ; Encode subnormal value.
       :else
         (let [exp (unsigned-bit-shift-right (bit-and fbits 0x7fffffff) 23)]
           (bit-or sign
