@@ -2,6 +2,7 @@
   (:require
     [arrangement.core :as order]
     [clj-cbor.data :as data :refer [boolean? bytes?]]
+    [clj-cbor.data.float16 :as float16]
     [clojure.string :as str])
   (:import
     (java.io
@@ -10,6 +11,15 @@
 
 ;; ## Encoder Protocol
 
+(defprotocol Encoder
+  "Protocol for a data structure visitor which encodes CBOR."
+
+  (encode-value*
+    [encoder out x]
+    "Writes the given value `x` to the `DataOutputStream`."))
+
+
+#_
 (defprotocol Encoder
   "Protocol for a data structure visitor pattern."
 
@@ -30,6 +40,7 @@
   (encode-unknown [this out x]))
 
 
+#_
 (defn- encode-value*
   "Visits values in data structures."
   [encoder out x]
@@ -37,7 +48,7 @@
     (nil? x)     (encode-nil encoder out)
     (boolean? x) (encode-boolean encoder out x)
     (bytes? x)   (encode-bytes encoder out x)
-    ; TODO: check for undefined and simple special types
+    (char? x)    (encode-string encoder out (str x))
     (string? x)  (encode-string encoder out x)
     (symbol? x)  (encode-symbol encoder out x)
     (keyword? x) (encode-keyword encoder out x)
@@ -47,8 +58,14 @@
     (record? x)  (encode-record encoder out x)
     (map? x)     (encode-map encoder out x)
     (set? x)     (encode-set encoder out x)
-    (tagged-literal? x) (encode-tagged encoder out x)
-    :else        (encode-unknown encoder out x)))
+    (= data/undefined x)
+      (encode-undefined encoder out x)
+    (data/simple-value? x)
+      (encode-simple encoder out x)
+    (data/tagged-value? x)
+      (encode-tagged encoder out x)
+    :else
+      (encode-unknown encoder out x)))
 
 
 
@@ -70,19 +87,72 @@
 
 ;; ## Writer Functions
 
-(defn- write-header
-  "Writes a header byte for the given major-type and additional info numbers."
-  [^DataOutputStream out mtype-code info]
-  (.writeByte out (bit-or
-                    (bit-shift-left (bit-and mtype-code 0x07) 5)
-                    (bit-and info 0x1F)))
-  1)
+(let [mtype-codes (zipmap data/major-types (range))]
+  (defn- write-header
+    "Writes a header byte for the given major-type and additional info numbers."
+    [^DataOutputStream out mtype info]
+    (let [header (-> (bit-and (mtype-codes mtype) 0x07)
+                     (bit-shift-left 5)
+                     (bit-or (bit-and info 0x1F)))]
+      (.writeByte out header))
+    1))
 
 
-(defn- write-break
-  "Writes a 'break' simple value to the output."
-  [^DataOutputStream out]
-  (.writeByte out data/break)
+(defn- write-int
+  "Writes a header byte for the given major-type, plus extra bytes to encode
+  the given integer value. Always writes the smallest possible representation."
+  [^DataOutputStream out mtype i]
+  (cond
+    (<= 0 i 23)
+      (do (write-header out mtype i)
+          1)
+    (<= 24 i 255)
+      (do (write-header out mtype 24)
+          (.writeByte out i)
+          2)
+    (<= 256 i 65535)
+      (do (write-header out mtype 25)
+          (.writeShort out i)
+          3)
+    (<= 65535 i 4294967295)
+      (do (write-header out mtype 26)
+          (.writeInt out i)
+          5)
+    :else
+      (do (write-header out mtype 27)
+          (.writeLong out i) ; FIXME: may underflow?
+          9)))
+
+
+
+;; ## Major Type Encoding
+
+(defn- write-positive-integer
+  "Writes a positive integer value."
+  [^DataOutputStream out n]
+  (write-int out :unsigned-integer n))
+
+
+(defn- write-negative-integer
+  "Writes a negative integer value."
+  [^DataOutputStream out n]
+  (write-int out :negative-integer (- -1 n)))
+
+
+(defn- write-byte-string
+  [^DataOutputStream out bs]
+  ,,,)
+
+
+(defn- write-text-string
+  [^DataOutputStream out ts]
+  ,,,)
+
+
+(defn- write-boolean
+  "Writes a boolean simple value to the output."
+  [^DataOutputStream out x]
+  (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
   1)
 
 
@@ -100,11 +170,41 @@
   1)
 
 
-(defn- write-boolean
-  "Writes a boolean simple value to the output."
-  [^DataOutputStream out x]
-  (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
+(defn- write-break
+  "Writes a 'break' simple value to the output."
+  [^DataOutputStream out]
+  (.writeByte out data/break)
   1)
+
+
+(defn- write-float
+  "Writes a floating-point value to the output. Special values zero, NaN, and
+  +/- Infinity are represented as 16-bit numbers, otherwise the encoding is
+  determined by class."
+  [^DataOutputStream out n]
+  (cond
+    (zero? n)
+      (do (write-header out :simple-value 25)
+          (.writeShort out float16/zero)
+          3)
+    (Float/isNaN n)
+      (do (write-header out :simple-value 25)
+          (.writeShort out float16/not-a-number)
+          3)
+    (Float/isInfinite n)
+      (do (write-header out :simple-value 25)
+          (.writeShort out (if (pos? n)
+                             float16/positive-infinity
+                             float16/negative-infinity))
+          3)
+    (instance? Float n)
+      (do (write-header out :simple-value 26)
+          (.writeFloat out (float n))
+          5)
+    :else
+      (do (write-header out :simple-value 27)
+          (.writeDouble out (double n))
+          9)))
 
 
 (defn- write-simple
@@ -113,9 +213,9 @@
   [^DataOutputStream out ^long n]
   (cond
     (<= 0 n 23)
-      (write-header out 7 n)
+      (write-header out :simple-value n)
     (<= 32 n 255)
-      (do (write-header out 7 24)
+      (do (write-header out :simple-value 24)
           (.writeByte out n)
           2)
     :else
@@ -124,11 +224,19 @@
         (str "Illegal or reserved simple value: " n))))
 
 
-; TODO: write-float
+(defn- write-array
+  [encoder ^DataOutputStream out xs]
+  ,,,)
 
 
+(defn- write-map
+  [encoder ^DataOutputStream out kvs]
+  ,,,)
 
 
+(defn- write-tagged
+  [encoder ^DataOutputStream out tv]
+  ,,,)
 
 
 
@@ -139,66 +247,28 @@
 
   Encoder
 
-  ; Primitive Types
-
-  (encode-nil
-    [this out]
-    (.writeByte ^DataOutputStream out 2r11110110)
-    1)
-
-  (encode-boolean
+  (encode-value*
     [this out x]
-    (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
-    1)
-
-  (encode-bytes
-    [this out x]
-    ,,,)
-
-  (encode-string
-    [this out x]
-    ,,,)
-
-  (encode-symbol
-    [this out x]
-    ,,,)
-
-  (encode-keyword
-    [this out x]
-    ,,,)
-
-  (encode-number
-    [this out x]
-    ,,,)
-
-  ; Collection Types
-
-  (encode-seq
-    [this out x]
-    ,,,)
-
-  (encode-vector
-    [this out x]
-    ,,,)
-
-  (encode-set
-    [this out x]
-    ,,,)
-
-  (encode-map
-    [this out x]
-    ,,,)
-
-  ; Special Types
-
-  (encode-record
-    [this out x]
-    ,,,)
-
-  (encode-tagged
-    [this out x]
-    ,,,)
-
-  (encode-unknown
-    [this out x]
-    ,,,))
+    (cond
+      (nil? x)     (write-null out)
+      (boolean? x) (write-boolean out x)
+      (bytes? x)   (write-byte-string out x)
+      (char? x)    (write-text-string out (str x))
+      (string? x)  (write-text-string out x)
+      ;(symbol? x)  (encode-symbol this out x)
+      ;(keyword? x) (encode-keyword this out x)
+      (integer? x) (if (neg? x)
+                     (write-negative-integer out x)
+                     (write-positive-integer out x))
+      (float? x)   (write-float out x)
+      ;(number? x)  (encode-number this out x)
+      (seq? x)     (write-array this out x)
+      (vector? x)  (write-array this out x)
+      ;(record? x)  (encode-record this out x)
+      (map? x)     (write-map this out x)
+      ;(set? x)     (encode-set this out x)
+      (= data/undefined x) (write-undefined out)
+      (data/simple-value? x) (write-simple out x)
+      (data/tagged-value? x) (write-tagged this out x)
+      :else ; TODO: better unknown type handling
+        (write-undefined out))))

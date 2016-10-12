@@ -16,6 +16,8 @@ A few things to keep in mind while using the library:
   values are promoted to single-precision (32-bit) as the JVM does not have
   native support for them. There is currently no support for writing
   half-precision floats.
+- CBOR does not have a type for bare characters, so they will be converted to
+  single-character strings when written.
 
 ## License
 

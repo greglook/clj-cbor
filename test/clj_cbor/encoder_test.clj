@@ -1,9 +1,10 @@
-(ns clj-cbor.decoder-test
+(ns clj-cbor.encoder-test
   "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
-    [clj-cbor.data :as data])
+    [clj-cbor.data :as data]
+    [clj-cbor.encoder :as encoder])
   (:import
     javax.xml.bind.DatatypeConverter))
 
@@ -14,9 +15,29 @@
        (= (seq expected) (seq value))))
 
 
-(defn- encode-hex
-  [string]
-  (cbor/decode (DatatypeConverter/parseHexBinary string)))
+(defn- encoded-hex
+  [value]
+  (let [buffer (java.io.ByteArrayOutputStream.)
+        data-out (java.io.DataOutputStream. buffer)
+        encoder (encoder/map->ValueEncoder {})]
+    (encoder/encode-value* encoder data-out value)
+    (DatatypeConverter/printHexBinary (.toByteArray buffer))))
 
 
-; ...
+(deftest unsigned-integers
+  (testing "direct values"
+    (is (= "00" (encoded-hex 0)))
+    (is (= "01" (encoded-hex 1)))
+    (is (= "0A" (encoded-hex 10)))
+    (is (= "17" (encoded-hex 23))))
+  (testing "uint8"
+    (is (= "1818" (encoded-hex 24)))
+    (is (= "1819" (encoded-hex 25)))
+    (is (= "1864" (encoded-hex 100))))
+  (testing "uint16"
+    (is (= "1903E8" (encoded-hex 1000))))
+  (testing "uint32"
+    (is (= "1A000F4240" (encoded-hex 1000000))))
+  (testing "uint64"
+    (is (= "1B000000E8D4A51000" (encoded-hex 1000000000000)))
+    (is (= "1BFFFFFFFFFFFFFFFF" (encoded-hex 18446744073709551615N)))))
