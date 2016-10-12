@@ -140,4 +140,60 @@
 (defn simple-value
   "Constructs a simple type for the given number."
   [n]
+  ; TODO: check for reserved simple value codes
   (SimpleValue. n nil))
+
+
+(defn simple-value?
+  "Predicate which tests whether `x` is a simple CBOR value."
+  [x]
+  (instance? SimpleValue x))
+
+
+
+;; ## Tagged Values
+
+(deftype TaggedValue
+  [^long n value _meta]
+
+  Object
+
+  (toString
+    [this]
+    (str n "(" value ")"))
+
+  (equals
+    [this that]
+    (boolean (or (identical? this that)
+                 (and (instance? TaggedValue that)
+                      (= n (.n ^TaggedValue that))
+                      (= value (.value ^TaggedValue that))))))
+
+  (hashCode
+    [this]
+    (hash [(class this) n value]))
+
+
+  clojure.lang.IObj
+
+  (meta [this] _meta)
+
+  (withMeta
+    [this meta-map]
+    (TaggedValue. n value meta-map)))
+
+
+; Remove automatic constructor function.
+(ns-unmap *ns* '->TaggedValue)
+
+
+(defn tagged-value
+  "Constructs a tagged value."
+  [n value]
+  (TaggedValue. n value nil))
+
+
+(defn tagged-value?
+  "Predicate which tests whether `x` is a CBOR tagged value."
+  [x]
+  (instance? TaggedValue x))
