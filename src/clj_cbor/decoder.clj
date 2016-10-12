@@ -52,7 +52,7 @@
 
 
 
-;; ## Initial Byte Decoding
+;; ## Reader Functions
 
 (defn- decode-header
   "Determines the major type keyword and additional information encoded by the
@@ -119,9 +119,6 @@
       31 :indefinite)))
 
 
-
-;; ## Reader Functions
-
 (defn- read-chunks
   "Reads chunks from the input in a streaming fashion, combining them with the
   given reducing function. All chunks must have the given major type and
@@ -168,7 +165,7 @@
 
 ;; ## Major Types
 
-(defn- read-integer
+(defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
   [_ ^DataInputStream input info]
   (let [value (read-int input info)]
@@ -182,7 +179,7 @@
 (defn- read-negative-integer
   "Reads a negative integer from the input stream."
   [decoder input info]
-  (- -1 (read-integer decoder input info)))
+  (- -1 (read-positive-integer decoder input info)))
 
 
 (defn- concat-bytes
@@ -334,7 +331,7 @@
     [this input header]
     (let [[mtype info] (decode-header header)]
       (case mtype
-        :unsigned-integer (read-integer this input info)
+        :unsigned-integer (read-positive-integer this input info)
         :negative-integer (read-negative-integer this input info)
         :byte-string      (read-byte-string this input info)
         :text-string      (read-text-string this input info)
