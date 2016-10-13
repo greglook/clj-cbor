@@ -103,24 +103,36 @@
   the given integer value. Always writes the smallest possible representation."
   [^DataOutputStream out mtype i]
   (cond
-    (<= 0 i 23)
+    (neg? i)
+      (*error-handler*
+        ::negative-int-code
+        (str "Cannot write negative integer code: " i))
+    (<= i 23)
       (do (write-header out mtype i)
           1)
-    (<= 24 i 255)
+    (<= i 0xFF)
       (do (write-header out mtype 24)
           (.writeByte out i)
           2)
-    (<= 256 i 65535)
+    (<= i 0xFFFF)
       (do (write-header out mtype 25)
           (.writeShort out i)
           3)
-    (<= 65535 i 4294967295)
+    (<= i Integer/MAX_VALUE)
       (do (write-header out mtype 26)
           (.writeInt out i)
           5)
+    (<= i 0xFFFFFFFF)
+      (do (write-header out mtype 26)
+          (.writeInt out (+ Integer/MIN_VALUE (- (dec i) Integer/MAX_VALUE)))
+          5)
+    (<= i Long/MAX_VALUE)
+      (do (write-header out mtype 27)
+          (.writeLong out i)
+          9)
     :else
       (do (write-header out mtype 27)
-          (.writeLong out i) ; FIXME: may underflow?
+          (.writeLong out (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))
           9)))
 
 
