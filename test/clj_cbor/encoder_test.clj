@@ -47,3 +47,25 @@
     (is (= "1B0000000100000000" (encoded-hex 4294967296)))
     (is (= "1B000000E8D4A51000" (encoded-hex 1000000000000)))
     (is (= "1BFFFFFFFFFFFFFFFF" (encoded-hex 18446744073709551615N)))))
+
+
+(deftest negative-integers
+  (testing "direct values"
+    (is (= "20" (encoded-hex -1)))
+    (is (= "29" (encoded-hex -10)))
+    (is (= "37" (encoded-hex -24))))
+  (testing "int8"
+    (is (= "3818" (encoded-hex -25)))
+    (is (= "3863" (encoded-hex -100)))
+    (is (= "38FF" (encoded-hex -256))))
+  (testing "int16"
+    (is (= "390100" (encoded-hex -257)))
+    (is (= "3903E7" (encoded-hex -1000)))
+    (is (= "39FFFF" (encoded-hex -65536))))
+  (testing "int32"
+    (is (= "3A00010000" (encoded-hex -65537)))
+    (is (= "3A000F423F" (encoded-hex -1000000)))
+    (is (= "3AFFFFFFFF" (encoded-hex -4294967296))))
+  (testing "int64"
+    (is (= "3B0000000100000000" (encoded-hex -4294967297)))
+    (is (= "3BFFFFFFFFFFFFFFFF" (encoded-hex -18446744073709551616)))))

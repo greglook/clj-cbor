@@ -47,11 +47,22 @@
 (deftest negative-integers
   (testing "direct values"
     (is (= -1 (decode-hex "20")))
-    (is (= -10 (decode-hex "29"))))
+    (is (= -10 (decode-hex "29")))
+    (is (= -24 (decode-hex "37"))))
   (testing "int8"
+    (is (= -25 (decode-hex "3818")))
     (is (= -100 (decode-hex "3863")))
-    (is (= -1000 (decode-hex "3903E7"))))
+    (is (= -256 (decode-hex "38FF"))))
+  (testing "int16"
+    (is (= -257 (decode-hex "390100")))
+    (is (= -1000 (decode-hex "3903E7")))
+    (is (= -65536 (decode-hex "39FFFF"))))
+  (testing "int32"
+    (is (= -65537 (decode-hex "3A00010000")))
+    (is (= -1000000 (decode-hex "3A000F423F")))
+    (is (= -4294967296 (decode-hex "3AFFFFFFFF"))))
   (testing "int64"
+    (is (= -4294967297 (decode-hex "3B0000000100000000")))
     (is (= -18446744073709551616 (decode-hex "3BFFFFFFFFFFFFFFFF")))))
 
 
