@@ -69,3 +69,19 @@
   (testing "int64"
     (is (= "3B0000000100000000" (encoded-hex -4294967297)))
     (is (= "3BFFFFFFFFFFFFFFFF" (encoded-hex -18446744073709551616)))))
+
+
+(deftest floating-point-numbers
+  (testing "special values"
+    (is (= "F90000" (encoded-hex 0.0)))
+    (is (= "F90000" (encoded-hex -0.0)))
+    (is (= "F97E00" (encoded-hex Float/NaN)))
+    (is (= "F97C00" (encoded-hex Float/POSITIVE_INFINITY)))
+    (is (= "F9FC00" (encoded-hex Float/NEGATIVE_INFINITY))))
+  (testing "single-precision"
+    (is (= "FA47C35000" (encoded-hex (float 100000.0))))
+    (is (= "FA7F7FFFFF" (encoded-hex (float 3.4028234663852886e+38)))))
+  (testing "double-precision"
+    (is (= "FB3FF199999999999A" (encoded-hex 1.1)))
+    ;(is (= "FB7E37E43C8800759C" (encoded-hex 1.0e+300)))
+    (is (= "FBC010666666666666" (encoded-hex -4.1)))))
