@@ -28,14 +28,20 @@
   (testing "uint8"
     (is (= 24 (decode-hex "1818")))
     (is (= 25 (decode-hex "1819")))
-    (is (= 100 (decode-hex "1864"))))
+    (is (= 100 (decode-hex "1864")))
+    (is (= 255 (decode-hex "18FF"))))
   (testing "uint16"
-    (is (= 1000 (decode-hex "1903E8"))))
+    (is (= 256 (decode-hex "190100")))
+    (is (= 1000 (decode-hex "1903E8")))
+    (is (= 65535 (decode-hex "19FFFF"))))
   (testing "uint32"
-    (is (= 1000000 (decode-hex "1A000F4240"))))
+    (is (= 65536 (decode-hex "1A00010000")))
+    (is (= 1000000 (decode-hex "1A000F4240")))
+    (is (= 4294967295 (decode-hex "1AFFFFFFFF"))))
   (testing "uint64"
+    (is (= 4294967296 (decode-hex "1B0000000100000000")))
     (is (= 1000000000000 (decode-hex "1B000000E8D4A51000")))
-    (is (= 18446744073709551615 (decode-hex "1BFFFFFFFFFFFFFFFF")))))
+    (is (= 18446744073709551615N (decode-hex "1BFFFFFFFFFFFFFFFF")))))
 
 
 (deftest negative-integers
