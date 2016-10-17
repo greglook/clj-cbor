@@ -153,12 +153,17 @@
 
 (defn- write-byte-string
   [^DataOutputStream out bs]
-  ,,,)
+  (let [hlen (write-int out :byte-string (count bs))]
+    (.write out ^bytes bs)
+    (+ hlen (count bs))))
 
 
 (defn- write-text-string
   [^DataOutputStream out ts]
-  ,,,)
+  (let [text (.getBytes ^String ts "UTF-8")
+        hlen (write-int out :text-string (count text))]
+    (.write out text)
+    (+ hlen (count text))))
 
 
 (defn- write-boolean
@@ -179,13 +184,6 @@
   "Writes an 'undefined' simple value to the output."
   [^DataOutputStream out]
   (.writeByte ^DataOutputStream out 0xF7)
-  1)
-
-
-(defn- write-break
-  "Writes a 'break' simple value to the output."
-  [^DataOutputStream out]
-  (.writeByte out data/break)
   1)
 
 
@@ -237,16 +235,30 @@
 
 
 (defn- write-array
+  "Writes an array of data items to the output. The array will be encoded with
+  a definite length, so `xs` will be fully realized."
   [encoder ^DataOutputStream out xs]
-  ,,,)
+  (let [hlen (write-int out :data-array (count xs))]
+    (reduce + hlen (map (partial encode-value* encoder out) xs))))
 
 
 (defn- write-map
-  [encoder ^DataOutputStream out kvs]
-  ,,,)
+  "Writes a map of key/value pairs to the output. The map will be encoded with
+  a definite length, so `xm` will be fully realized."
+  [encoder ^DataOutputStream out xm]
+  (let [hlen (write-int out :data-map (count xm))]
+    (reduce-kv
+      (fn [sum k v]
+        (let [klen (encode-value* encoder out k)
+              vlen (encode-value* encoder out v)]
+          (+ sum klen vlen)))
+      hlen
+      ; TODO: sort keys
+      xm)))
 
 
 (defn- write-tagged
+  ""
   [encoder ^DataOutputStream out tv]
   ,,,)
 

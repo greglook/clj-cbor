@@ -55,6 +55,11 @@
     (instance? byte-array-class x)))
 
 
+(defn bytes=
+  [expected value]
+  (and (bytes? value) (= (seq expected) (seq value))))
+
+
 
 ;; ## Undefined Value
 
