@@ -292,7 +292,7 @@
       (map? x)     (write-map this out x)
       ;(set? x)     (encode-set this out x)
       (= data/undefined x) (write-undefined out)
-      (data/simple-value? x) (write-simple out x)
+      (data/simple-value? x) (write-simple out (.n ^clj_cbor.data.SimpleValue x))
       (data/tagged-value? x) (write-tagged this out x)
       :else ; TODO: better unknown type handling
         (write-undefined out))))
