@@ -9,19 +9,9 @@
     javax.xml.bind.DatatypeConverter))
 
 
-(defn bytes=
-  [expected value]
-  (and (data/bytes? value)
-       (= (seq expected) (seq value))))
-
-
 (defn- encoded-hex
   [value]
-  (let [buffer (java.io.ByteArrayOutputStream.)
-        data-out (java.io.DataOutputStream. buffer)
-        encoder (encoder/map->ValueEncoder {})]
-    (encoder/encode-value* encoder data-out value)
-    (DatatypeConverter/printHexBinary (.toByteArray buffer))))
+  (DatatypeConverter/printHexBinary (cbor/encode value)))
 
 
 (deftest unsigned-integers

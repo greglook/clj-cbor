@@ -8,15 +8,9 @@
     javax.xml.bind.DatatypeConverter))
 
 
-(defn bytes=
-  [expected value]
-  (and (data/bytes? value)
-       (= (seq expected) (seq value))))
-
-
 (defn- decode-hex
   [string]
-  (cbor/decode (DatatypeConverter/parseHexBinary string)))
+  (first (cbor/decode (DatatypeConverter/parseHexBinary string))))
 
 
 (deftest unsigned-integers
@@ -130,9 +124,9 @@
 
 
 (deftest byte-strings
-  (is (bytes= [] (decode-hex "40")))
-  (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
-  (is (bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF"))))
+  (is (data/bytes= [] (decode-hex "40")))
+  (is (data/bytes= [1 2 3 4] (decode-hex "4401020304")))
+  (is (data/bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF"))))
 
 
 (deftest text-strings
