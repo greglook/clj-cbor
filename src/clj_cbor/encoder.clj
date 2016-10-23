@@ -1,15 +1,13 @@
 (ns clj-cbor.encoder
   (:require
-    [arrangement.core :as order]
-    [clj-cbor.data :as data :refer [boolean? bytes?]]
+    [clj-cbor.data :as data]
     [clj-cbor.data.float16 :as float16]
     [clojure.string :as str])
   (:import
+    clj_cbor.data.SimpleValue
     (java.io
       DataOutputStream)))
 
-
-;; ## Encoder Protocol
 
 (defprotocol Encoder
   "Protocol for a data structure visitor which encodes CBOR."
@@ -17,55 +15,6 @@
   (encode-value*
     [encoder out x]
     "Writes the given value `x` to the `DataOutputStream`."))
-
-
-#_
-(defprotocol Encoder
-  "Protocol for a data structure visitor pattern."
-
-  (encode-nil [this out])
-  (encode-boolean [this out x])
-  (encode-bytes [this out x])
-  (encode-string [this out x])
-  (encode-character [this out x])
-  (encode-symbol [this out x])
-  (encode-keyword [this out x])
-  (encode-number [this out x])
-  (encode-seq [this out x])
-  (encode-vector [this out x])
-  (encode-set [this out x])
-  (encode-map [this out x])
-  (encode-record [this out x])
-  (encode-tagged [this out x])
-  (encode-unknown [this out x]))
-
-
-#_
-(defn- encode-value*
-  "Visits values in data structures."
-  [encoder out x]
-  (cond
-    (nil? x)     (encode-nil encoder out)
-    (boolean? x) (encode-boolean encoder out x)
-    (bytes? x)   (encode-bytes encoder out x)
-    (char? x)    (encode-string encoder out (str x))
-    (string? x)  (encode-string encoder out x)
-    (symbol? x)  (encode-symbol encoder out x)
-    (keyword? x) (encode-keyword encoder out x)
-    (number? x)  (encode-number encoder out x)
-    (seq? x)     (encode-seq encoder out x)
-    (vector? x)  (encode-vector encoder out x)
-    (record? x)  (encode-record encoder out x)
-    (map? x)     (encode-map encoder out x)
-    (set? x)     (encode-set encoder out x)
-    (= data/undefined x)
-      (encode-undefined encoder out x)
-    (data/simple-value? x)
-      (encode-simple encoder out x)
-    (data/tagged-value? x)
-      (encode-tagged encoder out x)
-    :else
-      (encode-unknown encoder out x)))
 
 
 
@@ -220,18 +169,19 @@
 (defn- write-simple
   "Writes a generic simple value for the given code and returns the number of
   bytes written. Does not handle floating-point or reserved values."
-  [^DataOutputStream out ^long n]
-  (cond
-    (<= 0 n 23)
-      (write-header out :simple-value n)
-    (<= 32 n 255)
-      (do (write-header out :simple-value 24)
-          (.writeByte out n)
-          2)
-    :else
-      (*error-handler*
-        ::illegal-simple-type
-        (str "Illegal or reserved simple value: " n))))
+  [^DataOutputStream out ^SimpleValue x]
+  (let [n (.n x)]
+    (cond
+      (<= 0 n 23)
+        (write-header out :simple-value n)
+      (<= 32 n 255)
+        (do (write-header out :simple-value 24)
+            (.writeByte out n)
+            2)
+      :else
+        (*error-handler*
+          ::illegal-simple-type
+          (str "Illegal or reserved simple value: " n)))))
 
 
 (defn- write-array
@@ -274,25 +224,25 @@
   (encode-value*
     [this out x]
     (cond
-      (nil? x)     (write-null out)
-      (boolean? x) (write-boolean out x)
-      (bytes? x)   (write-byte-string out x)
-      (char? x)    (write-text-string out (str x))
-      (string? x)  (write-text-string out x)
-      ;(symbol? x)  (encode-symbol this out x)
+      (nil? x) (write-null out)
+      (data/boolean? x) (write-boolean out x)
+      (data/bytes? x) (write-byte-string out x)
+      (char? x) (write-text-string out (str x))
+      (string? x) (write-text-string out x)
+      ;(symbol? x) (encode-symbol this out x)
       ;(keyword? x) (encode-keyword this out x)
       (integer? x) (if (neg? x)
                      (write-negative-integer out x)
                      (write-positive-integer out x))
-      (float? x)   (write-float out x)
-      ;(number? x)  (encode-number this out x)
-      (seq? x)     (write-array this out x)
-      (vector? x)  (write-array this out x)
-      ;(record? x)  (encode-record this out x)
-      (map? x)     (write-map this out x)
-      ;(set? x)     (encode-set this out x)
+      (float? x) (write-float out x)
+      ;(number? x) (encode-number this out x)
+      (seq? x) (write-array this out x)
+      (vector? x) (write-array this out x)
+      ;(record? x) (encode-record this out x)
+      (map? x) (write-map this out x)
+      ;(set? x) (encode-set this out x)
       (= data/undefined x) (write-undefined out)
-      (data/simple-value? x) (write-simple out (.n ^clj_cbor.data.SimpleValue x))
+      (data/simple-value? x) (write-simple out x)
       (data/tagged-value? x) (write-tagged this out x)
       :else ; TODO: better unknown type handling
-        (write-undefined out))))
+      (write-undefined out))))

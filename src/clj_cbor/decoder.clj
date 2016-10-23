@@ -165,6 +165,8 @@
 
 ;; ## Major Types
 
+;; ### 0 - Positive Integers
+
 (defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
   [_ ^DataInputStream input info]
@@ -176,11 +178,15 @@
       value)))
 
 
+;; ### 1 - Negative Integers
+
 (defn- read-negative-integer
   "Reads a negative integer from the input stream."
   [decoder input info]
   (- -1 (read-positive-integer decoder input info)))
 
+
+;; ### 2 - Byte Strings
 
 (defn- concat-bytes
   "Reducing function which builds a contiguous byte-array from a sequence of
@@ -205,6 +211,8 @@
       (read-bytes input length))))
 
 
+;; ### 3 - Text Strings
+
 (defn- concat-text
   "Reducing function which builds a contiguous string from a sequence of string
   chunks."
@@ -228,6 +236,8 @@
       (String. (read-bytes input length) "UTF-8"))))
 
 
+;; ### 4 - Data Arrays
+
 (defn- build-array
   "Reducing function which builds a vector to represent a data array."
   ([] [])
@@ -241,13 +251,15 @@
   (let [length (read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
-      (read-value-stream decoder input build-array)
+      (read-value-stream decoder input build-array) ; TODO: return list?
       ; Read `length` elements.
       (->>
         (repeatedly #(read-value decoder input))
         (take length)
         (vec)))))
 
+
+;; ### 5 - Data Maps
 
 (defn- build-map
   "Reducing function which builds a map from a sequence of alternating key and
@@ -288,6 +300,8 @@
         (transduce identity build-map)))))
 
 
+;; ### 6 - Tagged Values
+
 (defn- read-tagged
   [decoder ^DataInputStream input info]
   (let [tag (read-int input info)
@@ -295,6 +309,8 @@
         handler (get-in decoder [:tag-handlers tag] unknown-tag)]
     (handler decoder tag value)))
 
+
+;; ### 7 - Simple Values
 
 (defn- read-simple
   "Reads a simple value from the input."

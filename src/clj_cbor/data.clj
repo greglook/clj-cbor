@@ -56,6 +56,8 @@
 
 
 (defn bytes=
+  "Compares the byte-array `value` to the sequence of `expected` byte values.
+  Returns true if the array has the same length and matching byte values."
   [expected value]
   (and (bytes? value) (= (seq expected) (seq value))))
 
@@ -145,7 +147,9 @@
 (defn simple-value
   "Constructs a simple type for the given number."
   [n]
-  ; TODO: check for reserved simple value codes
+  (when (or (neg? n) (< 255 n))
+    (throw (IllegalArgumentException.
+             "Simple value codes must be in [0, 255].")))
   (SimpleValue. n nil))
 
 
@@ -159,24 +163,24 @@
 ;; ## Tagged Values
 
 (deftype TaggedValue
-  [^long n value _meta]
+  [tag value _meta]
 
   Object
 
   (toString
     [this]
-    (str n "(" value ")"))
+    (str tag "(" value ")"))
 
   (equals
     [this that]
     (boolean (or (identical? this that)
                  (and (instance? TaggedValue that)
-                      (= n (.n ^TaggedValue that))
+                      (= tag (.tag ^TaggedValue that))
                       (= value (.value ^TaggedValue that))))))
 
   (hashCode
     [this]
-    (hash [(class this) n value]))
+    (hash [(class this) tag value]))
 
 
   clojure.lang.IObj
@@ -185,7 +189,7 @@
 
   (withMeta
     [this meta-map]
-    (TaggedValue. n value meta-map)))
+    (TaggedValue. tag value meta-map)))
 
 
 ; Remove automatic constructor function.
@@ -194,8 +198,8 @@
 
 (defn tagged-value
   "Constructs a tagged value."
-  [n value]
-  (TaggedValue. n value nil))
+  [tag value]
+  (TaggedValue. tag value nil))
 
 
 (defn tagged-value?
