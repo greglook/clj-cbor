@@ -11,6 +11,11 @@
   [[org.clojure/clojure "1.8.0"]
    [mvxcvi/arrangement "1.1.0"]]
 
+  :hiera
+  {:cluster-depth 1
+   :show-external true
+   :ignore-ns #{clojure user}}
+
   :codox
   {:metadata {:doc/format :markdown}
    :source-uri "https://github.com/greglook/clj-cbor/blob/master/{filepath}#L{line}"
