@@ -201,7 +201,8 @@
   [encoder ^DataOutputStream out xm]
   (let [hlen (write-int out :data-map (count xm))]
     (reduce-kv
-      (fn [sum k v]
+      (fn encode-entry
+        [sum k v]
         (let [klen (encode-value* encoder out k)
               vlen (encode-value* encoder out v)]
           (+ sum klen vlen)))
@@ -211,16 +212,20 @@
 
 
 (defn- write-tagged
-  ""
-  [encoder ^DataOutputStream out tv]
-  ,,,)
+  "Writes out a tagged value."
+  ([encoder ^DataOutputStream out ^TaggedValue tv]
+   (write-tagged encoder out (.tag tv) (.value tv)))
+  ([encoder ^DataOutputStream out tag value]
+   (let [hlen (write-int out :tagged-value tag)
+         vlen (encode-value* encoder out value)]
+     (+ hlen vlen))))
 
 
 
 ;; ## Encoder Implementation
 
 (defrecord ValueEncoder
-  [handlers]
+  [formatters]
 
   Encoder
 
@@ -241,11 +246,22 @@
       ;(number? x) (encode-number this out x)
       (seq? x) (write-array this out x)
       (vector? x) (write-array this out x)
-      ;(record? x) (encode-record this out x)
+      ; NOTE: if want to provide handlers for records, need to branch here
       (map? x) (write-map this out x)
-      ;(set? x) (encode-set this out x)
+      ;(set? x) (encode-set this out x)  ; TODO: tagged array
       (= data/undefined x) (write-undefined out)
       (data/simple-value? x) (write-simple out x)
       (data/tagged-value? x) (write-tagged this out x)
-      :else ; TODO: better unknown type handling
-      (write-undefined out))))
+      :else
+      (if-let [formatter (formatters (class x))]
+        (encode-value* this out (formatter x))
+        (*error-handler*
+          ::unsupported-type
+          (str "No handler exists to encode objects of type: " (class x)))))))
+
+
+(defn value-encoder
+  ([]
+   (value-encoder {}))
+  ([formatters]
+   (ValueEncoder. formatters)))
