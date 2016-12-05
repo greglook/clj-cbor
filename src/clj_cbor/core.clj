@@ -1,14 +1,11 @@
 (ns clj-cbor.core
   (:require
     (clj-cbor
-      [data :as data]
       [decoder :as decoder]
       [encoder :as encoder])
+    [clj-cbor.data.model :as data]
     [clojure.java.io :as io])
   (:import
-    (clj_cbor.data
-      SimpleValue
-      Undefined)
     (java.io
       ByteArrayInputStream
       ByteArrayOutputStream

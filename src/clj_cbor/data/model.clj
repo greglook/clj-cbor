@@ -1,4 +1,4 @@
-(ns clj-cbor.data
+(ns clj-cbor.data.model
   "Type definitions and keyword identifiers for CBOR data types.")
 
 
@@ -17,29 +17,29 @@
 (def length-information-types
   "Map of keywords designating the types of additional information to the
   numeric value."
-  {:uint8      24
-   :uint16     25
-   :uint32     26
-   :uint64     27
-   :indefinite 31})
+  {24 :uint8
+   25 :uint16
+   26 :uint32
+   27 :uint64
+   31 :indefinite})
 
 
 (def simple-information-types
   "Set of keywords designating the types of additional information."
-  {:false             20
-   :true              21
-   :null              22
-   :undefined         23
-   :simple-value-byte 24
-   :float16           25
-   :float32           26
-   :float64           27
-   :break             31})
+  {20 :false
+   21 :true
+   22 :null
+   23 :undefined
+   24 :simple-value-byte
+   25 :float16
+   26 :float32
+   27 :float64
+   31 :break})
 
 
 (def ^:const break
   "Value of the break code."
-  0xFF)
+  (short 0xFF))
 
 
 (defn boolean?

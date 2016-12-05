@@ -1,10 +1,13 @@
 (ns clj-cbor.encoder
   (:require
-    [clj-cbor.data :as data]
-    [clj-cbor.data.float16 :as float16]
+    (clj-cbor.data
+      [float16 :as float16]
+      [model :as data])
     [clojure.string :as str])
   (:import
-    clj_cbor.data.SimpleValue
+    (clj_cbor.data.model
+      SimpleValue
+      TaggedValue)
     (java.io
       DataOutputStream)))
 
