@@ -60,22 +60,22 @@
 ;; ## Parsing
 
 (defn parse-string-date
-  [value]
+  [tag value]
   (.parse (date-format) value))
 
 
 (defn parse-string-instant
-  [value]
+  [tag value]
   (Instant/parse value))
 
 
 (defn parse-epoch-date
-  [value]
+  [tag value]
   (Date. (long (* value 1000))))
 
 
 (defn parse-epoch-instant
-  [value]
+  [tag value]
   (Instant/ofEpochMilli (long (* value 1000))))
 
 
