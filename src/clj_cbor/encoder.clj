@@ -3,6 +3,7 @@
     (clj-cbor.data
       [float16 :as float16]
       [model :as data])
+    [clj-cbor.error :as error]
     [clojure.string :as str])
   (:import
     (clj_cbor.data.model
@@ -182,9 +183,10 @@
             (.writeByte out n)
             2)
       :else
-        (*error-handler*
+        (error/*handler*
           ::illegal-simple-type
-          (str "Illegal or reserved simple value: " n)))))
+          (str "Illegal or reserved simple value: " n)
+          {:value n}))))
 
 
 (defn- write-array
@@ -239,23 +241,24 @@
       (string? x) (write-text-string out x)
       ;(symbol? x) (encode-symbol this out x)
       ;(keyword? x) (encode-keyword this out x)
-      (integer? x) (if (neg? x)
-                     (write-negative-integer out x)
-                     (write-positive-integer out x))
+      (integer? x) (write-integer out x)
       (float? x) (write-float out x)
-      ;(number? x) (encode-number this out x)
+      ;(number? x) (encode-number this out x)  ; Rationals?
+
+      ; NOTE: if want to provide handlers for records, need to branch here
       (seq? x) (write-array this out x)
       (vector? x) (write-array this out x)
-      ; NOTE: if want to provide handlers for records, need to branch here
       (map? x) (write-map this out x)
       ;(set? x) (encode-set this out x)  ; TODO: tagged array
+
       (= data/undefined x) (write-undefined out)
       (data/simple-value? x) (write-simple out x)
       (data/tagged-value? x) (write-tagged this out x)
+
       :else
       (if-let [formatter (formatters (class x))]
         (encode-value* this out (formatter x))
-        (*error-handler*
+        (error/*handler*
           ::unsupported-type
           (str "No handler exists to encode objects of type: " (class x)))))))
 

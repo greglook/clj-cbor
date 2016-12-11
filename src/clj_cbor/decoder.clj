@@ -3,6 +3,7 @@
     (clj-cbor.data
       [float16 :as float16]
       [model :as data])
+    [clj-cbor.error :as error]
     [clojure.string :as str])
   (:import
     (java.io
@@ -135,13 +136,13 @@
           (cond
             ; Illegal element type.
             (not= chunk-type mtype)
-              (*error-handler*
+              (error/*handler*
                 ::illegal-chunk
                 (str chunk-type " stream may not contain chunks of type " mtype))
 
             ; Illegal indefinite-length chunk.
             (= info 31)
-              (*error-handler*
+              (error/*handler*
                 ::definite-length-required
                 (str chunk-type " stream chunks must have a definite length"))
 
@@ -173,7 +174,7 @@
   [_ ^DataInputStream input info]
   (let [value (read-int input info)]
     (if (= :indefinite value)
-      (*error-handler*
+      (error/*handler*
         ::definite-length-required
         "Encoded integers cannot have indefinite length.")
       value)))
@@ -270,7 +271,7 @@
   ([[m k :as state]]
    (if (= 1 (count state))
      m
-     (*error-handler*
+     (error/*handler*
        ::missing-map-value
        (str "Streaming map did not contain a value for key: "
             (pr-str k)))))
@@ -278,7 +279,7 @@
    (if (= 1 (count state))
      (if (contains? m e)
        ; Duplicate key error.
-       (*error-handler*
+       (error/*handler*
          ::duplicate-map-key
          (str "Streaming map contains duplicate key: "
               (pr-str e)))
@@ -326,11 +327,11 @@
     26 (.readFloat input)
     27 (.readDouble input)
     (28 29 30)
-      (*error-handler*
+      (error/*handler*
         ::reserved-simple-type
         (format "Additional information simple-value code %d is reserved."
                 info))
-    31 (*error-handler*
+    31 (error/*handler*
          ::unexpected-break
          "Break encountered outside streaming context.")
     (unknown-simple decoder info)))
