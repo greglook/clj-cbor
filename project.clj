@@ -8,8 +8,7 @@
   :pedantic? :abort
 
   :dependencies
-  [[org.clojure/clojure "1.8.0"]
-   [mvxcvi/arrangement "1.1.0"]]
+  [[org.clojure/clojure "1.8.0"]]
 
   :hiera
   {:cluster-depth 1
