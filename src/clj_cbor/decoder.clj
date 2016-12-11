@@ -2,6 +2,7 @@
   (:require
     (clj-cbor.data
       [float16 :as float16]
+      [header :as header]
       [model :as data])
     [clj-cbor.error :as error]
     [clojure.string :as str])
@@ -38,35 +39,7 @@
 
 
 
-;; ## Error Handling
-
-(defn decoder-exception!
-  "Default behavior for decoding errors."
-  [error-type message]
-  (throw (ex-info (str "Decoding failure: " message)
-                  {:error error-type})))
-
-
-(def ^:dynamic *error-handler*
-  "Dynamic error handler which can be bound to a function which will be called
-  with a type keyword and a message."
-  decoder-exception!)
-
-
-
 ;; ## Reader Functions
-
-(defn- decode-header
-  "Determines the major type keyword and additional information encoded by the
-  header byte. §2.1"
-  [header]
-  [(-> header
-       (bit-and 0xE0)
-       (bit-shift-right 5)
-       (bit-and 0x07)
-       (data/major-types))
-   (bit-and header 0x1F)])
-
 
 (defn- read-bytes
   "Reads `length` bytes from the input stream and returns them as a byte
@@ -76,49 +49,6 @@
   (let [buffer (byte-array length)]
     (.readFully input buffer)
     buffer))
-
-
-(defn- read-unsigned-long
-  "Reads an unsigned long value from the input stream. If the value overflows
-  into the negative, it is promoted to a bigint."
-  [^DataInputStream input]
-  (let [value (.readLong input)]
-    (if (neg? value)
-      ; Overflow, promote to BigInt.
-      (->>
-        [(bit-and 0xFF (bit-shift-right value  0))
-         (bit-and 0xFF (bit-shift-right value  8))
-         (bit-and 0xFF (bit-shift-right value 16))
-         (bit-and 0xFF (bit-shift-right value 24))
-         (bit-and 0xFF (bit-shift-right value 32))
-         (bit-and 0xFF (bit-shift-right value 40))
-         (bit-and 0xFF (bit-shift-right value 48))
-         (bit-and 0xFF (bit-shift-right value 56))]
-        (byte-array)
-        (java.math.BigInteger. 1)
-        (bigint))
-      ; Value fits in a long, return directly.
-      value)))
-
-
-(defn- read-int
-  "Reads a size integer from the initial bytes of the input stream."
-  [^DataInputStream input ^long info]
-  (if (< info 24)
-    ; Info codes less than 24 directly represent the number.
-    info
-    ; Otherwise, signify the number of bytes following.
-    (case info
-      24 (.readUnsignedByte input)
-      25 (.readUnsignedShort input)
-      26 (bit-and (.readInt input) 0xFFFFFFFF)
-      27 (read-unsigned-long input)
-      (28 29 30)
-        (*error-handler*
-          ::reserved-length
-          (format "Additional information int code %d is reserved."
-                  info))
-      31 :indefinite)))
 
 
 (defn- read-chunks
@@ -132,7 +62,7 @@
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (let [[mtype info] (decode-header header)]
+        (let [[mtype info] (header/decode header)]
           (cond
             ; Illegal element type.
             (not= chunk-type mtype)
@@ -172,7 +102,7 @@
 (defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
   [_ ^DataInputStream input info]
-  (let [value (read-int input info)]
+  (let [value (header/read-int input info)]
     (if (= :indefinite value)
       (error/*handler*
         ::definite-length-required
@@ -205,7 +135,7 @@
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-int input info)]
+  (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
       (read-chunks decoder input :byte-string concat-bytes)
@@ -230,7 +160,7 @@
 (defn- read-text-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-int input info)]
+  (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
@@ -250,7 +180,7 @@
 (defn- read-array
   "Reads an array of items from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (read-int input info)]
+  (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
       (read-value-stream decoder input build-array) ; TODO: return list?
@@ -291,7 +221,7 @@
 
 (defn- read-map
   [decoder ^DataInputStream input info]
-  (let [length (read-int input info)]
+  (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
       (read-value-stream decoder input build-map)
@@ -306,7 +236,7 @@
 
 (defn- read-tagged
   [decoder ^DataInputStream input info]
-  (let [tag (read-int input info)
+  (let [tag (header/read-int input info)
         value (read-value decoder input)
         handler (get-in decoder [:tag-handlers tag] unknown-tag)]
     (handler decoder tag value)))
@@ -347,7 +277,7 @@
 
   (read-value*
     [this input header]
-    (let [[mtype info] (decode-header header)]
+    (let [[mtype info] (header/decode header)]
       (case mtype
         :unsigned-integer (read-positive-integer this input info)
         :negative-integer (read-negative-integer this input info)
@@ -366,22 +296,3 @@
   (unknown-simple
     [this value]
     (data/simple-value value)))
-
-
-(defn decode-value
-  "Reads a single CBOR-encoded value from the input stream."
-  [^InputStream input & {:keys [eof]}]
-  (try
-    (let [data-input (DataInputStream. input)
-          decoder (map->ValueDecoder {})]
-      (read-value decoder data-input))
-    (catch EOFException ex
-      ; TODO: use dynamic handler?
-      (if (nil? eof)
-        (throw ex)
-        eof))))
-
-
-;; Ideas:
-;; - StrictDecoder
-;; - AnalyzingDecoder

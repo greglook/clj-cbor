@@ -2,6 +2,7 @@
   (:require
     (clj-cbor.data
       [float16 :as float16]
+      [header :as header]
       [model :as data])
     [clj-cbor.error :as error]
     [clojure.string :as str])
@@ -22,91 +23,19 @@
 
 
 
-;; ## Error Handling
-
-(defn encoder-exception!
-  "Default behavior for encoding errors."
-  [error-type message]
-  (throw (ex-info (str "Encoding failure: " message)
-                  {:error error-type})))
-
-
-(def ^:dynamic *error-handler*
-  "Dynamic error handler which can be bound to a function which will be called
-  with a type keyword and a message."
-  encoder-exception!)
-
-
-
-;; ## Writer Functions
-
-(let [mtype-codes (zipmap data/major-types (range))]
-  (defn- write-header
-    "Writes a header byte for the given major-type and additional info numbers."
-    [^DataOutputStream out mtype info]
-    (let [header (-> (bit-and (mtype-codes mtype) 0x07)
-                     (bit-shift-left 5)
-                     (bit-or (bit-and info 0x1F)))]
-      (.writeByte out header))
-    1))
-
-
-(defn- write-int
-  "Writes a header byte for the given major-type, plus extra bytes to encode
-  the given integer value. Always writes the smallest possible representation."
-  [^DataOutputStream out mtype i]
-  (cond
-    (neg? i)
-      (*error-handler*
-        ::negative-int-code
-        (str "Cannot write negative integer code: " i))
-    (<= i 23)
-      (do (write-header out mtype i)
-          1)
-    (<= i 0xFF)
-      (do (write-header out mtype 24)
-          (.writeByte out i)
-          2)
-    (<= i 0xFFFF)
-      (do (write-header out mtype 25)
-          (.writeShort out i)
-          3)
-    (<= i Integer/MAX_VALUE)
-      (do (write-header out mtype 26)
-          (.writeInt out i)
-          5)
-    (<= i 0xFFFFFFFF)
-      (do (write-header out mtype 26)
-          (.writeInt out (+ Integer/MIN_VALUE (- (dec i) Integer/MAX_VALUE)))
-          5)
-    (<= i Long/MAX_VALUE)
-      (do (write-header out mtype 27)
-          (.writeLong out i)
-          9)
-    :else
-      (do (write-header out mtype 27)
-          (.writeLong out (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))
-          9)))
-
-
-
 ;; ## Major Type Encoding
 
-(defn- write-positive-integer
-  "Writes a positive integer value."
+(defn- write-integer
+  "Writes an integer value."
   [^DataOutputStream out n]
-  (write-int out :unsigned-integer n))
-
-
-(defn- write-negative-integer
-  "Writes a negative integer value."
-  [^DataOutputStream out n]
-  (write-int out :negative-integer (- -1 n)))
+  (if (neg? n)
+    (header/write-major-int out :negative-integer (- -1 n))
+    (header/write-major-int out :unsigned-integer n)))
 
 
 (defn- write-byte-string
   [^DataOutputStream out bs]
-  (let [hlen (write-int out :byte-string (count bs))]
+  (let [hlen (header/write-major-int out :byte-string (count bs))]
     (.write out ^bytes bs)
     (+ hlen (count bs))))
 
@@ -114,7 +43,7 @@
 (defn- write-text-string
   [^DataOutputStream out ts]
   (let [text (.getBytes ^String ts "UTF-8")
-        hlen (write-int out :text-string (count text))]
+        hlen (header/write-major-int out :text-string (count text))]
     (.write out text)
     (+ hlen (count text))))
 
@@ -147,25 +76,25 @@
   [^DataOutputStream out n]
   (cond
     (zero? n)
-      (do (write-header out :simple-value 25)
+      (do (header/write out :simple-value 25)
           (.writeShort out float16/zero)
           3)
     (Float/isNaN n)
-      (do (write-header out :simple-value 25)
+      (do (header/write out :simple-value 25)
           (.writeShort out float16/not-a-number)
           3)
     (Float/isInfinite n)
-      (do (write-header out :simple-value 25)
+      (do (header/write out :simple-value 25)
           (.writeShort out (if (pos? n)
                              float16/positive-infinity
                              float16/negative-infinity))
           3)
     (instance? Float n)
-      (do (write-header out :simple-value 26)
+      (do (header/write out :simple-value 26)
           (.writeFloat out (float n))
           5)
     :else
-      (do (write-header out :simple-value 27)
+      (do (header/write out :simple-value 27)
           (.writeDouble out (double n))
           9)))
 
@@ -177,9 +106,9 @@
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
-        (write-header out :simple-value n)
+        (header/write out :simple-value n)
       (<= 32 n 255)
-        (do (write-header out :simple-value 24)
+        (do (header/write out :simple-value 24)
             (.writeByte out n)
             2)
       :else
@@ -193,7 +122,7 @@
   "Writes an array of data items to the output. The array will be encoded with
   a definite length, so `xs` will be fully realized."
   [encoder ^DataOutputStream out xs]
-  (let [hlen (write-int out :data-array (count xs))]
+  (let [hlen (header/write-major-int out :data-array (count xs))]
     (reduce + hlen (map (partial encode-value* encoder out) xs))))
 
 
@@ -201,7 +130,7 @@
   "Writes a map of key/value pairs to the output. The map will be encoded with
   a definite length, so `xm` will be fully realized."
   [encoder ^DataOutputStream out xm]
-  (let [hlen (write-int out :data-map (count xm))]
+  (let [hlen (header/write-major-int out :data-map (count xm))]
     (reduce-kv
       (fn encode-entry
         [sum k v]
@@ -218,7 +147,7 @@
   ([encoder ^DataOutputStream out ^TaggedValue tv]
    (write-tagged encoder out (.tag tv) (.value tv)))
   ([encoder ^DataOutputStream out tag value]
-   (let [hlen (write-int out :tagged-value tag)
+   (let [hlen (header/write-major-int out :tagged-value tag)
          vlen (encode-value* encoder out value)]
      (+ hlen vlen))))
 
