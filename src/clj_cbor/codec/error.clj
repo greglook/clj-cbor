@@ -1,4 +1,4 @@
-(ns clj-cbor.io.error)
+(ns clj-cbor.codec.error)
 
 
 (defn codec-exception!

@@ -1,6 +1,6 @@
 (ns clj-cbor.core
   (:require
-    [clj-cbor.io.codec :as codec]
+    [clj-cbor.codec.core :as codec]
     [clj-cbor.data.model :as data]
     [clojure.java.io :as io])
   (:import

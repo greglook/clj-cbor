@@ -1,9 +1,9 @@
-(ns clj-cbor.io.codec
+(ns clj-cbor.codec.core
   (:require
     (clj-cbor.data
       [float16 :as float16]
       [model :as data])
-    (clj-cbor.io
+    (clj-cbor.codec
       [error :as error]
       [header :as header])
     [clojure.string :as str])
