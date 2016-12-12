@@ -11,7 +11,7 @@
   [[org.clojure/clojure "1.8.0"]]
 
   :hiera
-  {:cluster-depth 1
+  {:cluster-depth 2
    :show-external true
    :ignore-ns #{clojure user}}
 

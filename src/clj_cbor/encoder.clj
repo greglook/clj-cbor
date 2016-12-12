@@ -2,9 +2,10 @@
   (:require
     (clj-cbor.data
       [float16 :as float16]
-      [header :as header]
       [model :as data])
-    [clj-cbor.error :as error]
+    (clj-cbor.io
+      [error :as error]
+      [header :as header])
     [clojure.string :as str])
   (:import
     (clj_cbor.data.model
