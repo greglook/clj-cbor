@@ -13,6 +13,7 @@
 ;  |                              | 616d706c652e636f6d                 |
 
 
+#_
 (deftest bignums
   (testing "bignum"
     (check-roundtrip  18446744073709551616N "C249010000000000000000")
