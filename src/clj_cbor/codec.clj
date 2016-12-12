@@ -420,42 +420,41 @@
 
   (write-value
     [this out x]
-    (if-let [formatter (formatters (formatter-dispatch x))]
-      ; Special formatter in place for value.
-      (write-value this out (formatter x))
-      ; Dispatch by predicate.
-      (cond
-        ; Special and simple values
-        (nil? x) (write-null this out)
-        (data/boolean? x) (write-boolean this out x)
-        (= data/undefined x) (write-undefined this out)
-        (data/simple-value? x) (write-simple this out x)
+    (cond
+      ; Special and simple values
+      (nil? x) (write-null this out)
+      (data/boolean? x) (write-boolean this out x)
+      (= data/undefined x) (write-undefined this out)
+      (data/simple-value? x) (write-simple this out x)
 
-        ; Byte and text strings
-        (char? x) (write-text-string this out (str x))
-        (string? x) (write-text-string this out x)
-        (data/bytes? x) (write-byte-string this out x)
+      ; Numbers
+      (integer? x) (write-integer this out x)
+      (float? x) (write-float this out x)
 
-        ; Numbers
-        (integer? x) (write-integer this out x)
-        (float? x) (write-float this out x)
-        ;(number? x) (encode-number this out x)  ; Rationals?
+      ; Byte and text strings
+      (char? x) (write-text-string this out (str x))
+      (string? x) (write-text-string this out x)
+      (data/bytes? x) (write-byte-string this out x)
 
-        ; Collections
-        (seq? x) (write-array this out x)
-        (vector? x) (write-array this out x)
-        (map? x) (write-map this out x)
+      :else
+      (if-let [formatter (formatters (formatter-dispatch x))]
+        (write-value this out (formatter x))
+        (cond
+          ; Collections
+          (seq? x) (write-array this out x)
+          (vector? x) (write-array this out x)
+          (map? x) (write-map this out x)
 
-        ; Tag extensions
-        (data/tagged-value? x) (write-tagged this out x)
-        ;(symbol? x) (encode-symbol this out x)
-        ;(keyword? x) (encode-keyword this out x)
-        ;(set? x) (encode-set this out x)
+          ; Tag extensions
+          (data/tagged-value? x) (write-tagged this out x)
+          ;(symbol? x) (encode-symbol this out x)
+          ;(keyword? x) (encode-keyword this out x)
+          ;(set? x) (encode-set this out x)
 
-        :else
-        (error/*handler*
-          ::unsupported-type
-          (str "No encoding known for object: " (pr-str x))))))
+          :else
+          (error/*handler*
+            ::unsupported-type
+            (str "No known encoding for object: " (pr-str x)))))))
 
 
   Decoder
@@ -482,11 +481,3 @@
   (unknown-simple
     [this value]
     (data/simple-value value)))
-
-
-(defn cbor-codec
-  [,,,]
-  (map->CBORCodec
-    {:formatter-dispatch class
-     :formatters {}
-     :tag-handlers {}}))

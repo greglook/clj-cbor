@@ -2,6 +2,10 @@
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.data.model :as data]
+    (clj-cbor.tags
+      [numbers :as numbers]
+      [time :as time]
+      [text :as text])
     [clojure.java.io :as io])
   (:import
     (java.io
@@ -11,6 +15,18 @@
       DataOutputStream
       EOFException
       OutputStream)))
+
+
+(defn cbor-codec
+  [& {:as opts}]
+  (codec/map->CBORCodec
+    (merge
+      {:formatter-dispatch class
+       :formatters (merge numbers/bignum-formatters
+                          time/date-time-string-formatters)
+       :tag-handlers (merge numbers/bignum-handlers
+                            time/instant-handlers)}
+      opts)))
 
 
 (defn encode

@@ -4,7 +4,6 @@
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.data.model :as data]
-    [clj-cbor.codec.core :as codec]
     [clj-cbor.test-utils :refer :all]))
 
 
