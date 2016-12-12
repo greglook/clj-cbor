@@ -1,4 +1,4 @@
-(ns clj-cbor.data.time
+(ns clj-cbor.tags.time
   "Built-in tag support for the time extensions in RFC 7049. See section
   2.4.1.
 
