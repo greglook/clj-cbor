@@ -102,23 +102,13 @@
     (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF")))))
 
 
-
-#_
 (deftest floating-point-numbers
-  (testing "special values"
-    (check-roundtrip 0.0 "F90000")
-    (check-roundtrip -0.0 "F90000")
-    (check-roundtrip Float/NaN "F97E00")
-    (check-roundtrip Float/POSITIVE_INFINITY "F97C00")
-    (check-roundtrip Float/NEGATIVE_INFINITY "F9FC00"))
-  (testing "single-precision"
-    (check-roundtrip (float 100000.0) "FA47C35000")
-    (check-roundtrip (float 3.4028234663852886e+38) "FA7F7FFFFF"))
-  (testing "double-precision"
-    (check-roundtrip 1.1 "FB3FF199999999999A")
-    #_(is (= "FB7E37E43C8800759C" (encoded-hex 1.0e+300)))
-    (check-roundtrip -4.1 "FBC010666666666666")))
-(deftest floating-point-numbers
+  (testing "special value encoding"
+    (is (= "F90000" (encoded-hex  0.0)))
+    (is (= "F90000" (encoded-hex -0.0)))
+    (is (= "F97E00" (encoded-hex Float/NaN)))
+    (is (= "F97C00" (encoded-hex Float/POSITIVE_INFINITY)))
+    (is (= "F9FC00" (encoded-hex Float/NEGATIVE_INFINITY))))
   (testing "half-precision"
     (is (instance? Float (decode-hex "F90000")))
     (is (= 0.0 (decode-hex "F90000")))
@@ -134,16 +124,17 @@
     (is (= Float/NEGATIVE_INFINITY (decode-hex "F9FC00"))))
   (testing "single-precision"
     (is (instance? Float (decode-hex "FA47C35000")))
-    (is (= 100000.0 (decode-hex "FA47C35000")))
-    (is (= 3.4028234663852886e+38 (decode-hex "FA7F7FFFFF")))
+    (check-roundtrip (float 100000.0) "FA47C35000")
+    (check-roundtrip (float 3.4028234663852886e+38) "FA7F7FFFFF")
     (is (Float/isNaN (decode-hex "FA7FC00000")))
     (is (= Float/POSITIVE_INFINITY (decode-hex "FA7F800000")))
     (is (= Float/NEGATIVE_INFINITY (decode-hex "FAFF800000"))))
   (testing "double-precision"
     (is (instance? Double (decode-hex "FB7FF8000000000000")))
-    (is (= 1.1 (decode-hex "FB3FF199999999999A")))
+    (check-roundtrip 1.1 "FB3FF199999999999A")
+    #_(is (= "FB7E37E43C8800759C" (encoded-hex 1.0e+300)))
     (is (= 1.0e+300 (decode-hex "FB7E37E43C8800759C")))
-    (is (= -4.1 (decode-hex "FBC010666666666666")))
+    (check-roundtrip -4.1 "FBC010666666666666")
     (is (Double/isNaN (decode-hex "FB7FF8000000000000")))
     (is (= Double/POSITIVE_INFINITY (decode-hex "FB7FF0000000000000")))
     (is (= Double/NEGATIVE_INFINITY (decode-hex "FBFFF0000000000000")))))
