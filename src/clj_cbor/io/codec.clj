@@ -1,4 +1,4 @@
-(ns clj-cbor.decoder
+(ns clj-cbor.io.codec
   (:require
     (clj-cbor.data
       [float16 :as float16]
@@ -8,14 +8,24 @@
       [header :as header])
     [clojure.string :as str])
   (:import
+    (clj_cbor.data.model
+      SimpleValue
+      TaggedValue)
     (java.io
       ByteArrayOutputStream
       DataInputStream
-      EOFException
-      InputStream)))
+      DataOutputStream)))
 
 
-;; ## Decoder Protocol
+;; ## Codec Protocols
+
+(defprotocol Encoder
+  "Protocol for a data structure visitor which encodes CBOR."
+
+  (write-value
+    [encoder out x]
+    "Writes the given value `x` to the `DataOutputStream` `out`."))
+
 
 (defprotocol Decoder
 
@@ -24,9 +34,9 @@
     "Reads a single value from the `DataInputStream`, given the just-read
     initial byte.")
 
-  (unknown-tag
+  (handle-tag
     [decoder tag value]
-    "Return a representation for an unknown tagged value.")
+    "Return a representation for a tagged value.")
 
   (unknown-simple
     [decoder value]
@@ -98,11 +108,19 @@
 
 ;; ## Major Types
 
-;; ### 0 - Positive Integers
+;; ### 0, 1 - Integers
+
+(defn- write-integer
+  "Writes an integer value."
+  [encoder ^DataOutputStream out n]
+  (if (neg? n)
+    (header/write-major-int out :negative-integer (- -1 n))
+    (header/write-major-int out :unsigned-integer n)))
+
 
 (defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
-  [_ ^DataInputStream input info]
+  [decoder ^DataInputStream input info]
   (let [value (header/read-int input info)]
     (if (= :indefinite value)
       (error/*handler*
@@ -111,15 +129,21 @@
       value)))
 
 
-;; ### 1 - Negative Integers
-
 (defn- read-negative-integer
   "Reads a negative integer from the input stream."
   [decoder input info]
   (- -1 (read-positive-integer decoder input info)))
 
 
+
 ;; ### 2 - Byte Strings
+
+(defn- write-byte-string
+  [encoder ^DataOutputStream out bs]
+  (let [hlen (header/write-major-int out :byte-string (count bs))]
+    (.write out ^bytes bs)
+    (+ hlen (count bs))))
+
 
 (defn- concat-bytes
   "Reducing function which builds a contiguous byte-array from a sequence of
@@ -144,7 +168,16 @@
       (read-bytes input length))))
 
 
+
 ;; ### 3 - Text Strings
+
+(defn- write-text-string
+  [encoder ^DataOutputStream out ts]
+  (let [text (.getBytes ^String ts "UTF-8")
+        hlen (header/write-major-int out :text-string (count text))]
+    (.write out text)
+    (+ hlen (count text))))
+
 
 (defn- concat-text
   "Reducing function which builds a contiguous string from a sequence of string
@@ -169,7 +202,16 @@
       (String. (read-bytes input length) "UTF-8"))))
 
 
+
 ;; ### 4 - Data Arrays
+
+(defn- write-array
+  "Writes an array of data items to the output. The array will be encoded with
+  a definite length, so `xs` will be fully realized."
+  [encoder ^DataOutputStream out xs]
+  (let [hlen (header/write-major-int out :data-array (count xs))]
+    (reduce + hlen (map (partial write-value encoder out) xs))))
+
 
 (defn- build-array
   "Reducing function which builds a vector to represent a data array."
@@ -184,7 +226,9 @@
   (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
-      (read-value-stream decoder input build-array) ; TODO: return list?
+      (->
+        (read-value-stream decoder input build-array)
+        (vary-meta assoc :cbor/streaming true))
       ; Read `length` elements.
       (->>
         (repeatedly #(read-value decoder input))
@@ -192,7 +236,24 @@
         (vec)))))
 
 
+
 ;; ### 5 - Data Maps
+
+(defn- write-map
+  "Writes a map of key/value pairs to the output. The map will be encoded with
+  a definite length, so `xm` will be fully realized."
+  [encoder ^DataOutputStream out xm]
+  (let [hlen (header/write-major-int out :data-map (count xm))]
+    (reduce-kv
+      (fn encode-entry
+        [sum k v]
+        (let [klen (write-value encoder out k)
+              vlen (write-value encoder out v)]
+          (+ sum klen vlen)))
+      hlen
+      ; TODO: sort keys
+      xm)))
+
 
 (defn- build-map
   "Reducing function which builds a map from a sequence of alternating key and
@@ -233,17 +294,98 @@
         (transduce identity build-map)))))
 
 
+
 ;; ### 6 - Tagged Values
+
+(defn- write-tagged
+  "Writes out a tagged value."
+  ([encoder ^DataOutputStream out ^TaggedValue tv]
+   (write-tagged encoder out (.tag tv) (.value tv)))
+  ([encoder ^DataOutputStream out tag value]
+   (let [hlen (header/write-major-int out :tagged-value tag)
+         vlen (write-value encoder out value)]
+     (+ hlen vlen))))
+
 
 (defn- read-tagged
   [decoder ^DataInputStream input info]
   (let [tag (header/read-int input info)
-        value (read-value decoder input)
-        handler (get-in decoder [:tag-handlers tag] unknown-tag)]
-    (handler decoder tag value)))
+        value (read-value decoder input)]
+    (handle-tag decoder tag value)))
+
 
 
 ;; ### 7 - Simple Values
+
+(defn- write-boolean
+  "Writes a boolean simple value to the output."
+  [encoder ^DataOutputStream out x]
+  (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
+  1)
+
+
+(defn- write-null
+  "Writes a 'null' simple value to the output."
+  [encoder ^DataOutputStream out]
+  (.writeByte ^DataOutputStream out 0xF6)
+  1)
+
+
+(defn- write-undefined
+  "Writes an 'undefined' simple value to the output."
+  [encoder ^DataOutputStream out]
+  (.writeByte ^DataOutputStream out 0xF7)
+  1)
+
+
+(defn- write-float
+  "Writes a floating-point value to the output. Special values zero, NaN, and
+  +/- Infinity are represented as 16-bit numbers, otherwise the encoding is
+  determined by class."
+  [encoder ^DataOutputStream out n]
+  (cond
+    (zero? n)
+      (do (header/write out :simple-value 25)
+          (.writeShort out float16/zero)
+          3)
+    (Float/isNaN n)
+      (do (header/write out :simple-value 25)
+          (.writeShort out float16/not-a-number)
+          3)
+    (Float/isInfinite n)
+      (do (header/write out :simple-value 25)
+          (.writeShort out (if (pos? n)
+                             float16/positive-infinity
+                             float16/negative-infinity))
+          3)
+    (instance? Float n)
+      (do (header/write out :simple-value 26)
+          (.writeFloat out (float n))
+          5)
+    :else
+      (do (header/write out :simple-value 27)
+          (.writeDouble out (double n))
+          9)))
+
+
+(defn- write-simple
+  "Writes a generic simple value for the given code and returns the number of
+  bytes written. Does not handle floating-point or reserved values."
+  [encoder ^DataOutputStream out ^SimpleValue x]
+  (let [n (.n x)]
+    (cond
+      (<= 0 n 23)
+        (header/write out :simple-value n)
+      (<= 32 n 255)
+        (do (header/write out :simple-value 24)
+            (.writeByte out n)
+            2)
+      :else
+        (error/*handler*
+          ::illegal-simple-type
+          (str "Illegal or reserved simple value: " n)
+          {:value n}))))
+
 
 (defn- read-simple
   "Reads a simple value from the input."
@@ -269,10 +411,44 @@
 
 
 
-;; ## Decoder Implementations
+;; ## Codec Types
 
-(defrecord ValueDecoder
-  []
+(defrecord CBORCodec
+  [formatters tag-handlers]
+
+  Encoder
+
+  (write-value
+    [this out x]
+    (cond
+      (nil? x) (write-null this out)
+      (data/boolean? x) (write-boolean this out x)
+      (data/bytes? x) (write-byte-string this out x)
+      (char? x) (write-text-string this out (str x))
+      (string? x) (write-text-string this out x)
+      ;(symbol? x) (encode-symbol this out x)
+      ;(keyword? x) (encode-keyword this out x)
+      (integer? x) (write-integer this out x)
+      (float? x) (write-float this out x)
+      ;(number? x) (encode-number this out x)  ; Rationals?
+
+      ; NOTE: if want to provide handlers for records, need to branch here
+      (seq? x) (write-array this out x)
+      (vector? x) (write-array this out x)
+      (map? x) (write-map this out x)
+      ;(set? x) (encode-set this out x)  ; TODO: tagged array
+
+      (= data/undefined x) (write-undefined this out)
+      (data/simple-value? x) (write-simple this out x)
+      (data/tagged-value? x) (write-tagged this out x)
+
+      :else
+      (if-let [formatter (formatters (class x))]
+        (write-value this out (formatter x))
+        (error/*handler*
+          ::unsupported-type
+          (str "No handler exists to encode objects of type: " (class x))))))
+
 
   Decoder
 
@@ -289,10 +465,11 @@
         :tagged-value     (read-tagged this input info)
         :simple-value     (read-simple this input info))))
 
-  (unknown-tag
+  (handle-tag
     [this tag value]
-    (prn :unknown-tag tag value)
-    nil)
+    (if-let [handler (get tag-handlers tag)]
+      (handler tag value)
+      (data/tagged-value tag value)))
 
   (unknown-simple
     [this value]
