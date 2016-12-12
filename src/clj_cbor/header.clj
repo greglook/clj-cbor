@@ -1,8 +1,8 @@
-(ns clj-cbor.codec.header
+(ns clj-cbor.header
   "Functions for reading and writing CBOR header bytes."
   (:require
-    [clj-cbor.codec.error :as error]
     [clj-cbor.data.model :as data]
+    [clj-cbor.error :as error]
     [clojure.string :as str])
   (:import
     (java.io

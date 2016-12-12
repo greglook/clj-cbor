@@ -1,11 +1,11 @@
-(ns clj-cbor.codec.core
+(ns clj-cbor.codec
   (:require
+    (clj-cbor
+      [error :as error]
+      [header :as header])
     (clj-cbor.data
       [float16 :as float16]
       [model :as data])
-    (clj-cbor.codec
-      [error :as error]
-      [header :as header])
     [clojure.string :as str])
   (:import
     (clj_cbor.data.model
@@ -414,40 +414,48 @@
 ;; ## Codec Types
 
 (defrecord CBORCodec
-  [formatters tag-handlers]
+  [formatter-dispatch formatters tag-handlers]
 
   Encoder
 
   (write-value
     [this out x]
-    (cond
-      (nil? x) (write-null this out)
-      (data/boolean? x) (write-boolean this out x)
-      (data/bytes? x) (write-byte-string this out x)
-      (char? x) (write-text-string this out (str x))
-      (string? x) (write-text-string this out x)
-      ;(symbol? x) (encode-symbol this out x)
-      ;(keyword? x) (encode-keyword this out x)
-      (integer? x) (write-integer this out x)
-      (float? x) (write-float this out x)
-      ;(number? x) (encode-number this out x)  ; Rationals?
+    (if-let [formatter (formatters (formatter-dispatch x))]
+      ; Special formatter in place for value.
+      (write-value this out (formatter x))
+      ; Dispatch by predicate.
+      (cond
+        ; Special and simple values
+        (nil? x) (write-null this out)
+        (data/boolean? x) (write-boolean this out x)
+        (= data/undefined x) (write-undefined this out)
+        (data/simple-value? x) (write-simple this out x)
 
-      ; NOTE: if want to provide handlers for records, need to branch here
-      (seq? x) (write-array this out x)
-      (vector? x) (write-array this out x)
-      (map? x) (write-map this out x)
-      ;(set? x) (encode-set this out x)  ; TODO: tagged array
+        ; Byte and text strings
+        (char? x) (write-text-string this out (str x))
+        (string? x) (write-text-string this out x)
+        (data/bytes? x) (write-byte-string this out x)
 
-      (= data/undefined x) (write-undefined this out)
-      (data/simple-value? x) (write-simple this out x)
-      (data/tagged-value? x) (write-tagged this out x)
+        ; Numbers
+        (integer? x) (write-integer this out x)
+        (float? x) (write-float this out x)
+        ;(number? x) (encode-number this out x)  ; Rationals?
 
-      :else
-      (if-let [formatter (formatters (class x))]
-        (write-value this out (formatter x))
+        ; Collections
+        (seq? x) (write-array this out x)
+        (vector? x) (write-array this out x)
+        (map? x) (write-map this out x)
+
+        ; Tag extensions
+        (data/tagged-value? x) (write-tagged this out x)
+        ;(symbol? x) (encode-symbol this out x)
+        ;(keyword? x) (encode-keyword this out x)
+        ;(set? x) (encode-set this out x)
+
+        :else
         (error/*handler*
           ::unsupported-type
-          (str "No handler exists to encode objects of type: " (class x))))))
+          (str "No encoding known for object: " (pr-str x))))))
 
 
   Decoder
@@ -474,3 +482,11 @@
   (unknown-simple
     [this value]
     (data/simple-value value)))
+
+
+(defn cbor-codec
+  [,,,]
+  (map->CBORCodec
+    {:formatter-dispatch class
+     :formatters {}
+     :tag-handlers {}}))
