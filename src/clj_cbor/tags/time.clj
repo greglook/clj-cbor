@@ -9,69 +9,65 @@
     [clj-cbor.data.model :as data])
   (:import
     java.time.Instant
+    java.time.format.DateTimeFormatter
     (java.util
       Date
       TimeZone)))
 
 
-;; ## Formatting
+;; ## Epoch Formatting
 
-(defn- date-format
-  "Returns a new `SimpleDateFormat` object representing ISO-8601."
-  ^java.text.SimpleDateFormat
-  []
-  (doto (java.text.SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ss.SSS-00:00")
-    (.setTimeZone (TimeZone/getTimeZone "GMT"))))
-
-
-(defn format-date-string
-  [^Date value]
-  (data/tagged-value 0 (.format (date-format) value)))
-
-
-(defn format-instant-string
-  [^Instant value]
-  (data/tagged-value 0 (.format (date-format) (Date/from value))))
-
-
-(defn format-date-epoch
-  [^Date value]
-  (data/tagged-value 1 (/ (.getTime value) 1000.0)))
+(defn- tagged-epoch-time
+  [epoch-millis]
+  (data/tagged-value 1
+    (if (zero? (mod epoch-millis 1000))
+      (long (/ epoch-millis 1000))
+      (/ epoch-millis 1000.0))))
 
 
 (defn format-instant-epoch
   [^Instant value]
-  (data/tagged-value 1 (/ (.toEpochMilli value) 1000.0)))
+  (tagged-epoch-time (.toEpochMilli value)))
 
 
-(def date-time-string-formatters
-  "Map of date-time types to render as tag 0 time strings."
-  {Date format-date-string
-   Instant format-instant-string})
+(defn format-date-epoch
+  [^Date value]
+  (tagged-epoch-time (.getTime value)))
 
 
-(def date-time-epoch-formatters
+(def time-epoch-formatters
   "Map of date-time types to render as tag 1 epoch offsets."
   {Date format-date-epoch
    Instant format-instant-epoch})
 
 
 
-;; ## Parsing
+;; ## String Formatting
 
-(defn parse-string-date
-  [tag value]
-  (.parse (date-format) value))
+(defn format-instant-string
+  [^Instant value]
+  (data/tagged-value 0
+    (.format DateTimeFormatter/ISO_INSTANT value)))
 
+
+(defn format-date-string
+  [^Date value]
+  (format-instant-string (.toInstant value)))
+
+
+(def time-string-formatters
+  "Map of date-time types to render as tag 0 time strings."
+  {Date format-date-string
+   Instant format-instant-string})
+
+
+
+;; ## Instant Parsing
 
 (defn parse-string-instant
   [tag value]
+  ;DateTimeFormatter/ISO_INSTANT
   (Instant/parse value))
-
-
-(defn parse-epoch-date
-  [tag value]
-  (Date. (long (* value 1000))))
 
 
 (defn parse-epoch-instant
@@ -79,13 +75,26 @@
   (Instant/ofEpochMilli (long (* value 1000))))
 
 
-(def date-handlers
-  "Map of tag handlers to parse date-times as `java.util.Date` values."
-  {0 parse-string-date
-   1 parse-epoch-date})
-
-
 (def instant-handlers
   "Map of tag handlers to parse date-times as `java.time.Instant` values."
   {0 parse-string-instant
    1 parse-epoch-instant})
+
+
+
+;; ## Date Parsing
+
+(defn parse-epoch-date
+  [tag value]
+  (Date. (long (* value 1000))))
+
+
+(defn parse-string-date
+  [tag value]
+  (Date/from (parse-string-instant tag value)))
+
+
+(def date-handlers
+  "Map of tag handlers to parse date-times as `java.util.Date` values."
+  {0 parse-string-date
+   1 parse-epoch-date})

@@ -2,21 +2,36 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
+    [clj-cbor.tags.time :refer :all]
     [clj-cbor.test-utils :refer :all])
   (:import
     java.util.Date
     java.time.Instant))
 
 
-;  | 0("2013-03-21T20:04:00Z")    | 0xc074323031332d30332d32315432303a |
-;  |                              | 30343a30305a                       |
-;  |                              |                                    |
-;  | 1(1363896240)                | 0xc11a514b67b0                     |
-;  |                              |                                    |
-;  | 1(1363896240.5)              | 0xc1fb41d452d9ec200000             |
+(deftest epoch-datetimes
+  (testing "java.util.Date"
+    (let [codec (cbor/cbor-codec
+                  :formatters time-epoch-formatters
+                  :tag-handlers date-handlers)]
+      (check-roundtrip codec (Date. 1363896240000) "C11A514B67B0")
+      (check-roundtrip codec (Date. 1363896240500) "C1FB41D452D9EC200000")))
+  (testing "java.time.Instant"
+    (let [codec (cbor/cbor-codec
+                  :formatters time-epoch-formatters
+                  :tag-handlers instant-handlers)]
+      (check-roundtrip codec (Instant/ofEpochMilli 1363896240000) "C11A514B67B0")
+      (check-roundtrip codec (Instant/ofEpochMilli 1363896240500) "C1FB41D452D9EC200000"))))
 
 
-#_
-(deftest time-dates
-  (check-roundtrip (Date. 1363896240000) "C11A514B67B0")
-  (check-roundtrip (Date. 1363896240500) "C1fB41D452D9EC200000"))
+(deftest string-datetimes
+  (testing "java.util.Date"
+    (let [codec (cbor/cbor-codec
+                  :formatters time-string-formatters
+                  :tag-handlers date-handlers)]
+      (check-roundtrip codec (Date. 1363896240000) "C074323031332D30332D32315432303A30343A30305A")))
+  (testing "java.time.Instant"
+    (let [codec (cbor/cbor-codec
+                  :formatters time-string-formatters
+                  :tag-handlers instant-handlers)]
+      (check-roundtrip codec (Instant/ofEpochMilli 1363896240000) "C074323031332D30332D32315432303A30343A30305A"))))
