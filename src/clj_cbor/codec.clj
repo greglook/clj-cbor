@@ -110,6 +110,15 @@
 
 ;; ### 0, 1 - Integers
 
+(defn- representable-integer?
+  "Determines whether the given value is small enough to represent using
+  the normal integer major-type."
+  [value]
+  (and (integer? value)
+       (<= (*  2N Long/MIN_VALUE) value)
+       (>  (* -2N Long/MIN_VALUE) value)))
+
+
 (defn- write-integer
   "Writes an integer value."
   [encoder ^DataOutputStream out n]
@@ -430,7 +439,7 @@
       (data/simple-value? x) (write-simple this out x)
 
       ; Numbers
-      (integer? x) (write-integer this out x)
+      (representable-integer? x) (write-integer this out x)
       (float? x) (write-float this out x)
 
       ; Byte and text strings
