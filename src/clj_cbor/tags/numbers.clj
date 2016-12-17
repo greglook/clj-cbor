@@ -10,35 +10,38 @@
       BigInteger)))
 
 
-;; ## Formatting
+;; ## Bignums
 
-(defn format-big-integer
-  [^BigInteger value]
-  (if (pos? value)
-    (data/tagged-value 2 (.toByteArray value))
-    (data/tagged-value 3 (.toByteArray (.negate (.add value BigInteger/ONE))))))
-
-
-(def bignum-formatters
-  "Map of bignum types to render as tag 2/3 values."
-  {BigInteger format-big-integer
-   BigInt (comp format-big-integer biginteger)})
+(defn format-big-int
+  [value]
+  (let [big-integer (biginteger value)]
+    (if (pos? big-integer)
+      (data/tagged-value 2 (.toByteArray big-integer))
+      (data/tagged-value 3 (-> big-integer
+                               (.add BigInteger/ONE)
+                               (.negate)
+                               (.toByteArray))))))
 
 
-
-;; ## Parsing
-
-(defn parse-bignum
-  [^long tag value]
+(defn parse-big-int
+  [^long tag ^bytes value]
   ; TODO: assert that value is byte-array
-  (let [big-integer (BigInteger. ^bytes value)]
+  (let [big-integer (BigInteger. value)]
     (case tag
       2 (bigint big-integer)
       3 (bigint (.negate (.add big-integer BigInteger/ONE))))))
 
 
 
-(def bignum-handlers
+;; ## Codec Formatter/Handler Maps
+
+(def number-formatters
+  "Map of bignum types to render as tag 2/3 values."
+  {BigInteger format-big-int
+   BigInt format-big-int})
+
+
+(def number-handlers
   "Map of tag handlers to parse bignum values."
-  {2 parse-bignum
-   3 parse-bignum})
+  {2 parse-big-int
+   3 parse-big-int})

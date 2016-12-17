@@ -33,9 +33,9 @@
   (codec/map->CBORCodec
     (merge
       {:formatter-dispatch class
-       :formatters (merge numbers/bignum-formatters
+       :formatters (merge numbers/number-formatters
                           time/time-epoch-formatters)
-       :tag-handlers (merge numbers/bignum-handlers
+       :tag-handlers (merge numbers/number-handlers
                             time/instant-handlers)}
       opts)))
 
