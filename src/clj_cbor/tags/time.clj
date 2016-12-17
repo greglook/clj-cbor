@@ -15,8 +15,6 @@
       TimeZone)))
 
 
-;; ## Epoch Formatting
-
 (defn- tagged-epoch-time
   [epoch-millis]
   (data/tagged-value 1
@@ -25,24 +23,18 @@
       (/ epoch-millis 1000.0))))
 
 
+
+;; ## Instants
+
 (defn format-instant-epoch
   [^Instant value]
   (tagged-epoch-time (.toEpochMilli value)))
 
 
-(defn format-date-epoch
-  [^Date value]
-  (tagged-epoch-time (.getTime value)))
+(defn parse-epoch-instant
+  [tag value]
+  (Instant/ofEpochMilli (long (* value 1000))))
 
-
-(def time-epoch-formatters
-  "Map of date-time types to render as tag 1 epoch offsets."
-  {Date format-date-epoch
-   Instant format-instant-epoch})
-
-
-
-;; ## String Formatting
 
 (defn format-instant-string
   [^Instant value]
@@ -50,9 +42,41 @@
     (.format DateTimeFormatter/ISO_INSTANT value)))
 
 
+(defn parse-string-instant
+  [tag value]
+  (Instant/parse value))
+
+
+
+;; ## Dates
+
+(defn format-date-epoch
+  [^Date value]
+  (tagged-epoch-time (.getTime value)))
+
+
+(defn parse-epoch-date
+  [tag value]
+  (Date. (long (* value 1000))))
+
+
 (defn format-date-string
   [^Date value]
   (format-instant-string (.toInstant value)))
+
+
+(defn parse-string-date
+  [tag value]
+  (Date/from (parse-string-instant tag value)))
+
+
+
+;; ## Codec Maps
+
+(def time-epoch-formatters
+  "Map of date-time types to render as tag 1 epoch offsets."
+  {Date format-date-epoch
+   Instant format-instant-epoch})
 
 
 (def time-string-formatters
@@ -61,37 +85,10 @@
    Instant format-instant-string})
 
 
-
-;; ## Instant Parsing
-
-(defn parse-string-instant
-  [tag value]
-  ;DateTimeFormatter/ISO_INSTANT
-  (Instant/parse value))
-
-
-(defn parse-epoch-instant
-  [tag value]
-  (Instant/ofEpochMilli (long (* value 1000))))
-
-
 (def instant-handlers
   "Map of tag handlers to parse date-times as `java.time.Instant` values."
   {0 parse-string-instant
    1 parse-epoch-instant})
-
-
-
-;; ## Date Parsing
-
-(defn parse-epoch-date
-  [tag value]
-  (Date. (long (* value 1000))))
-
-
-(defn parse-string-date
-  [tag value]
-  (Date/from (parse-string-instant tag value)))
 
 
 (def date-handlers
