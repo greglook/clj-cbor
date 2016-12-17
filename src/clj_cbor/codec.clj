@@ -286,7 +286,9 @@
   (let [length (header/read-int input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
-      (read-value-stream decoder input build-map)
+      (->
+        (read-value-stream decoder input build-map)
+        (vary-meta assoc :cbor/streaming true))
       ; Read `length` entry pairs.
       (->>
         (repeatedly #(read-value decoder input))

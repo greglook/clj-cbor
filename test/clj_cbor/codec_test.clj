@@ -81,6 +81,7 @@
   (check-roundtrip [1 [2 3] [4 5]] "8301820203820405")
   (check-roundtrip (range 1 26) "98190102030405060708090A0B0C0D0E0F101112131415161718181819")
   (testing "streaming"
+    (is (true? (:cbor/streaming (meta (decode-hex "9FFF")))))
     (is (= [] (decode-hex "9FFF")))
     (is (= [1 [2 3] [4 5]] (decode-hex "9F018202039F0405FFFF")))
     (is (= [1 [2 3] [4 5]] (decode-hex "9F01820203820405FF")))
@@ -97,6 +98,8 @@
   (check-roundtrip {"a" "A", "b" "B", "c" "C", "d" "D", "e" "E"}
                    "A56161614161626142616361436164614461656145")
   (testing "streaming"
+    (is (true? (:cbor/streaming (meta (decode-hex "BFFF")))))
+    (is (= {} (decode-hex "BFFF")))
     (is (= {"a" 1, "b" [2 3]} (decode-hex "BF61610161629F0203FFFF")))
     (is (= ["a" {"b" "c"}] (decode-hex "826161BF61626163FF")))
     (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF")))))
