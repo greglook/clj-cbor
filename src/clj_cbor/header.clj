@@ -58,10 +58,15 @@
       (do (write out mtype 27)
           (.writeLong out i)
           9)
-    :else
+    (<= i (* -2N Long/MIN_VALUE))
       (do (write out mtype 27)
           (.writeLong out (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))
-          9)))
+          9)
+    :else
+      (error/*handler*
+        ::header-int-overflow
+        (str "Cannot write integer code requiring 9 bytes of space: " i)
+        {:code i})))
 
 
 ;; ## Decoding Functions
