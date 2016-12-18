@@ -3,10 +3,8 @@
 
 (defn codec-exception!
   "Default behavior for codec errors."
-  ([error-type message]
-   (codec-exception! error-type message nil))
-  ([error-type message data]
-   (throw (ex-info message (assoc data :cbor/error error-type)))))
+  [error-type message data]
+  (throw (ex-info message (assoc data :cbor/error error-type))))
 
 
 (def ^:dynamic *handler*

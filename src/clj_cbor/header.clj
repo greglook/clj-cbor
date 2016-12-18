@@ -122,5 +122,6 @@
         (error/*handler*
           ::reserved-length
           (format "Additional information int code %d is reserved."
-                  info))
+                  info)
+          {:info info})
       31 :indefinite)))
