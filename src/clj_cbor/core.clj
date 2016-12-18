@@ -31,18 +31,20 @@
     embedded item and return the transformed data value."
   [& {:as opts}]
   (codec/map->CBORCodec
-    (merge
-      {:formatter-dispatch class
-       :formatters (merge numbers/number-formatters
-                          time/time-epoch-formatters)
-       :tag-handlers (merge numbers/number-handlers
-                            time/instant-handlers)}
-      opts)))
+    (merge {:formatter-dispatch class} opts)))
 
 
 (def default-codec
   "Default CBOR codec to use when none is specified."
-  (cbor-codec))
+  (cbor-codec
+    :formatters
+    (merge numbers/number-formatters
+           time/time-epoch-formatters
+           text/text-formatters)
+    :tag-handlers
+    (merge numbers/number-handlers
+           time/instant-handlers
+           text/text-handlers)))
 
 
 (defn encode
