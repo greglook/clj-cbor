@@ -6,18 +6,30 @@
     javax.xml.bind.DatatypeConverter))
 
 
+(defn bin->hex
+  ^String
+  [^bytes value]
+  (DatatypeConverter/printHexBinary value))
+
+
+(defn hex->bin
+  ^bytes
+  [^String value]
+  (DatatypeConverter/parseHexBinary value))
+
+
 (defn decode-hex
   ([string]
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
-   (first (cbor/decode decoder (DatatypeConverter/parseHexBinary string)))))
+   (first (cbor/decode decoder (hex->bin string)))))
 
 
 (defn encoded-hex
   ([value]
    (encoded-hex (cbor/cbor-codec) value))
   ([encoder value]
-   (DatatypeConverter/printHexBinary (cbor/encode encoder value))))
+   (bin->hex (cbor/encode encoder value))))
 
 
 (defmacro check-roundtrip
