@@ -52,7 +52,7 @@
                          tag)
                     {:tag tag, :value value})))
   (let [[exponent mantissa] value]
-    (BigDecimal. (biginteger mantissa) (- exponent))))
+    (BigDecimal. (biginteger mantissa) (int (- exponent)))))
 
 
 
@@ -65,14 +65,14 @@
 ;; ## Codec Formatter/Handler Maps
 
 (def number-formatters
-  "Map of bignum types to render as tag 2/3 values."
+  "Map of number types to formatting functions."
   {BigInt     format-big-int
    BigInteger format-big-int
    BigDecimal format-big-decimal})
 
 
 (def number-handlers
-  "Map of tag handlers to parse bignum values."
+  "Map of tag handlers to parse number values."
   {2 parse-big-int
    3 parse-big-int
    4 parse-big-decimal})
