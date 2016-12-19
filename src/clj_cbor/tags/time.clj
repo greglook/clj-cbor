@@ -23,6 +23,30 @@
       (/ epoch-millis 1000.0))))
 
 
+(defn- check-epoch-form!
+  [tag value]
+  (when (not= tag 1)
+    (throw (ex-info (str "Epoch times must be represented with tag 1, got: "
+                         tag)
+                    {:tag tag, :value value})))
+  (when-not (number? value)
+    (throw (ex-info (str "Tag 1 values must be numbers, got: "
+                         (class value))
+                    {:tag tag, :value value}))))
+
+
+(defn- check-timestamp-form!
+  [tag value]
+  (when (not= tag 0)
+    (throw (ex-info (str "ISO timestamps must be represented with tag 0, got: "
+                         tag)
+                    {:tag tag, :value value})))
+  (when-not (string? value)
+    (throw (ex-info (str "Tag 0 values must be strings, got: "
+                         (class value))
+                    {:tag tag, :value value}))))
+
+
 
 ;; ## Instants
 
@@ -33,6 +57,7 @@
 
 (defn parse-epoch-instant
   [tag value]
+  (check-epoch-form! tag value)
   (Instant/ofEpochMilli (long (* value 1000))))
 
 
@@ -44,6 +69,7 @@
 
 (defn parse-string-instant
   [tag value]
+  (check-timestamp-form! tag value)
   (Instant/parse value))
 
 
@@ -57,6 +83,7 @@
 
 (defn parse-epoch-date
   [tag value]
+  (check-epoch-form! tag value)
   (Date. (long (* value 1000))))
 
 
@@ -67,6 +94,7 @@
 
 (defn parse-string-date
   [tag value]
+  (check-timestamp-form! tag value)
   (Date/from (parse-string-instant tag value)))
 
 
