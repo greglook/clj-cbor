@@ -4,28 +4,60 @@
   (:require
     [clj-cbor.data.model :as data])
   (:import
-    ,,,))
+    java.net.URI
+    java.util.regex.Pattern))
 
 
-;; ## Formatting
+;; ## URIs
 
-(defn format-?
-  [value]
-  (data/tagged-value '? '???))
-
-(def ?-formatters
-  "Map of ??? types to render as tag ? values."
-  {,,,})
+(defn format-uri
+  [^URI value]
+  (data/tagged-value 32 (str value)))
 
 
-
-;; ## Parsing
-
-(defn parse-?
+(defn parse-uri
   [tag value]
-  ,,,)
+  (when (not= tag 32)
+    (throw (ex-info (str "URIs must be represented with tag 32, got: "
+                         tag)
+                    {:tag tag, :value value})))
+  (when-not (string? value)
+    (throw (ex-info (str "URIs must be represented as tagged strings, got: "
+                         (class value))
+                    {:tag tag, :value value})))
+  (URI. value))
 
 
-(def ?-handlers
-  "Map of tag handlers to parse ? as ??? values."
-  {,,,})
+
+;; ## Patterns
+
+(defn format-pattern
+  [^Pattern value]
+  (data/tagged-value 35 (str value)))
+
+
+(defn parse-pattern
+  [tag value]
+  (when (not= tag 35)
+    (throw (ex-info (str "Regular expressions must be represented with tag 35, got: "
+                         tag)
+                    {:tag tag, :value value})))
+  (when-not (string? value)
+    (throw (ex-info (str "Regular expressions must be represented as tagged strings, got: "
+                         (class value))
+                    {:tag tag, :value value})))
+  (Pattern/compile value))
+
+
+;; ## Codec Formatter/Handler Maps
+
+(def text-formatters
+  "Map of text types to formatting functions."
+  {URI     format-uri
+   Pattern format-pattern})
+
+
+(def text-handlers
+  "Map of tag handlers to parse text values."
+  {32 parse-uri
+   35 parse-pattern})
