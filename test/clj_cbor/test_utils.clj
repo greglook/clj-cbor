@@ -34,8 +34,10 @@
 
 (defmacro check-roundtrip
   ([value hex-string]
-   `(check-roundtrip cbor/default-codec ~value ~hex-string))
-  ([codec value hex-string]
+   `(check-roundtrip cbor/default-codec ~'= ~value ~hex-string))
+  ([comparator value hex-string]
+   `(check-roundtrip cbor/default-codec ~comparator ~value ~hex-string))
+  ([codec comparator value hex-string]
    `(let [~'codec ~codec]
-      (is (~'= ~hex-string (encoded-hex ~'codec ~value)))
-      (is (~'= ~value (decode-hex ~'codec ~hex-string))))))
+      (is (~comparator ~hex-string (encoded-hex ~'codec ~value)))
+      (is (~comparator ~value (decode-hex ~'codec ~hex-string))))))

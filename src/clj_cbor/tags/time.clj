@@ -10,9 +10,7 @@
   (:import
     java.time.Instant
     java.time.format.DateTimeFormatter
-    (java.util
-      Date
-      TimeZone)))
+    java.util.Date))
 
 
 (defn- tagged-epoch-time
