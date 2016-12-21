@@ -31,7 +31,10 @@
     embedded item and return the transformed data value."
   [& {:as opts}]
   (codec/map->CBORCodec
-    (merge {:formatter-dispatch class} opts)))
+    (merge {:formatter-dispatch class
+            :formatters {}
+            :tag-handlers {}}
+           opts)))
 
 
 (def default-codec
