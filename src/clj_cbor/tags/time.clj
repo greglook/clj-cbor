@@ -101,13 +101,13 @@
 
 (def time-epoch-formatters
   "Map of date-time types to render as tag 1 epoch offsets."
-  {Date format-date-epoch
+  {Date    format-date-epoch
    Instant format-instant-epoch})
 
 
 (def time-string-formatters
   "Map of date-time types to render as tag 0 time strings."
-  {Date format-date-string
+  {Date    format-date-string
    Instant format-instant-string})
 
 
