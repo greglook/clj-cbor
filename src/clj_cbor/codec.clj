@@ -465,7 +465,8 @@
           :else
           (error/*handler*
             ::unsupported-type
-            (str "No known encoding for object: " (pr-str x)))))))
+            (str "No known encoding for object: " (pr-str x))
+            {:value x})))))
 
 
   Decoder
