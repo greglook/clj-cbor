@@ -11,8 +11,6 @@
 
 (deftest epoch-datetimes
   (testing "parsing checks"
-    (is (thrown-with-msg? Exception #"must be represented with tag 1"
-          (parse-epoch-instant 8 12345)))
     (is (thrown-with-msg? Exception #"must be tagged numbers"
           (parse-epoch-instant 1 "not-a-number"))))
   (testing "java.util.Date"
@@ -29,8 +27,6 @@
 
 (deftest string-datetimes
   (testing "parsing checks"
-    (is (thrown-with-msg? Exception #"must be represented with tag 0"
-          (parse-string-instant 8 "2016-12-21T19:37:42Z")))
     (is (thrown-with-msg? Exception #"must be tagged strings"
           (parse-string-instant 0 123456.789))))
   (testing "java.util.Date"

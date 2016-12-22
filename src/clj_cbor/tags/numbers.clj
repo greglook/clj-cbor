@@ -12,6 +12,9 @@
 
 ;; ## Bignums
 
+;; Tag 2, 3
+;; RFC 7049 Section 2.4.2
+
 (defn format-big-int
   [value]
   (let [big-integer (biginteger value)]
@@ -38,6 +41,9 @@
 
 ;; ## Decimal Fractions
 
+;; Tag 4
+;; RFC 7049 Section 2.4.3
+
 (defn format-big-decimal
   [^BigDecimal value]
   (let [exponent (.scale value)
@@ -47,10 +53,6 @@
 
 (defn parse-big-decimal
   [^long tag value]
-  (when (not= tag 4)
-    (throw (ex-info (str "Decimal fractions must be represented with tag 4, got: "
-                         tag)
-                    {:tag tag, :value value})))
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str "Decimal fractions must be represented with a two-element array, got: "
                          (pr-str value))
@@ -62,7 +64,18 @@
 
 ;; ## Bigfloats
 
+;; Tag 5
+;; RFC 7049 Section 2.4.3
+
 ;; Not Supported
+
+
+
+;; ## Rationals
+
+;; Tag 30
+;; http://peteroupc.github.io/CBOR/rational.html
+
 
 
 

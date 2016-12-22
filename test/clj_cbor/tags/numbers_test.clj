@@ -8,10 +8,6 @@
 
 (deftest bignums
   (testing "parsing checks"
-    (is (thrown? IllegalArgumentException
-          (parse-big-int 1 (byte-array 4))))
-    (is (thrown? IllegalArgumentException
-          (parse-big-int 4 (byte-array 4))))
     (is (thrown? Exception
           (parse-big-int 2 "not-bytes"))))
   (with-codec {:formatters number-formatters
@@ -22,8 +18,6 @@
 
 (deftest decimal-fractions
   (testing "parsing checks"
-    (is (thrown? Exception
-          (parse-big-decimal 3 123)))
     (is (thrown? Exception
           (parse-big-decimal 4 "not-sequential")))
     (is (thrown? Exception

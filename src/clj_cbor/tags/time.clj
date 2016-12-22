@@ -23,10 +23,6 @@
 
 (defn- check-epoch-form!
   [tag value]
-  (when (not= tag 1)
-    (throw (ex-info (str "Epoch times must be represented with tag 1, got: "
-                         tag)
-                    {:tag tag, :value value})))
   (when-not (number? value)
     (throw (ex-info (str "Tag 1 values must be tagged numbers, got: "
                          (class value))
@@ -35,10 +31,6 @@
 
 (defn- check-timestamp-form!
   [tag value]
-  (when (not= tag 0)
-    (throw (ex-info (str "ISO timestamps must be represented with tag 0, got: "
-                         tag)
-                    {:tag tag, :value value})))
   (when-not (string? value)
     (throw (ex-info (str "Tag 0 values must be tagged strings, got: "
                          (class value))

@@ -17,10 +17,6 @@
 
 (defn parse-uri
   [tag value]
-  (when (not= tag 32)
-    (throw (ex-info (str "URIs must be represented with tag 32, got: "
-                         tag)
-                    {:tag tag, :value value})))
   (when-not (string? value)
     (throw (ex-info (str "URIs must be tagged strings, got: "
                          (class value))
@@ -38,15 +34,19 @@
 
 (defn parse-pattern
   [tag value]
-  (when (not= tag 35)
-    (throw (ex-info (str "Regular expressions must be represented with tag 35, got: "
-                         tag)
-                    {:tag tag, :value value})))
   (when-not (string? value)
     (throw (ex-info (str "Regular expressions must be tagged strings, got: "
                          (class value))
                     {:tag tag, :value value})))
   (Pattern/compile value))
+
+
+
+;; ## UUIDs
+
+; tag 37
+; https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md
+
 
 
 ;; ## Codec Formatter/Handler Maps

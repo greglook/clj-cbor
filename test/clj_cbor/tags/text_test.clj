@@ -10,8 +10,6 @@
 
 (deftest uri-coding
   (testing "parsing checks"
-    (is (thrown-with-msg? Exception #"must be represented with tag 32"
-          (parse-uri 8 "foo")))
     (is (thrown-with-msg? Exception #"must be tagged strings"
           (parse-uri 32 (byte-array 4)))))
   (with-codec {:formatters text-formatters
@@ -21,8 +19,6 @@
 
 (deftest pattern-coding
   (testing "parsing checks"
-    (is (thrown-with-msg? Exception #"must be represented with tag 35"
-          (parse-pattern 8 "foo")))
     (is (thrown-with-msg? Exception #"must be tagged strings"
           (parse-pattern 35 (byte-array 4)))))
   (with-codec {:formatters text-formatters
