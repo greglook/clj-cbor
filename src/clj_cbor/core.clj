@@ -3,9 +3,10 @@
     [clj-cbor.codec :as codec]
     [clj-cbor.data.model :as data]
     (clj-cbor.tags
-      [numbers :as numbers]
-      [time :as time]
-      [text :as text])
+      [clojure :refer [clojure-formatters clojure-handlers]]
+      [numbers :refer [number-formatters number-handlers]]
+      [time :refer [time-epoch-formatters instant-handlers]]
+      [text :refer [text-formatters text-handlers]])
     [clojure.java.io :as io])
   (:import
     (java.io
@@ -41,13 +42,15 @@
   "Default CBOR codec to use when none is specified."
   (cbor-codec
     :formatters
-    (merge numbers/number-formatters
-           time/time-epoch-formatters
-           text/text-formatters)
+    (merge clojure-formatters
+           number-formatters
+           time-epoch-formatters
+           text-formatters)
     :tag-handlers
-    (merge numbers/number-handlers
-           time/instant-handlers
-           text/text-handlers)))
+    (merge clojure-handlers
+           number-handlers
+           instant-handlers
+           text-handlers)))
 
 
 (defn encode

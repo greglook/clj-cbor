@@ -260,7 +260,7 @@
               vlen (write-value encoder out v)]
           (+ sum klen vlen)))
       hlen
-      ; TODO: sort keys
+      ; TODO: sort keys by encoded bytes in canonical mode
       xm)))
 
 
@@ -422,6 +422,17 @@
 
 
 
+;; ### Extension - Sets
+
+(defn- write-set
+  "Writes a set of values to the output as a tagged array."
+  [encoder ^DataOutputStream out tag xs]
+  ; TODO: THIS IS NOT TO SPEC
+  ; TODO: sort keys by encoded bytes in canonical mode
+  (write-value encoder out (data/tagged-value tag (vec xs))))
+
+
+
 ;; ## Codec Types
 
 (defrecord CBORCodec
@@ -447,6 +458,9 @@
       (string? x) (write-text-string this out x)
       (data/bytes? x) (write-byte-string this out x)
 
+      ; Tag extensions
+      (data/tagged-value? x) (write-tagged this out x)
+
       :else
       (if-let [formatter (formatters (formatter-dispatch x))]
         (write-value this out (formatter x))
@@ -455,12 +469,7 @@
           (seq? x) (write-array this out x)
           (vector? x) (write-array this out x)
           (map? x) (write-map this out x)
-
-          ; Tag extensions
-          (data/tagged-value? x) (write-tagged this out x)
-          ;(symbol? x) (encode-symbol this out x)
-          ;(keyword? x) (encode-keyword this out x)
-          ;(set? x) (encode-set this out x)
+          (set? x) (write-set this out 13 x)
 
           :else
           (error/*handler*
@@ -486,6 +495,7 @@
 
   (handle-tag
     [this tag value]
+    ; TODO: should probably intercept sets here - ugh
     (if-let [handler (get tag-handlers tag)]
       (handler tag value)
       (data/tagged-value tag value)))

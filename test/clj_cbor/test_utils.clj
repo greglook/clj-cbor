@@ -24,7 +24,7 @@
   ([string]
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
-   (first (cbor/decode decoder (hex->bin string)))))
+   (first (doall (cbor/decode decoder (hex->bin string))))))
 
 
 (defn encoded-hex
