@@ -9,7 +9,10 @@
 (deftest bignums
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be represented as a tagged byte string"
-          (parse-big-int 2 "not-bytes"))))
+          (parse-big-int 2 "not-bytes")))
+    (is (thrown? Exception
+          (parse-big-int 4 (byte-array 7)))
+        "tag outside 2-3 should throw exception"))
   (with-codec {:formatters number-formatters
                :tag-handlers number-handlers}
     (check-roundtrip 18446744073709551616N "C249010000000000000000")

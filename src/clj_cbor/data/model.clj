@@ -62,6 +62,11 @@
   (and (bytes? value) (= (seq expected) (seq value))))
 
 
+(defmacro ^:private privatize!
+  [target]
+  `(alter-meta! (var ~target) assoc :private true))
+
+
 
 ;; ## Undefined Value
 
@@ -92,20 +97,19 @@
     (Undefined. meta-map)))
 
 
-; Remove automatic constructor function.
-(ns-unmap *ns* '->Undefined)
+(privatize! ->Undefined)
 
 
 (def undefined
   "Base singleton undefined value."
-  (Undefined. nil))
+  (->Undefined nil))
 
 
 (defn undefined*
   "Constructs a new undefined value with metadata about why it has been
   constructed."
   [reason-key & {:as data}]
-  (Undefined. {:cbor/cause (assoc data :type reason-key)}))
+  (->Undefined {:cbor/cause (assoc data :type reason-key)}))
 
 
 
@@ -140,8 +144,7 @@
     (SimpleValue. n meta-map)))
 
 
-; Remove automatic constructor function.
-(ns-unmap *ns* '->SimpleValue)
+(privatize! ->SimpleValue)
 
 
 (defn simple-value
@@ -150,7 +153,7 @@
   (when (or (neg? n) (< 255 n))
     (throw (IllegalArgumentException.
              "Simple value codes must be in [0, 255].")))
-  (SimpleValue. n nil))
+  (->SimpleValue n nil))
 
 
 (defn simple-value?
@@ -192,14 +195,13 @@
     (TaggedValue. tag value meta-map)))
 
 
-; Remove automatic constructor function.
-(ns-unmap *ns* '->TaggedValue)
+(privatize! ->TaggedValue)
 
 
 (defn tagged-value
   "Constructs a tagged value."
   [tag value]
-  (TaggedValue. tag value nil))
+  (->TaggedValue tag value nil))
 
 
 (defn tagged-value?
