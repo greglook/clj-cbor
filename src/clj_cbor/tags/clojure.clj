@@ -38,7 +38,7 @@
                          (class value))
                     {:tag tag, :value value})))
   (if (= \: (first value))
-    (keyword value)
+    (keyword (subs value 1))
     (symbol value)))
 
 

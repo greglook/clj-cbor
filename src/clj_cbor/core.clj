@@ -19,7 +19,7 @@
 
 
 (defn cbor-codec
-  "Constructs a new CBOR codec.
+  "Constructs a new CBOR codec with no configuration.
 
   Valid options are:
 
@@ -38,19 +38,27 @@
            opts)))
 
 
+(def default-formatters
+  "Map of default formatters to use, keyed by class."
+  (merge clojure-formatters
+         number-formatters
+         time-epoch-formatters
+         text-formatters))
+
+
+(def default-handlers
+  "Map of default tag handlers to use, keyed by tag."
+  (merge clojure-handlers
+         number-handlers
+         instant-handlers
+         text-handlers))
+
+
 (def default-codec
   "Default CBOR codec to use when none is specified."
   (cbor-codec
-    :formatters
-    (merge clojure-formatters
-           number-formatters
-           time-epoch-formatters
-           text-formatters)
-    :tag-handlers
-    (merge clojure-handlers
-           number-handlers
-           instant-handlers
-           text-handlers)))
+    :formatters default-formatters
+    :tag-handlers default-handlers))
 
 
 (defn encode

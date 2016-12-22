@@ -19,7 +19,7 @@
     [^DataOutputStream out mtype info]
     (let [header (-> (bit-and (mtype-codes mtype) 0x07)
                      (bit-shift-left 5)
-                     (bit-or (bit-and info 0x1F)))]
+                     (bit-or (bit-and (long info) 0x1F)))]
       (.writeByte out header))
     1))
 
