@@ -28,7 +28,7 @@
                          tag)
                     {:tag tag, :value value})))
   (when-not (number? value)
-    (throw (ex-info (str "Tag 1 values must be numbers, got: "
+    (throw (ex-info (str "Tag 1 values must be tagged numbers, got: "
                          (class value))
                     {:tag tag, :value value}))))
 
@@ -40,7 +40,7 @@
                          tag)
                     {:tag tag, :value value})))
   (when-not (string? value)
-    (throw (ex-info (str "Tag 0 values must be strings, got: "
+    (throw (ex-info (str "Tag 0 values must be tagged strings, got: "
                          (class value))
                     {:tag tag, :value value}))))
 

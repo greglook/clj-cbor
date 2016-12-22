@@ -51,6 +51,10 @@
     (throw (ex-info (str "Decimal fractions must be represented with tag 4, got: "
                          tag)
                     {:tag tag, :value value})))
+  (when-not (and (sequential? value) (= 2 (count value)))
+    (throw (ex-info (str "Decimal fractions must be represented with a two-element array, got: "
+                         (pr-str value))
+                    {:tag tag, :value value})))
   (let [[exponent mantissa] value]
     (BigDecimal. (biginteger mantissa) (int (- exponent)))))
 

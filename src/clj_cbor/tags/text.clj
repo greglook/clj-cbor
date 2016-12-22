@@ -22,7 +22,7 @@
                          tag)
                     {:tag tag, :value value})))
   (when-not (string? value)
-    (throw (ex-info (str "URIs must be represented as tagged strings, got: "
+    (throw (ex-info (str "URIs must be tagged strings, got: "
                          (class value))
                     {:tag tag, :value value})))
   (URI. value))
@@ -43,7 +43,7 @@
                          tag)
                     {:tag tag, :value value})))
   (when-not (string? value)
-    (throw (ex-info (str "Regular expressions must be represented as tagged strings, got: "
+    (throw (ex-info (str "Regular expressions must be tagged strings, got: "
                          (class value))
                     {:tag tag, :value value})))
   (Pattern/compile value))
