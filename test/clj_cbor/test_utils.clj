@@ -6,6 +6,8 @@
     javax.xml.bind.DatatypeConverter))
 
 
+;; ## Hex Conversion Functions
+
 (defn bin->hex
   ^String
   [^bytes value]
@@ -32,12 +34,23 @@
    (bin->hex (cbor/encode encoder value))))
 
 
+
+;; ## Dynamic Codec
+
+(def ^:dynamic *test-codec*
+  (cbor/cbor-codec))
+
+
+(defmacro with-codec
+  [opts & body]
+  `(binding [*test-codec* (cbor/cbor-codec ~@(flatten (seq opts)))]
+     ~@body))
+
+
 (defmacro check-roundtrip
   ([value hex-string]
-   `(check-roundtrip cbor/default-codec ~'= ~value ~hex-string))
-  ([comparator value hex-string]
-   `(check-roundtrip cbor/default-codec ~comparator ~value ~hex-string))
-  ([codec comparator value hex-string]
-   `(let [~'codec ~codec]
-      (is (~comparator ~hex-string (encoded-hex ~'codec ~value)))
-      (is (~comparator ~value (decode-hex ~'codec ~hex-string))))))
+   `(do (is (~'= ~hex-string (encoded-hex *test-codec* ~value)))
+        (is (~'= ~value (decode-hex *test-codec* ~hex-string)))))
+  ([compare-by value hex-string]
+   `(do (is (~'= ~hex-string (encoded-hex *test-codec* ~value)))
+        (is (~'= (~compare-by ~value) (~compare-by (decode-hex *test-codec* ~hex-string)))))))

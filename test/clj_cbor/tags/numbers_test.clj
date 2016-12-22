@@ -7,16 +7,14 @@
 
 
 (deftest bignums
-  (let [codec (cbor/cbor-codec
-                :formatters number-formatters
-                :tag-handlers number-handlers)]
-    (check-roundtrip codec =  18446744073709551616N "C249010000000000000000")
-    (check-roundtrip codec = -18446744073709551617N "C349010000000000000000")))
+  (with-codec {:formatters number-formatters
+               :tag-handlers number-handlers}
+    (check-roundtrip 18446744073709551616N "C249010000000000000000")
+    (check-roundtrip -18446744073709551617N "C349010000000000000000")))
 
 
 (deftest decimal-fractions
-  (let [codec (cbor/cbor-codec
-                :formatters number-formatters
-                :tag-handlers number-handlers)]
-    (check-roundtrip codec =  273.15M "C48221196AB3")
-    (check-roundtrip codec = 3.14159M "C482241A0004CB2F")))
+  (with-codec {:formatters number-formatters
+               :tag-handlers number-handlers}
+    (check-roundtrip 273.15M "C48221196AB3")
+    (check-roundtrip 3.14159M "C482241A0004CB2F")))
