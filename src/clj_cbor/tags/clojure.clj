@@ -56,7 +56,7 @@
 (defn parse-tagged-literal
   [tag value]
   (when-not (and (sequential? value) (= 2 (count value)))
-    (throw (ex-info (str "Sets must be tagged 2-element arrays, got: "
+    (throw (ex-info (str "Sets must be tagged two-element arrays, got: "
                          (class value))
                     {:tag tag, :value value})))
   (tagged-literal (symbol (first value)) (second value)))

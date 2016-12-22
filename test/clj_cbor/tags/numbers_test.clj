@@ -8,7 +8,7 @@
 
 (deftest bignums
   (testing "parsing checks"
-    (is (thrown? Exception
+    (is (thrown-with-msg? Exception #"must be represented as a tagged byte string"
           (parse-big-int 2 "not-bytes"))))
   (with-codec {:formatters number-formatters
                :tag-handlers number-handlers}
@@ -18,15 +18,32 @@
 
 (deftest decimal-fractions
   (testing "parsing checks"
-    (is (thrown? Exception
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 "not-sequential")))
-    (is (thrown? Exception
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 [])))
-    (is (thrown? Exception
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 [0])))
-    (is (thrown? Exception
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 [0 123 456]))))
   (with-codec {:formatters number-formatters
                :tag-handlers number-handlers}
     (check-roundtrip 273.15M "C48221196AB3")
     (check-roundtrip 3.14159M "C482241A0004CB2F")))
+
+
+
+(deftest rationals
+  (testing "parsing checks"
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
+          (parse-rational 30 "not-sequential")))
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
+          (parse-rational 4 [])))
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
+          (parse-big-decimal 4 [0])))
+    (is (thrown-with-msg? Exception #"must be represented with a two-element array"
+          (parse-big-decimal 4 [0 123 456]))))
+  (with-codec {:formatters number-formatters
+               :tag-handlers number-handlers}
+    (check-roundtrip 1/3 "D81E820103")
+    (check-roundtrip 11/37 "D81E820B1825")))

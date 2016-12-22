@@ -31,7 +31,7 @@
 (defn parse-big-int
   [^long tag ^bytes value]
   (when-not (data/bytes? value)
-    (throw (ex-info (str "Bignums must be represented as a tagged byte array, got: "
+    (throw (ex-info (str "Bignums must be represented as a tagged byte string, got: "
                          (class value))
                     {:tag tag, :value value})))
   (let [big-integer (BigInteger. value)]
