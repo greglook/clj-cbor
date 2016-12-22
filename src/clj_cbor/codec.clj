@@ -427,7 +427,7 @@
 (defn- write-set
   "Writes a set of values to the output as a tagged array."
   [encoder ^DataOutputStream out tag xs]
-  ; TODO: THIS IS NOT TO SPEC
+  ; FIXME: THIS IS NOT TO SPEC
   ; TODO: sort keys by encoded bytes in canonical mode
   (write-value encoder out (data/tagged-value tag (vec xs))))
 
@@ -496,7 +496,7 @@
   (handle-tag
     [this tag value]
     ; TODO: should probably intercept sets here - ugh
-    (if-let [handler (get tag-handlers tag)]
+    (if-let [handler (tag-handlers tag)]
       (handler tag value)
       (data/tagged-value tag value)))
 
