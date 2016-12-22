@@ -4,7 +4,9 @@
   (:require
     [clj-cbor.data.model :as data])
   (:import
-    clojure.lang.BigInt
+    (clojure.lang
+      BigInt
+      Ratio)
     (java.math
       BigDecimal
       BigInteger)))
@@ -76,6 +78,19 @@
 ;; Tag 30
 ;; http://peteroupc.github.io/CBOR/rational.html
 
+(defn format-rational
+  [value]
+  (data/tagged-value 30 [(numerator value) (denominator value)]))
+
+
+(defn parse-rational
+  [^long tag value]
+  (when-not (and (sequential? value) (= 2 (count value)))
+    (throw (ex-info (str "Rational numbers must be represented with a two-element array, got: "
+                         (pr-str value))
+                    {:tag tag, :value value})))
+  (let [[numerator denominator] value]
+    (Ratio. (biginteger numerator) (biginteger denominator))))
 
 
 
@@ -85,11 +100,13 @@
   "Map of number types to formatting functions."
   {BigInt     format-big-int
    BigInteger format-big-int
-   BigDecimal format-big-decimal})
+   BigDecimal format-big-decimal
+   Ratio      format-rational})
 
 
 (def number-handlers
   "Map of tag handlers to parse number values."
-  {2 parse-big-int
-   3 parse-big-int
-   4 parse-big-decimal})
+  { 2 parse-big-int
+    3 parse-big-int
+    4 parse-big-decimal
+   30 parse-rational})
