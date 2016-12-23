@@ -14,29 +14,6 @@
    :simple-value])
 
 
-(def length-information-types
-  "Map of keywords designating the types of additional information to the
-  numeric value."
-  {24 :uint8
-   25 :uint16
-   26 :uint32
-   27 :uint64
-   31 :indefinite})
-
-
-(def simple-information-types
-  "Set of keywords designating the types of additional information."
-  {20 :false
-   21 :true
-   22 :null
-   23 :undefined
-   24 :simple-value-byte
-   25 :float16
-   26 :float32
-   27 :float64
-   31 :break})
-
-
 (def ^:const break
   "Value of the break code."
   (short 0xFF))
