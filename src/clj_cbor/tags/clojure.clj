@@ -1,8 +1,19 @@
 (ns clj-cbor.tags.clojure
-  "Built-in tag support for the clojure type extensions.
+  "Read and write handler support for Clojure types.
+
+  Keywords and symbols are represented using tag 39 ('identifier') applied to
+  the string version of the value. This adds three bytes to the size of the
+  identifier itself for the header, tag code, and string header. Keywords are
+  symbols whose first character is a colon (:).
+
+  Tagged literals are represented using tag 27 ('generic object') applied to an
+  array containing two elements. The first element is the string version of the
+  EDN tag symbol and the second is the tagged literal form.
 
   See:
-  - https://github.com/lucas-clemente/cbor-specs/blob/master/id.md"
+  - https://github.com/lucas-clemente/cbor-specs/blob/master/id.md
+  - http://cbor.schmorp.de/generic-object
+  "
   (:require
     [clj-cbor.data.model :as data])
   (:import

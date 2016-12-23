@@ -1,4 +1,5 @@
 (ns clj-cbor.codec
+  "Main CBOR codec implementation."
   (:require
     (clj-cbor
       [error :as error]
@@ -450,6 +451,13 @@
 
 ;; ## Codec Types
 
+;; - `:write-dispatch` function which is called to provide a dispatch value
+;;   based on the data to be rendered. (default: `class`)
+;; - `:write-handlers` lookup dispatch values to find write handlers, which
+;;   return an encodable representation of the value (usually a tagged value).
+;; - `:read-handlers` lookup integer tags to find read handlers, which take the
+;;   tag and value and return a reified type based on the value.
+;; - `:set-tag` integer code to tag sets with.
 (defrecord CBORCodec
   [write-dispatch write-handlers read-handlers set-tag]
 
