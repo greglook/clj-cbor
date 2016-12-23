@@ -38,7 +38,8 @@
   (codec/map->CBORCodec
     (merge {:write-dispatch class
             :write-handlers {}
-            :read-handlers {}}
+            :read-handlers {}
+            :set-tag 13}
            opts)))
 
 
