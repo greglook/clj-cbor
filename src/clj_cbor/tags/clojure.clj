@@ -12,18 +12,6 @@
       TaggedLiteral)))
 
 
-;; ## Sets
-
-(defn parse-set
-  [tag value]
-  (when-not (sequential? value)
-    (throw (ex-info (str "Sets must be tagged arrays, got: "
-                         (class value))
-                    {:tag tag, :value value})))
-  (set value))
-
-
-
 ;; ## Symbols & Keywords
 
 (defn format-symbol

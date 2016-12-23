@@ -438,11 +438,20 @@
   (write-value encoder out (data/tagged-value tag (vec xs))))
 
 
+(defn- parse-set
+  [tag value]
+  (when-not (sequential? value)
+    (throw (ex-info (str "Sets must be tagged arrays, got: "
+                         (class value))
+                    {:tag tag, :value value})))
+  (set value))
+
+
 
 ;; ## Codec Types
 
 (defrecord CBORCodec
-  [formatter-dispatch formatters tag-handlers]
+  [write-dispatch write-handlers read-handlers set-tag]
 
   Encoder
 
@@ -468,14 +477,14 @@
       (data/tagged-value? x) (write-tagged this out x)
 
       :else
-      (if-let [formatter (formatters (formatter-dispatch x))]
+      (if-let [formatter (write-handlers (write-dispatch x))]
         (write-value this out (formatter x))
         (cond
           ; Collections
           (seq? x) (write-array this out x)
           (vector? x) (write-array this out x)
           (map? x) (write-map this out x)
-          (set? x) (write-set this out 13 x)
+          (set? x) (write-set this out set-tag x)
 
           :else
           (error/*handler*
@@ -501,10 +510,11 @@
 
   (handle-tag
     [this tag value]
-    ; TODO: should probably intercept sets here - ugh
-    (if-let [handler (tag-handlers tag)]
-      (handler tag value)
-      (data/tagged-value tag value)))
+    (if (= tag set-tag)
+      (parse-set tag value)
+      (if-let [handler (read-handlers tag)]
+        (handler tag value)
+        (data/tagged-value tag value))))
 
   (unknown-simple
     [this value]
