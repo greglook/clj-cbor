@@ -9,6 +9,8 @@
 
 (def ^:dynamic *handler*
   "Dynamic error handler which can be bound to a function which will be called
-  with a type keyword and a message, and optionally a map of extra data. Handler
-  functions should accept 2 and 3-arity calls."
+  with a type keyword, a message, and a map of extra data."
   codec-exception!)
+
+
+; TODO: exception hierarchy
