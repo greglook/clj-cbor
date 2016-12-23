@@ -32,11 +32,6 @@
     (instance? byte-array-class x)))
 
 
-(defmacro ^:private privatize!
-  [target]
-  `(alter-meta! (var ~target) assoc :private true))
-
-
 
 ;; ## Undefined Value
 
@@ -67,7 +62,7 @@
     (Undefined. meta-map)))
 
 
-(privatize! ->Undefined)
+(alter-meta! #'->Undefined assoc :private true)
 
 
 (def undefined
@@ -107,7 +102,7 @@
     (SimpleValue. n meta-map)))
 
 
-(privatize! ->SimpleValue)
+(alter-meta! #'->SimpleValue assoc :private true)
 
 
 (defn simple-value
@@ -115,7 +110,7 @@
   [n]
   (when (or (neg? n) (< 255 n))
     (throw (IllegalArgumentException.
-             "Simple value codes must be in [0, 255].")))
+             "Simple value codes must be between 0 and 255")))
   (->SimpleValue n nil))
 
 
@@ -158,7 +153,7 @@
     (TaggedValue. tag value meta-map)))
 
 
-(privatize! ->TaggedValue)
+(alter-meta! #'->TaggedValue assoc :private true)
 
 
 (defn tagged-value
