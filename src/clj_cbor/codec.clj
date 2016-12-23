@@ -322,7 +322,13 @@
   [decoder ^DataInputStream input info]
   (let [tag (header/read-int input info)
         value (read-value decoder input)]
-    (handle-tag decoder tag value)))
+    (try
+      (handle-tag decoder tag value)
+      (catch Exception ex
+        (error/*handler*
+          ::tag-handling-error
+          (.getMessage ex)
+          {:error ex})))))
 
 
 
