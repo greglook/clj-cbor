@@ -75,13 +75,6 @@
   (->Undefined nil))
 
 
-(defn undefined*
-  "Constructs a new undefined value with metadata about why it has been
-  constructed."
-  [reason-key & {:as data}]
-  (->Undefined {:cbor/cause (assoc data :type reason-key)}))
-
-
 
 ;; ## Simple Values
 
