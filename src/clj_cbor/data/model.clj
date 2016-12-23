@@ -55,13 +55,6 @@
     (instance? byte-array-class x)))
 
 
-(defn bytes=
-  "Compares the byte-array `value` to the sequence of `expected` byte values.
-  Returns true if the array has the same length and matching byte values."
-  [expected value]
-  (and (bytes? value) (= (seq expected) (seq value))))
-
-
 (defmacro ^:private privatize!
   [target]
   `(alter-meta! (var ~target) assoc :private true))

@@ -56,10 +56,10 @@
 
 (deftest byte-strings
   (is (= "40" (encoded-hex (byte-array 0))))
-  (is (data/bytes= [] (decode-hex "40")))
+  (is (bytes= [] (decode-hex "40")))
   (is (= "4401020304" (encoded-hex (byte-array [1 2 3 4]))))
-  (is (data/bytes= [1 2 3 4] (decode-hex "4401020304")))
-  (is (data/bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF"))
+  (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
+  (is (bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF"))
       "streaming byte string"))
 
 

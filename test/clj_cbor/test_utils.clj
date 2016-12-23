@@ -1,9 +1,18 @@
 (ns clj-cbor.test-utils
   (:require
     [clojure.test :refer :all]
-    [clj-cbor.core :as cbor])
+    [clj-cbor.core :as cbor]
+    [clj-cbor.data.model :refer [bytes?]])
   (:import
     javax.xml.bind.DatatypeConverter))
+
+
+(defn bytes=
+  "Compares the byte-array `value` to the sequence of `expected` byte values.
+  Returns true if the array has the same length and matching byte values."
+  [expected value]
+  (and (bytes? value) (= (seq expected) (seq value))))
+
 
 
 ;; ## Hex Conversion Functions
