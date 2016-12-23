@@ -4,10 +4,6 @@
   :license {:name "Public Domain"
             :url "http://unlicense.org/"}
 
-  :aliases
-  {"doc-lit" ["marg" "--dir" "doc/marginalia"]
-   "coverage" ["with-profile" "+test" "cloverage"]}
-
   :deploy-branches ["master"]
   :pedantic? :abort
 
@@ -22,12 +18,15 @@
   :codox
   {:metadata {:doc/format :markdown}
    :source-uri "https://github.com/greglook/clj-cbor/blob/master/{filepath}#L{line}"
-   :doc-paths ["doc/extra"]
-   :output-path "doc/api"}
+   :output-path "target/doc/api"}
 
   :profiles
   {:repl
    {:source-paths ["dev"]}
 
    :test
-   {:plugins [[lein-cloverage "1.0.9"]]}})
+   {:plugins [[lein-cloverage "1.0.9"]]}
+
+   :doc
+   {:plugins [[lein-codox "0.10.2"]
+              [michaelblume/lein-marginalia "0.9.0"]]}})

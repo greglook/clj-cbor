@@ -2,6 +2,6 @@ test:
   override:
     - lein check
     - lein test
-    - lein coverage
+    - lein with-profile +test cloverage
   post:
     - cp -r target/coverage/ $CIRCLE_ARTIFACTS/
