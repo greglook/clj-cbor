@@ -153,3 +153,14 @@
     (check-roundtrip (data/simple-value 16)  "F0")
     (check-roundtrip (data/simple-value 32)  "F820")
     (check-roundtrip (data/simple-value 255) "F8FF")))
+
+
+#_
+(deftest sets
+  (testing "parsing checks"
+    (is (thrown-with-msg? Exception #"must be tagged arrays"
+          (parse-set 13 "not-sequential"))))
+  (with-codec {:write-handlers clojure-write-handlers
+               :read-handlers clojure-read-handlers}
+    (check-roundtrip #{} "CD80")
+    (check-roundtrip #{1 2 3} "CD83010302")))
