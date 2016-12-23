@@ -3,10 +3,14 @@
     [clj-cbor.codec :as codec]
     [clj-cbor.data.model :as data]
     (clj-cbor.tags
-      [clojure :refer [clojure-formatters clojure-handlers]]
-      [numbers :refer [number-formatters number-handlers]]
-      [time :refer [time-epoch-formatters instant-handlers]]
-      [text :refer [text-formatters text-handlers]])
+      [clojure :refer [clojure-read-handlers
+                       clojure-write-handlers]]
+      [numbers :refer [number-read-handlers
+                       number-write-handlers]]
+      [time :refer [instant-read-handlers
+                    epoch-time-write-handlers]]
+      [text :refer [text-read-handlers
+                    text-write-handlers]])
     [clojure.java.io :as io])
   (:import
     (java.io
@@ -23,42 +27,42 @@
 
   Valid options are:
 
-  - `:formatter-dispatch` function which is called to provide a dispatch value
+  - `:write-dispatch` function which is called to provide a dispatch value
     based on the data to be rendered. (default: `class`)
-  - `:formatters` map of dispatch values to _formatting functions_ which take
+  - `:write-handlers` map of dispatch values to _formatting functions_ which take
     some data to be encoded and return a transformed version of it (typically
     tagged values).
-  - `:tag-handlers` map of integer tags to _handler functions_ which take the
+  - `:read-handlers` map of integer tags to _handler functions_ which take the
     embedded item and return the transformed data value."
   [& {:as opts}]
   (codec/map->CBORCodec
-    (merge {:formatter-dispatch class
-            :formatters {}
-            :tag-handlers {}}
+    (merge {:write-dispatch class
+            :write-handlers {}
+            :read-handlers {}}
            opts)))
 
 
-(def default-formatters
-  "Map of default formatters to use, keyed by class."
-  (merge clojure-formatters
-         number-formatters
-         time-epoch-formatters
-         text-formatters))
+(def default-write-handlers
+  "Map of default write handlers to use, keyed by class."
+  (merge clojure-write-handlers
+         number-write-handlers
+         epoch-time-write-handlers
+         text-write-handlers))
 
 
-(def default-handlers
+(def default-read-handlers
   "Map of default tag handlers to use, keyed by tag."
-  (merge clojure-handlers
-         number-handlers
-         instant-handlers
-         text-handlers))
+  (merge clojure-read-handlers
+         number-read-handlers
+         instant-read-handlers
+         text-read-handlers))
 
 
 (def default-codec
   "Default CBOR codec to use when none is specified."
   (cbor-codec
-    :formatters default-formatters
-    :tag-handlers default-handlers))
+    :write-handlers default-write-handlers
+    :read-handlers default-read-handlers))
 
 
 (defn encode

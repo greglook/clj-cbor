@@ -13,8 +13,8 @@
     (is (thrown? Exception
           (parse-big-int 4 (byte-array 7)))
         "tag outside 2-3 should throw exception"))
-  (with-codec {:formatters number-formatters
-               :tag-handlers number-handlers}
+  (with-codec {:write-handlers number-write-handlers
+               :read-handlers number-read-handlers}
     (check-roundtrip 18446744073709551616N "C249010000000000000000")
     (check-roundtrip -18446744073709551617N "C349010000000000000000")))
 
@@ -29,8 +29,8 @@
           (parse-big-decimal 4 [0])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 [0 123 456]))))
-  (with-codec {:formatters number-formatters
-               :tag-handlers number-handlers}
+  (with-codec {:write-handlers number-write-handlers
+               :read-handlers number-read-handlers}
     (check-roundtrip 273.15M "C48221196AB3")
     (check-roundtrip 3.14159M "C482241A0004CB2F")))
 
@@ -46,7 +46,7 @@
           (parse-big-decimal 4 [0])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
           (parse-big-decimal 4 [0 123 456]))))
-  (with-codec {:formatters number-formatters
-               :tag-handlers number-handlers}
+  (with-codec {:write-handlers number-write-handlers
+               :read-handlers number-read-handlers}
     (check-roundtrip 1/3 "D81E820103")
     (check-roundtrip 11/37 "D81E820B1825")))

@@ -10,8 +10,8 @@
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged arrays"
           (parse-set 13 "not-sequential"))))
-  (with-codec {:formatters clojure-formatters
-               :tag-handlers clojure-handlers}
+  (with-codec {:write-handlers clojure-write-handlers
+               :read-handlers clojure-read-handlers}
     (check-roundtrip #{} "CD80")
     (check-roundtrip #{1 2 3} "CD83010302")))
 
@@ -20,8 +20,8 @@
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged strings"
           (parse-symbol 39 123))))
-  (with-codec {:formatters clojure-formatters
-               :tag-handlers clojure-handlers}
+  (with-codec {:write-handlers clojure-write-handlers
+               :read-handlers clojure-read-handlers}
     (check-roundtrip :a "D827623A61")
     (check-roundtrip :abc/def "D827683A6162632F646566")
     (check-roundtrip 'foo "D82763666F6F")
@@ -32,6 +32,6 @@
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged two-element arrays"
           (parse-tagged-literal 27 123))))
-  (with-codec {:formatters clojure-formatters
-               :tag-handlers clojure-handlers}
+  (with-codec {:write-handlers clojure-write-handlers
+               :read-handlers clojure-read-handlers}
     (check-roundtrip (juxt :tag :form) (tagged-literal 'foo 123) "D81B8263666F6F187B")))

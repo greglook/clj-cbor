@@ -91,25 +91,25 @@
 
 ;; ## Codec Maps
 
-(def time-epoch-formatters
+(def epoch-time-write-handlers
   "Map of date-time types to render as tag 1 epoch offsets."
   {Date    format-date-epoch
    Instant format-instant-epoch})
 
 
-(def time-string-formatters
+(def string-time-write-handlers
   "Map of date-time types to render as tag 0 time strings."
   {Date    format-date-string
    Instant format-instant-string})
 
 
-(def instant-handlers
+(def instant-read-handlers
   "Map of tag handlers to parse date-times as `java.time.Instant` values."
   {0 parse-string-instant
    1 parse-epoch-instant})
 
 
-(def date-handlers
+(def date-read-handlers
   "Map of tag handlers to parse date-times as `java.util.Date` values."
   {0 parse-string-date
    1 parse-epoch-date})

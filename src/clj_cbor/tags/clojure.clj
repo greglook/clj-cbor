@@ -53,15 +53,14 @@
 
 ;; ## Codec Formatter/Handler Maps
 
-(def clojure-formatters
-  "Map of Clojure types to formatting functions."
+(def clojure-write-handlers
+  "Map of Clojure types to write handler functions."
   {Keyword       format-symbol
    Symbol        format-symbol
    TaggedLiteral format-tagged-literal})
 
 
-(def clojure-handlers
-  "Map of tag handlers to parse Clojure values."
-  {13 parse-set
-   27 parse-tagged-literal
+(def clojure-read-handlers
+  "Map of tag codes to read handlers to parse Clojure values."
+  {27 parse-tagged-literal
    39 parse-symbol})

@@ -51,13 +51,13 @@
 
 ;; ## Codec Formatter/Handler Maps
 
-(def text-formatters
+(def text-write-handlers
   "Map of text types to formatting functions."
   {URI     format-uri
    Pattern format-pattern})
 
 
-(def text-handlers
+(def text-read-handlers
   "Map of tag handlers to parse text values."
   {32 parse-uri
    35 parse-pattern})

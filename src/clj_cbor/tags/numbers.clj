@@ -96,16 +96,16 @@
 
 ;; ## Codec Formatter/Handler Maps
 
-(def number-formatters
-  "Map of number types to formatting functions."
+(def number-write-handlers
+  "Map of number types to write handler functions."
   {BigInt     format-big-int
    BigInteger format-big-int
    BigDecimal format-big-decimal
    Ratio      format-rational})
 
 
-(def number-handlers
-  "Map of tag handlers to parse number values."
+(def number-read-handlers
+  "Map of tag codes to read handlers to parse number values."
   { 2 parse-big-int
     3 parse-big-int
     4 parse-big-decimal

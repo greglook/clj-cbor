@@ -14,13 +14,13 @@
     (is (thrown-with-msg? Exception #"must be tagged numbers"
           (parse-epoch-instant 1 "not-a-number"))))
   (testing "java.util.Date"
-    (with-codec {:formatters time-epoch-formatters
-                 :tag-handlers date-handlers}
+    (with-codec {:write-handlers epoch-time-write-handlers
+                 :read-handlers date-read-handlers}
       (check-roundtrip (Date. 1363896240000) "C11A514B67B0")
       (check-roundtrip (Date. 1363896240500) "C1FB41D452D9EC200000")))
   (testing "java.time.Instant"
-    (with-codec {:formatters time-epoch-formatters
-                 :tag-handlers instant-handlers}
+    (with-codec {:write-handlers epoch-time-write-handlers
+                 :read-handlers instant-read-handlers}
       (check-roundtrip (Instant/ofEpochMilli 1363896240000) "C11A514B67B0")
       (check-roundtrip (Instant/ofEpochMilli 1363896240500) "C1FB41D452D9EC200000"))))
 
@@ -30,10 +30,10 @@
     (is (thrown-with-msg? Exception #"must be tagged strings"
           (parse-string-instant 0 123456.789))))
   (testing "java.util.Date"
-    (with-codec {:formatters time-string-formatters
-                 :tag-handlers date-handlers}
+    (with-codec {:write-handlers string-time-write-handlers
+                 :read-handlers date-read-handlers}
       (check-roundtrip (Date. 1363896240000) "C074323031332D30332D32315432303A30343A30305A")))
   (testing "java.time.Instant"
-    (with-codec {:formatters time-string-formatters
-                 :tag-handlers instant-handlers}
+    (with-codec {:write-handlers string-time-write-handlers
+                 :read-handlers instant-read-handlers}
       (check-roundtrip (Instant/ofEpochMilli 1363896240000) "C074323031332D30332D32315432303A30343A30305A"))))
