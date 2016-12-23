@@ -39,17 +39,17 @@
 (deftest header-int-reading
   (testing "values 0 - 23"
     (dotimes [i 24]
-      (is (= i (header/read-int nil i))
+      (is (= i (header/read-size nil i))
           "should be represented directly")))
   (testing "reserved values"
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-int nil 28)))
+          (header/read-size nil 28)))
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-int nil 29)))
+          (header/read-size nil 29)))
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-int nil 30))))
+          (header/read-size nil 30))))
   (testing "indefinite length"
-    (is (= :indefinite (header/read-int nil 31))))
+    (is (= :indefinite (header/read-size nil 31))))
   (testing "invalid value"
     (is (thrown? IllegalArgumentException
-          (header/read-int nil 32)))))
+          (header/read-size nil 32)))))

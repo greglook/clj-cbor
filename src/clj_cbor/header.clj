@@ -106,8 +106,10 @@
       value)))
 
 
-(defn read-int
-  "Reads a size integer from the initial bytes of the input stream."
+(defn read-size
+  "Reads a size value from the initial bytes of the input stream. Returns
+  either a number, the keyword `:indefinite`, or calls the error handler on
+  reserved info codes."
   [^DataInputStream input ^long info]
   (if (< info 24)
     ; Info codes less than 24 directly represent the number.

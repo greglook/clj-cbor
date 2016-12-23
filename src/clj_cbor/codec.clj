@@ -130,7 +130,7 @@
 (defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
   [decoder ^DataInputStream input info]
-  (let [value (header/read-int input info)]
+  (let [value (header/read-size input info)]
     (if (= :indefinite value)
       (error/*handler*
         ::definite-length-required
@@ -169,7 +169,7 @@
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-int input info)]
+  (let [length (header/read-size input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
       (read-chunks decoder input :byte-string concat-bytes)
@@ -203,7 +203,7 @@
 (defn- read-text-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-int input info)]
+  (let [length (header/read-size input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
@@ -232,7 +232,7 @@
 (defn- read-array
   "Reads an array of items from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-int input info)]
+  (let [length (header/read-size input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
       (->
@@ -292,7 +292,7 @@
 
 (defn- read-map
   [decoder ^DataInputStream input info]
-  (let [length (header/read-int input info)]
+  (let [length (header/read-size input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
       (->
@@ -320,7 +320,7 @@
 
 (defn- read-tagged
   [decoder ^DataInputStream input info]
-  (let [tag (header/read-int input info)
+  (let [tag (header/read-size input info)
         value (read-value decoder input)]
     (try
       (handle-tag decoder tag value)
