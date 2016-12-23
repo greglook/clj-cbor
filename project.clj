@@ -1,4 +1,4 @@
-(defproject mvxcvi/clj-cbor "0.1.0-SNAPSHOT"
+(defproject mvxcvi/clj-cbor "0.2.0-SNAPSHOT"
   :description "Clojure library for Concise Binary Object Representation."
   :url "https://github.com/greglook/clj-cbor"
   :license {:name "Public Domain"
