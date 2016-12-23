@@ -32,6 +32,45 @@ The simple version:
 ```
 
 
+## Type Extension
+
+In order to support types of values outside the ones which are a native to CBOR,
+the format uses _tagged values_, similar to EDN. In CBOR, the tags are integer
+numbers instead of symbols, but the purpose is the same: the tags convey _new
+semantics_ about the following value.
+
+The most common example of a need for this kind of type extension is
+representing an instant in time. In EDN, this is represented by the `#inst` tag
+on an ISO-8601 timestamp string. CBOR offers two tags to represent instants -
+tag 0 codes a timestamp string, while tag 1 codes a number in epoch seconds. The
+former is more human-friendly, but the latter is more efficient.
+
+New types are implemented by using read and write handlers - functions which map
+from typed value to representation and back. This library comes with most of
+the tag extensions in the RFC, as well as support for Clojure types like sets,
+keywords, and symbols.
+
+### Write Handlers
+
+A write handler is a function with the signature `(f value) => repr`. In almost
+all cases the representation is a CBOR tagged value. The tag conveys the type
+semantic and generally the expected form that the value takes.
+
+In some cases, multiple types will map to the same tag. For example, by default
+this library maps both `java.util.Date` and the newer `java.time.Instant` types
+to the same representation.
+
+### Read Handlers
+
+A read handler is a function with the signature `(f tag form) => value`. This
+converts the tagged representation back into a typed value. The choice of
+function to parse the values determines the 'preferred type' to represent values
+of that kind.
+
+Continuing the example, the library comes with read handlers for both `Date` and
+`Instant` types, allowing the user to choose their preferred time type.
+
+
 ## Notes
 
 A few things to keep in mind while using the library:
@@ -42,8 +81,6 @@ A few things to keep in mind while using the library:
   half-precision floats except for special values `+Inf`, `-Inf`, and `NaN`.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
-- Keywords and Symbols are represented using tag 39 for 'identifiers'.
-- Tagged literals are represented using tag 27 for 'generic objects'.
 - Sets are currently represented using tag 13, which is not a part of the IANA
   registry.
 
