@@ -1,4 +1,5 @@
-(ns clj-cbor.error)
+(ns clj-cbor.error
+  "Dynamic error handling support.")
 
 
 (defn codec-exception!

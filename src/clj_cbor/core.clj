@@ -1,4 +1,5 @@
 (ns clj-cbor.core
+  "Core CBOR library API."
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.data.model :as data]
@@ -21,6 +22,8 @@
       EOFException
       OutputStream)))
 
+
+;; ## Codec Construction
 
 (defn cbor-codec
   "Constructs a new CBOR codec with no configuration.
@@ -65,6 +68,9 @@
     :write-handlers default-write-handlers
     :read-handlers default-read-handlers))
 
+
+
+;; ## Coding Functions
 
 (defn encode
   "Encodes a value as CBOR data. In the general form, this writes a value to an

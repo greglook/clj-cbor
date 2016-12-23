@@ -1,5 +1,5 @@
 (ns clj-cbor.header
-  "Functions for reading and writing CBOR header bytes."
+  "Functions for reading and writing CBOR headers."
   (:require
     [clj-cbor.data.model :as data]
     [clj-cbor.error :as error]
