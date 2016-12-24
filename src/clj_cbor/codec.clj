@@ -424,7 +424,7 @@
     22 nil
     23 data/undefined
     24 (unknown-simple decoder (.readUnsignedByte input))
-    25 (float16/from-bits (.readUnsignedShort input))
+    25 (float16/decode (.readUnsignedShort input))
     26 (.readFloat input)
     27 (.readDouble input)
     (28 29 30)
