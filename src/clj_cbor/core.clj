@@ -38,12 +38,7 @@
   - `:read-handlers` map of integer tags to _handler functions_ which take the
     embedded item and return the transformed data value."
   [& {:as opts}]
-  (codec/map->CBORCodec
-    (merge {:write-dispatch class
-            :write-handlers {}
-            :read-handlers {}
-            :set-tag 13}
-           opts)))
+  (codec/map->CBORCodec (merge codec/default-settings opts)))
 
 
 (def default-write-handlers

@@ -449,56 +449,71 @@
 
 
 
-;; ## Codec Types
+;; ## Codec Implementation
 
-;; - `:write-dispatch` function which is called to provide a dispatch value
-;;   based on the data to be rendered. (default: `class`)
-;; - `:write-handlers` lookup dispatch values to find write handlers, which
-;;   return an encodable representation of the value (usually a tagged value).
-;; - `:read-handlers` lookup integer tags to find read handlers, which take the
-;;   tag and value and return a reified type based on the value.
-;; - `:set-tag` integer code to tag sets with.
+(defn- write-builtin
+  [codec out x]
+  (cond
+    ; Special and simple values
+    (nil? x) (write-null codec out)
+    (data/boolean? x) (write-boolean codec out x)
+    (= data/undefined x) (write-undefined codec out)
+    (data/simple-value? x) (write-simple codec out x)
+
+    ; Numbers
+    (representable-integer? x) (write-integer codec out x)
+    (float? x) (write-float codec out x)
+
+    ; Byte and text strings
+    (char? x) (write-text-string codec out (str x))
+    (string? x) (write-text-string codec out x)
+    (data/bytes? x) (write-byte-string codec out x)
+
+    ; Tag extensions
+    (data/tagged-value? x) (write-tagged codec out x)
+
+    :else nil))
+
+
+(defn- write-handled
+  [codec out x]
+  (let [dispatch (:dispatch codec)
+        write-handlers (:write-handlers codec)]
+    (when-let [formatter (write-handlers (dispatch x))]
+      (write-value codec out (formatter x)))))
+
+
+(defn- write-collection
+  [codec out x]
+  (cond
+    (seq? x)    (write-array codec out x)
+    (vector? x) (write-array codec out x)
+    (map? x)    (write-map codec out x)
+    (set? x)    (write-set codec out (:set-tag codec) x)))
+
+
+;; - `:dispatch` function is called to provide a dispatch value based on the
+;;   data to be rendered. (default: `class`)
+;; - `:write-handlers` is used to look up dispatch values to find write
+;;   handlers, which return an encodable representation (usually a tagged
+;;   value).
+;; - `:read-handlers` is used to lookup integer tags to find read handlers,
+;;   which take the tag and value and return a parsed type based on the value.
+;; - `:set-tag` is the integer code to tag set collections with.
 (defrecord CBORCodec
-  [write-dispatch write-handlers read-handlers set-tag]
+  [dispatch write-handlers read-handlers set-tag]
 
   Encoder
 
   (write-value
     [this out x]
-    (cond
-      ; Special and simple values
-      (nil? x) (write-null this out)
-      (data/boolean? x) (write-boolean this out x)
-      (= data/undefined x) (write-undefined this out)
-      (data/simple-value? x) (write-simple this out x)
-
-      ; Numbers
-      (representable-integer? x) (write-integer this out x)
-      (float? x) (write-float this out x)
-
-      ; Byte and text strings
-      (char? x) (write-text-string this out (str x))
-      (string? x) (write-text-string this out x)
-      (data/bytes? x) (write-byte-string this out x)
-
-      ; Tag extensions
-      (data/tagged-value? x) (write-tagged this out x)
-
-      :else
-      (if-let [formatter (write-handlers (write-dispatch x))]
-        (write-value this out (formatter x))
-        (cond
-          ; Collections
-          (seq? x) (write-array this out x)
-          (vector? x) (write-array this out x)
-          (map? x) (write-map this out x)
-          (set? x) (write-set this out set-tag x)
-
-          :else
-          (error/*handler*
-            ::unsupported-type
-            (str "No known encoding for object: " (pr-str x))
-            {:value x})))))
+    (or (write-builtin this out x)
+        (write-handled this out x)
+        (write-collection this out x)
+        (error/*handler*
+          ::unsupported-type
+          (str "No known encoding for object: " (pr-str x))
+          {:value x})))
 
 
   Decoder
@@ -522,8 +537,20 @@
       (parse-set tag value)
       (if-let [handler (read-handlers tag)]
         (handler tag value)
+        ; TODO: check strict mode
         (data/tagged-value tag value))))
 
   (unknown-simple
     [this value]
+    ; TODO: check strict mode
     (data/simple-value value)))
+
+
+(def default-settings
+  "Map of default properties for CBOR codecs."
+  {:dispatch class
+   :write-handlers {}
+   :read-handlers {}
+   :set-tag 13
+   :canonical false
+   :strict false})
