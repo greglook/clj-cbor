@@ -53,6 +53,11 @@
 
 ;; ## Reader Functions
 
+(def ^:private ^:const break
+  "Value of the break code."
+  (short 0xFF))
+
+
 (defn- read-bytes
   "Reads `length` bytes from the input stream and returns them as a byte
   array."
@@ -70,7 +75,7 @@
   [decoder ^DataInputStream input chunk-type reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header data/break)
+      (if (== header break)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -99,7 +104,7 @@
   [decoder ^DataInputStream input reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header data/break)
+      (if (== header break)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -335,6 +340,12 @@
 
 ;; ### 7 - Simple Values
 
+(defn- boolean?
+  "Predicate which returns true if `x` is a boolean value."
+  [x]
+  (or (true? x) (false? x)))
+
+
 (defn- write-boolean
   "Writes a boolean simple value to the output."
   [encoder ^DataOutputStream out x]
@@ -456,7 +467,7 @@
   (cond
     ; Special and simple values
     (nil? x) (write-null codec out)
-    (data/boolean? x) (write-boolean codec out x)
+    (boolean? x) (write-boolean codec out x)
     (= data/undefined x) (write-undefined codec out)
     (data/simple-value? x) (write-simple codec out x)
 
