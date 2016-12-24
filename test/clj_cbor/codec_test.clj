@@ -3,7 +3,7 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
-    [clj-cbor.data.model :as data]
+    [clj-cbor.data.core :as data]
     [clj-cbor.test-utils :refer :all]))
 
 

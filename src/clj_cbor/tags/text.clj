@@ -2,7 +2,7 @@
   "Built-in tag support for the text extensions in RFC 7049. See section
   2.4.4."
   (:require
-    [clj-cbor.data.model :as data])
+    [clj-cbor.data.core :as data])
   (:import
     java.net.URI
     java.util.regex.Pattern))

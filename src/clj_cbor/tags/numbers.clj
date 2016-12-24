@@ -2,7 +2,7 @@
   "Built-in tag support for the number extensions in RFC 7049. See section
   2.4.2."
   (:require
-    [clj-cbor.data.model :as data])
+    [clj-cbor.data.core :as data])
   (:import
     (clojure.lang
       BigInt

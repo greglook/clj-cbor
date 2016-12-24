@@ -5,13 +5,12 @@
       [error :as error]
       [header :as header])
     (clj-cbor.data
-      [float16 :as float16]
-      [model :as data])
+      [core :as data]
+      [float16 :as float16])
     [clojure.string :as str])
   (:import
-    (clj_cbor.data.model
-      SimpleValue
-      TaggedValue)
+    clj_cbor.data.simple.SimpleValue
+    clj_cbor.data.tagged.TaggedValue
     (java.io
       ByteArrayOutputStream
       DataInputStream

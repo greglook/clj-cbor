@@ -2,7 +2,7 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
-    [clj-cbor.data.model :refer [bytes?]])
+    [clj-cbor.data.core :refer [bytes?]])
   (:import
     javax.xml.bind.DatatypeConverter))
 

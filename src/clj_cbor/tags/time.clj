@@ -6,7 +6,7 @@
   well as the newer `java.time.Instant`. Support for both timestamp-based
   tagged values and the more efficient epoch-based values is included."
   (:require
-    [clj-cbor.data.model :as data])
+    [clj-cbor.data.core :as data])
   (:import
     java.time.Instant
     java.time.format.DateTimeFormatter
