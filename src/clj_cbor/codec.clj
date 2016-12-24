@@ -128,14 +128,14 @@
   "Writes an integer value."
   [encoder ^DataOutputStream out n]
   (if (neg? n)
-    (header/write-major-int out :negative-integer (- -1 n))
-    (header/write-major-int out :unsigned-integer n)))
+    (header/write out :negative-integer (- -1 n))
+    (header/write out :unsigned-integer n)))
 
 
 (defn- read-positive-integer
   "Reads an unsigned integer from the input stream."
   [decoder ^DataInputStream input info]
-  (let [value (header/read-size input info)]
+  (let [value (header/read-code input info)]
     (if (= :indefinite value)
       (error/*handler*
         ::illegal-stream
@@ -154,7 +154,7 @@
 
 (defn- write-byte-string
   [encoder ^DataOutputStream out bs]
-  (let [hlen (header/write-major-int out :byte-string (count bs))]
+  (let [hlen (header/write out :byte-string (count bs))]
     (.write out ^bytes bs)
     (+ hlen (count bs))))
 
@@ -174,7 +174,7 @@
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-size input info)]
+  (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
       (read-chunks decoder input :byte-string concat-bytes)
@@ -188,7 +188,7 @@
 (defn- write-text-string
   [encoder ^DataOutputStream out ts]
   (let [text (.getBytes ^String ts "UTF-8")
-        hlen (header/write-major-int out :text-string (count text))]
+        hlen (header/write out :text-string (count text))]
     (.write out text)
     (+ hlen (count text))))
 
@@ -208,7 +208,7 @@
 (defn- read-text-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-size input info)]
+  (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
@@ -223,7 +223,7 @@
   "Writes an array of data items to the output. The array will be encoded with
   a definite length, so `xs` will be fully realized."
   [encoder ^DataOutputStream out xs]
-  (let [hlen (header/write-major-int out :data-array (count xs))]
+  (let [hlen (header/write out :data-array (count xs))]
     (reduce + hlen (map (partial write-value encoder out) xs))))
 
 
@@ -237,7 +237,7 @@
 (defn- read-array
   "Reads an array of items from the input stream."
   [decoder ^DataInputStream input info]
-  (let [length (header/read-size input info)]
+  (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
       (->
@@ -257,7 +257,7 @@
   "Writes a map of key/value pairs to the output. The map will be encoded with
   a definite length, so `xm` will be fully realized."
   [encoder ^DataOutputStream out xm]
-  (let [hlen (header/write-major-int out :data-map (count xm))]
+  (let [hlen (header/write out :data-map (count xm))]
     (reduce-kv
       (fn encode-entry
         [sum k v]
@@ -297,7 +297,7 @@
 
 (defn- read-map
   [decoder ^DataInputStream input info]
-  (let [length (header/read-size input info)]
+  (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
       (->
@@ -318,14 +318,14 @@
   ([encoder ^DataOutputStream out ^TaggedValue tv]
    (write-tagged encoder out (.tag tv) (.value tv)))
   ([encoder ^DataOutputStream out tag value]
-   (let [hlen (header/write-major-int out :tagged-value tag)
+   (let [hlen (header/write out :tagged-value tag)
          vlen (write-value encoder out value)]
      (+ hlen vlen))))
 
 
 (defn- read-tagged
   [decoder ^DataInputStream input info]
-  (let [tag (header/read-size input info)
+  (let [tag (header/read-code input info)
         value (read-value decoder input)]
     (try
       (handle-tag decoder tag value)
@@ -373,25 +373,25 @@
   [encoder ^DataOutputStream out n]
   (cond
     (zero? n)
-      (do (header/write out :simple-value 25)
+      (do (header/write-leader out :simple-value 25)
           (.writeShort out float16/zero)
           3)
     (Float/isNaN n)
-      (do (header/write out :simple-value 25)
+      (do (header/write-leader out :simple-value 25)
           (.writeShort out float16/not-a-number)
           3)
     (Float/isInfinite n)
-      (do (header/write out :simple-value 25)
+      (do (header/write-leader out :simple-value 25)
           (.writeShort out (if (pos? n)
                              float16/positive-infinity
                              float16/negative-infinity))
           3)
     (instance? Float n)
-      (do (header/write out :simple-value 26)
+      (do (header/write-leader out :simple-value 26)
           (.writeFloat out (float n))
           5)
     :else
-      (do (header/write out :simple-value 27)
+      (do (header/write-leader out :simple-value 27)
           (.writeDouble out (double n))
           9)))
 
@@ -403,9 +403,9 @@
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
-        (header/write out :simple-value n)
+        (header/write-leader out :simple-value n)
       (<= 32 n 255)
-        (do (header/write out :simple-value 24)
+        (do (header/write-leader out :simple-value 24)
             (.writeByte out n)
             2)
       :else

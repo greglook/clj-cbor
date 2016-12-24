@@ -29,7 +29,7 @@
 
 ;; ## Encoding Functions
 
-(defn write
+(defn write-leader
   "Writes a header byte for the given major-type and additional info numbers.
   Returns the number of bytes written."
   [^DataOutputStream out mtype info]
@@ -40,9 +40,9 @@
   1)
 
 
-(defn write-major-int
+(defn write
   "Writes a header byte for the given major-type, plus extra bytes to encode
-  the given integer value. Always writes the smallest possible representation.
+  the given integer code. Always writes the smallest possible representation.
   Returns the number of bytes written."
   [^DataOutputStream out mtype i]
   (cond
@@ -52,30 +52,30 @@
         (str "Cannot write negative integer code: " i)
         {:code i})
     (<= i 23)
-      (do (write out mtype i)
+      (do (write-leader out mtype i)
           1)
     (<= i 0xFF)
-      (do (write out mtype 24)
+      (do (write-leader out mtype 24)
           (.writeByte out i)
           2)
     (<= i 0xFFFF)
-      (do (write out mtype 25)
+      (do (write-leader out mtype 25)
           (.writeShort out i)
           3)
     (<= i Integer/MAX_VALUE)
-      (do (write out mtype 26)
+      (do (write-leader out mtype 26)
           (.writeInt out i)
           5)
     (<= i 0xFFFFFFFF)
-      (do (write out mtype 26)
+      (do (write-leader out mtype 26)
           (.writeInt out (+ Integer/MIN_VALUE (- (dec i) Integer/MAX_VALUE)))
           5)
     (<= i Long/MAX_VALUE)
-      (do (write out mtype 27)
+      (do (write-leader out mtype 27)
           (.writeLong out i)
           9)
     (<= i (* -2N Long/MIN_VALUE))
-      (do (write out mtype 27)
+      (do (write-leader out mtype 27)
           (.writeLong out (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))
           9)
     :else
@@ -123,7 +123,7 @@
       value)))
 
 
-(defn read-size
+(defn read-code
   "Reads a size value from the initial bytes of the input stream. Returns
   either a number, the keyword `:indefinite`, or calls the error handler on
   reserved info codes."

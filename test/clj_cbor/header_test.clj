@@ -10,7 +10,7 @@
   [value hex]
   (let [baos (java.io.ByteArrayOutputStream.)]
     (with-open [data-out (java.io.DataOutputStream. baos)]
-      (header/write-major-int data-out :unsigned-integer value))
+      (header/write data-out :unsigned-integer value))
     (is (= hex (bin->hex (.toByteArray baos))))))
 
 
@@ -39,17 +39,17 @@
 (deftest header-int-reading
   (testing "values 0 - 23"
     (dotimes [i 24]
-      (is (= i (header/read-size nil i))
+      (is (= i (header/read-code nil i))
           "should be represented directly")))
   (testing "reserved values"
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-size nil 28)))
+          (header/read-code nil 28)))
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-size nil 29)))
+          (header/read-code nil 29)))
     (is (thrown? clojure.lang.ExceptionInfo
-          (header/read-size nil 30))))
+          (header/read-code nil 30))))
   (testing "indefinite length"
-    (is (= :indefinite (header/read-size nil 31))))
+    (is (= :indefinite (header/read-code nil 31))))
   (testing "invalid value"
     (is (thrown? IllegalArgumentException
-          (header/read-size nil 32)))))
+          (header/read-code nil 32)))))
