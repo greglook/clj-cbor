@@ -89,7 +89,7 @@
             ; Illegal indefinite-length chunk.
             (= info 31)
               (error/*handler*
-                ::definite-length-required
+                ::illegal-stream
                 (str chunk-type " stream chunks must have a definite length"))
 
             ; Reduce state with next value.
@@ -138,7 +138,7 @@
   (let [value (header/read-size input info)]
     (if (= :indefinite value)
       (error/*handler*
-        ::definite-length-required
+        ::illegal-stream
         "Encoded integers cannot have indefinite length.")
       value)))
 
@@ -429,7 +429,7 @@
     27 (.readDouble input)
     (28 29 30)
       (error/*handler*
-        ::reserved-simple-type
+        ::illegal-simple-type
         (format "Additional information simple-value code %d is reserved."
                 info))
     31 (error/*handler*

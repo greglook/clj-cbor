@@ -48,7 +48,7 @@
   (cond
     (neg? i)
       (error/*handler*
-        ::negative-int-code
+        ::negative-info-code
         (str "Cannot write negative integer code: " i)
         {:code i})
     (<= i 23)
@@ -80,7 +80,7 @@
           9)
     :else
       (error/*handler*
-        ::header-int-overflow
+        ::overflow-info-code
         (str "Cannot write integer code requiring 9 bytes of space: " i)
         {:code i})))
 
@@ -139,7 +139,7 @@
       27 (read-unsigned-long input)
       (28 29 30)
         (error/*handler*
-          ::reserved-length
+          ::reserved-info-code
           (format "Additional information int code %d is reserved."
                   info)
           {:info info})
