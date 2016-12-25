@@ -19,7 +19,9 @@ Leiningen, add the following dependency to your project definition:
 
 ## Usage
 
-The simple version:
+The `clj-cbor.core` namespace contains the high-level encoding and decoding
+functions. The simplest way to use this library is to require it and call them
+diretly with the data:
 
 ```clojure
 => (require '[clj-cbor.core :as cbor])
@@ -30,6 +32,55 @@ The simple version:
 => (cbor/decode *1)
 ([0 :foo/bar true {:x y} #{1/3} #"foo"])
 ```
+
+With no extra arguments, `encode` and `decode` will make use of the
+`default-codec`, which comes loaded with read and write handler support for many
+Java and Clojure types (see the [type extension](#type-extension) section
+below). Both functions accept an additional argument to specify the codec,
+should different behavior be desired.
+
+```clojure
+=> (def strict-codec (cbor/cbor-codec :strict true))
+
+=> (cbor/encode codec {:foo "bar", :baz 123})
+; ...
+
+=> (cbor/decode codec *1)
+({:foo "bar", :baz 123})
+```
+
+There is also a slight asymmetry between the functions - `encode` returns the
+encoded data as a byte array, while `decode` returns a _sequence_ of values read
+from the input. This behavior becomes more useful in streaming contexts, where
+multiple items may present in the input stream. The full form of `encode` takes
+three arguments - the codec, the output stream to write to, and the value to
+encode.
+
+```clojure
+=> (def out (java.io.ByteArrayOutputStream.))
+
+=> (cbor/encode codec out :a)
+5
+
+=> (cbor/encode codec out 123)
+2
+
+=> (cbor/encode codec out true)
+1
+
+=> (cbor/encode codec out "foo")
+4
+
+=> (.toByteArray out))
+; 0xD827623A61187BF563666F6F
+
+=> (cbor/decode codec *1)
+(:a 123 true "foo")
+```
+
+In this mode, `encode` returns the number of bytes written instead of a byte
+array. The sequence returned by `decode` is lazy, so if the input is a file you
+must realize the values before closing the input.
 
 
 ## Type Extension
