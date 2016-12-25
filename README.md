@@ -40,18 +40,18 @@ below). Both functions accept an additional argument to specify the codec,
 should different behavior be desired.
 
 ```clojure
-=> (def strict-codec (cbor/cbor-codec :strict true))
+=> (def codec (cbor/cbor-codec :canonical true))
 
 => (cbor/encode codec {:foo "bar", :baz 123})
-; ...
+; 0xA2D827643A666F6F63626172D827643A62617A187B
 
 => (cbor/decode codec *1)
 ({:foo "bar", :baz 123})
 ```
 
-There is also a slight asymmetry between the functions - `encode` returns the
-encoded data as a byte array, while `decode` returns a _sequence_ of values read
-from the input. This behavior becomes more useful in streaming contexts, where
+There is also an asymmetry between the functions - `encode` returns the encoded
+data as a byte array, while `decode` returns a _sequence_ of values read from
+the input. This behavior becomes more useful in streaming contexts, where
 multiple items may present in the input stream. The full form of `encode` takes
 three arguments - the codec, the output stream to write to, and the value to
 encode.
@@ -74,7 +74,8 @@ encode.
 => (.toByteArray out))
 ; 0xD827623A61187BF563666F6F
 
-=> (cbor/decode codec *1)
+=> (with-open [input (java.io.ByteArrayInputStream. *1)]
+     (doall (cbor/decode codec input)))
 (:a 123 true "foo")
 ```
 
