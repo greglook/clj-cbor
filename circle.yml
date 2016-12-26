@@ -2,6 +2,7 @@ test:
   override:
     - lein check
     - lein test
-    - lein with-profile +test cloverage
+    - lein with-profile +test cloverage --coveralls
   post:
     - cp -r target/coverage/ $CIRCLE_ARTIFACTS/
+    - curl -i https://coveralls.io/api/v1/jobs -F json_file=@target/coverage/coveralls.json
