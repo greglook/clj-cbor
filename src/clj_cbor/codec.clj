@@ -280,7 +280,8 @@
      (error/*handler*
        ::missing-map-value
        (str "Streaming map did not contain a value for key: "
-            (pr-str k)))))
+            (pr-str k))
+       {:map m, :key k})))
   ([[m k :as state] e]
    (if (= 1 (count state))
      (if (contains? m e)
@@ -288,7 +289,8 @@
        (error/*handler*
          ::duplicate-map-key
          (str "Streaming map contains duplicate key: "
-              (pr-str e)))
+              (pr-str e))
+         {:map m, :key e})
        ; Save key and wait for value.
        [m e])
      ; Add completed entry to map.
