@@ -130,11 +130,15 @@ A few things to keep in mind while using the library:
 - Decoding half-precision (16-bit) floating-point numbers is supported, but the
   values are promoted to single-precision (32-bit) as the JVM does not have
   native support for them. There is currently no support for writing
-  half-precision floats except for special values `+Inf`, `-Inf`, and `NaN`.
+  half-precision floats except for the special values `0.0`, `+Inf`, `-Inf`, and
+  `NaN`.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
 - Sets are currently represented using tag 13, which is not a part of the IANA
   registry.
+- Regular expressions are supported using tag 35, but beware that Java
+  `Pattern` objects do not compare equal or have the same hash code for
+  otherwise identical regexes. Using them in sets or as map keys is discouraged.
 
 
 ## License
