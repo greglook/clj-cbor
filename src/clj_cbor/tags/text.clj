@@ -59,7 +59,10 @@
 
 (defn parse-uuid
   [tag value]
-  ; assert bytes?
+  (when-not (data/bytes? value)
+    (throw (ex-info (str "UUIDs must be tagged byte strings, got: "
+                         (class value))
+                    {:tag tag, :value value})))
   (let [data (ByteBuffer/wrap value)]
     (UUID. (.getLong data) (.getLong data))))
 

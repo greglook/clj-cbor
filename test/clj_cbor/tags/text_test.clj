@@ -5,7 +5,8 @@
     [clj-cbor.tags.text :refer :all]
     [clj-cbor.test-utils :refer :all])
   (:import
-    java.net.URI))
+    java.net.URI
+    java.util.UUID))
 
 
 (deftest uri-coding
@@ -24,3 +25,13 @@
   (with-codec {:write-handlers text-write-handlers
                :read-handlers text-read-handlers}
     (check-roundtrip str #"abc123" "D82366616263313233")))
+
+
+(deftest uuid-coding
+  (testing "parsing checks"
+    (is (thrown-with-msg? Exception #"must be tagged byte strings"
+          (parse-uuid 37 true))))
+  (with-codec {:write-handlers text-write-handlers
+               :read-handlers text-read-handlers}
+    (check-roundtrip (UUID/fromString "dbd559ef-333b-4f11-96b1-b0654babe844")
+                     "D82550DBD559EF333B4F1196B1B0654BABE844")))
