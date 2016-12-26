@@ -378,11 +378,11 @@
       (do (header/write-leader out :simple-value 25)
           (.writeShort out float16/zero)
           3)
-    (Float/isNaN n)
+    (Double/isNaN n)
       (do (header/write-leader out :simple-value 25)
           (.writeShort out float16/not-a-number)
           3)
-    (Float/isInfinite n)
+    (Double/isInfinite n)
       (do (header/write-leader out :simple-value 25)
           (.writeShort out (if (pos? n)
                              float16/positive-infinity
