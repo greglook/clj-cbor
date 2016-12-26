@@ -335,7 +335,7 @@
         (error/*handler*
           ::tag-handling-error
           (.getMessage ex)
-          {:error ex})))))
+          (assoc (ex-data ex) ::error ex))))))
 
 
 
@@ -446,18 +446,18 @@
 (defn- write-set
   "Writes a set of values to the output as a tagged array."
   [encoder ^DataOutputStream out tag xs]
-  ; FIXME: THIS IS NOT TO SPEC
   ; TODO: sort keys by encoded bytes in canonical mode
   (write-value encoder out (data/tagged-value tag (vec xs))))
 
 
 (defn- parse-set
   [tag value]
-  (when-not (sequential? value)
-    (throw (ex-info (str "Sets must be tagged arrays, got: "
-                         (class value))
-                    {:tag tag, :value value})))
-  (set value))
+  (if (sequential? value)
+    (set value)
+    (error/*handler*
+      ::tag-handling-error
+      (str "Sets must be tagged arrays, got: " (class value))
+      {:tag tag, :value value})))
 
 
 
@@ -501,7 +501,8 @@
     (seq? x)    (write-array codec out x)
     (vector? x) (write-array codec out x)
     (map? x)    (write-map codec out x)
-    (set? x)    (write-set codec out (:set-tag codec) x)))
+    (set? x)    (write-set codec out (:set-tag codec) x)
+    :else       nil))
 
 
 ;; - `:dispatch` function is called to provide a dispatch value based on the
