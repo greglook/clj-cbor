@@ -30,7 +30,7 @@
                                           :message message#
                                           :data data#}]
                               (vswap! ~errors-sym conj error#)
-                              {:index (dec (count ~errors-sym))
+                              {:index (dec (count @~errors-sym))
                                :type error-type#}))]
        (binding [error/*handler* record-error!#]
          ~@body
