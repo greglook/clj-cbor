@@ -559,11 +559,13 @@
     (data/simple-value value)))
 
 
-(def default-settings
-  "Map of default properties for CBOR codecs."
-  {:dispatch class
-   :write-handlers {}
-   :read-handlers {}
-   :set-tag 13
-   :canonical false
-   :strict false})
+(defn blank-codec
+  "Constructs a new `CBORCodec` record with default empty field values."
+  []
+  (map->CBORCodec
+    {:dispatch class
+     :write-handlers {}
+     :read-handlers {}
+     :set-tag 13
+     :canonical false
+     :strict false}))
