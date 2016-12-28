@@ -2,10 +2,7 @@ test:
   override:
     - lein check
     - lein test
-    #- lein with-profile +test cloverage --coveralls
     - lein with-profile +test cloverage --codecov
   post:
     - cp -r target/coverage/ $CIRCLE_ARTIFACTS/
-    #- sed -i -e "s/^{\"service_/{\"repo_token\":\"${COVERALLS_REPO_TOKEN}\",\"service_/" target/coverage/coveralls.json
-    #- curl -i https://coveralls.io/api/v1/jobs -F json_file=@target/coverage/coveralls.json
     - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json

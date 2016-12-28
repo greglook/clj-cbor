@@ -2,8 +2,9 @@ clj-cbor
 ========
 
 [![CircleCI](https://circleci.com/gh/greglook/clj-cbor.svg?style=shield&circle-token=21efcbc50fe431aa2efc22413ba1f4407fec6283)](https://circleci.com/gh/greglook/clj-cbor)
-[![API codox](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
-[![marginalia docs](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
+[![codecov](https://codecov.io/gh/greglook/clj-cbor/branch/develop/graph/badge.svg)](https://codecov.io/gh/greglook/clj-cbor)
+[![API documentation](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
+[![Literate documentation](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
 
 A native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
 specification.
