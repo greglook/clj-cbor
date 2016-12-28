@@ -10,6 +10,10 @@
   :dependencies
   [[org.clojure/clojure "1.8.0"]]
 
+  :test-selectors
+  {:default (complement :generative)
+   :generative :generative}
+
   :hiera
   {:cluster-depth 2
    :show-external true

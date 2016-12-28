@@ -10,6 +10,6 @@
     [clj-cbor.test-utils :refer :all]))
 
 
-(defspec round-trip-equivalence 100
+(defspec ^:generative round-trip-equivalence 100
   (prop/for-all [x gen/any-printable]
     (equivalent x (first (cbor/decode (cbor/encode x))))))
