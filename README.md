@@ -6,8 +6,13 @@ clj-cbor
 [![API documentation](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
 [![Literate documentation](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
 
-A native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
-specification.
+This library is a native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
+format specified in [RFC 7049](https://tools.ietf.org/html/rfc7049).
+
+CBOR is a binary encoding with the goal of small code size, compact messages,
+and extensibility without the need for version negotiation. This makes it a good
+alternative to [EDN](https://github.com/edn-format/edn) for storing and
+transmitting Clojure data in a more compact form.
 
 
 ## Installation
