@@ -2,6 +2,7 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
+    [clj-cbor.error :as error]
     [clj-cbor.data.core :refer [bytes?]])
   (:import
     (java.util
@@ -18,6 +19,45 @@
   Returns true if the array has the same length and matching byte values."
   [expected value]
   (and (bytes? value) (= (seq expected) (seq value))))
+
+
+(defmethod assert-expr 'cbor-errors?
+  [msg [_ expected & body]]
+  (let [errors-sym (gensym "errors")]
+    `(let [~errors-sym (volatile! [])
+           record-error!# (fn [error-type# message# data#]
+                            (let [error# {:type error-type#
+                                          :message message#
+                                          :data data#}]
+                              (vswap! ~errors-sym conj error#)
+                              {:index (dec (count ~errors-sym))
+                               :type error-type#}))]
+       (binding [error/*handler* record-error!#]
+         ~@body
+         (if (empty? @~errors-sym)
+           (do-report
+             {:type :fail
+              :message ~(or msg "No CBOR errors thrown")
+              :expected '~expected
+              :actual nil})
+           (do
+             ~@(map-indexed
+                 (fn [i exp]
+                   `(let [~'error (get @~errors-sym ~i)]
+                      (if ~'error
+                        ~(cond
+                           (keyword? exp)
+                             `(is (~'= ~exp (:type ~'error)) ~msg)
+                           (map? exp)
+                             `(is (~'= ~exp (select-keys ~'error ~(vec (keys exp)))) ~msg)
+                           :else
+                             `(is (~'= ~exp ~'error) ~msg))
+                        (do-report
+                          {:type :fail
+                           :message ~(or msg (str "Expected error " exp " not found in handler calls"))
+                           :expected '~exp
+                           :actual nil}))))
+                 expected)))))))
 
 
 

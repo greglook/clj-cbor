@@ -139,7 +139,8 @@
     (if (= :indefinite value)
       (error/*handler*
         ::illegal-stream
-        "Encoded integers cannot have indefinite length.")
+        "Encoded integers cannot have indefinite length."
+        {:code info})
       value)))
 
 

@@ -8,6 +8,9 @@
 
 
 (deftest unsigned-integers
+  (testing "errors"
+    (is (cbor-errors? [:clj-cbor.codec/illegal-stream]
+          (decode-hex "1F00"))))
   (testing "direct values"
     (check-roundtrip 0 "00")
     (check-roundtrip 1 "01")
