@@ -133,11 +133,13 @@ Continuing the example, the library comes with read handlers for both `Date` and
 
 A few things to keep in mind while using the library:
 
+- Streaming CBOR data can be parsed from input, but there is currently no way to
+  generate streaming output data.
 - Decoding half-precision (16-bit) floating-point numbers is supported, but the
   values are promoted to single-precision (32-bit) as the JVM does not have
   native support for them. There is currently no support for writing
   half-precision floats except for the special values `0.0`, `+Inf`, `-Inf`, and
-  `NaN`.
+  `NaN`, which are always written as two bytes for efficiency.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
 - Sets are currently represented using tag 13, which is not a part of the IANA

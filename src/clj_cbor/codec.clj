@@ -350,21 +350,21 @@
 (defn- write-boolean
   "Writes a boolean simple value to the output."
   [encoder ^DataOutputStream out x]
-  (.writeByte ^DataOutputStream out (if x 0xF5 0xF4))
+  (.writeByte out (if x 0xF5 0xF4))
   1)
 
 
 (defn- write-null
   "Writes a 'null' simple value to the output."
   [encoder ^DataOutputStream out]
-  (.writeByte ^DataOutputStream out 0xF6)
+  (.writeByte out 0xF6)
   1)
 
 
 (defn- write-undefined
   "Writes an 'undefined' simple value to the output."
   [encoder ^DataOutputStream out]
-  (.writeByte ^DataOutputStream out 0xF7)
+  (.writeByte out 0xF7)
   1)
 
 
@@ -505,14 +505,6 @@
     :else       nil))
 
 
-;; - `:dispatch` function is called to provide a dispatch value based on the
-;;   data to be rendered. (default: `class`)
-;; - `:write-handlers` is used to look up dispatch values to find write
-;;   handlers, which return an encodable representation (usually a tagged
-;;   value).
-;; - `:read-handlers` is used to lookup integer tags to find read handlers,
-;;   which take the tag and value and return a parsed type based on the value.
-;; - `:set-tag` is the integer code to tag set collections with.
 (defrecord CBORCodec
   [dispatch write-handlers read-handlers set-tag]
 
