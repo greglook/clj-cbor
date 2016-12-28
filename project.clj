@@ -21,7 +21,10 @@
    :output-path "target/doc/api"}
 
   :profiles
-  {:repl
+  {:dev
+   {:dependencies [[org.clojure/test.check "0.9.0"]]}
+
+   :repl
    {:source-paths ["dev"]}
 
    :test
