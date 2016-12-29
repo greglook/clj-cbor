@@ -7,7 +7,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+This release includes 100% test coverage!
+
+### Added
+- UUIDs are supported in binary form using tag 37.
+- CBOR error keywords are organized into a hierarchy underneath
+  `:clj-cbor.error/encoding-error` and `:clj-cbor.error/decoding-error`.
+
+### Changed
+- `clj-cbor.data.model` renamed to `clj-cbor.data.core`.
+- The `clj-cbor.float16` functions `from-bits` and `to-bits` renamed to
+  `decode` and `encode`, respectively.
+- `Undefined` and `SimpleValue` records moved to new `clj-cbor.data.simple`
+  namespace.
+- `TaggedValue` record moved to new `clj-cbor.data.tagged` namespace.
+- `clj-cbor.header/write-major-int` renamed to `write`.
+- `clj-cbor.header/read-size` renamed to `read-code`.
+
+### Fixed
+- Generally tighted up namespaces and reduced linkage where possible.
 
 ## [0.1.0] - 2016-12-23
 

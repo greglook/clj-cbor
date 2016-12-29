@@ -2,7 +2,6 @@
   "Core CBOR library API."
   (:require
     [clj-cbor.codec :as codec]
-    [clj-cbor.data.core :as data]
     (clj-cbor.tags
       [clojure :refer [clojure-read-handlers
                        clojure-write-handlers]]
