@@ -8,9 +8,6 @@
 
 
 (deftest unsigned-integers
-  (testing "errors"
-    (is (cbor-errors? [:clj-cbor.codec/illegal-stream]
-          (decode-hex "1F00"))))
   (testing "direct values"
     (check-roundtrip 0 "00")
     (check-roundtrip 1 "01")
@@ -32,7 +29,10 @@
   (testing "uint64"
     (check-roundtrip 4294967296 "1B0000000100000000")
     (check-roundtrip 1000000000000 "1B000000E8D4A51000")
-    (check-roundtrip 18446744073709551615N "1BFFFFFFFFFFFFFFFF")))
+    (check-roundtrip 18446744073709551615N "1BFFFFFFFFFFFFFFFF"))
+  (testing "errors"
+    (is (cbor-error? :clj-cbor.codec/illegal-stream
+          (decode-hex "1F00")))))
 
 
 (deftest negative-integers
@@ -54,35 +54,55 @@
     (check-roundtrip -4294967296 "3AFFFFFFFF"))
   (testing "int64"
     (check-roundtrip -4294967297 "3B0000000100000000")
-    (check-roundtrip -18446744073709551616 "3BFFFFFFFFFFFFFFFF")))
+    (check-roundtrip -18446744073709551616 "3BFFFFFFFFFFFFFFFF"))
+  (testing "errors"
+    (is (cbor-error? :clj-cbor.codec/illegal-stream
+          (decode-hex "3F00")))))
 
 
 (deftest byte-strings
-  (is (= "40" (encoded-hex (byte-array 0))))
-  (is (bytes= [] (decode-hex "40")))
-  (is (= "4401020304" (encoded-hex (byte-array [1 2 3 4]))))
-  (is (bytes= [1 2 3 4] (decode-hex "4401020304")))
-  (is (bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF"))
-      "streaming byte string"))
+  (testing "direct bytes"
+    (is (= "40" (encoded-hex (byte-array 0))))
+    (is (bytes= [] (decode-hex "40")))
+    (is (= "4401020304" (encoded-hex (byte-array [1 2 3 4]))))
+    (is (bytes= [1 2 3 4] (decode-hex "4401020304"))))
+  (testing "streamed chunks"
+    (is (bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-chunk-type
+                      :data {:stream-type :byte-string
+                             :chunk-type :unsigned-integer}}
+          (decode-hex "5F42010201FF")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-stream
+                      :data {:stream-type :byte-string}}
+          (decode-hex "5F4201025F4100FFFF")))))
 
 
 (deftest text-strings
-  (check-roundtrip "" "60")
-  (check-roundtrip "a" "6161")
-  (check-roundtrip "IETF" "6449455446")
-  (check-roundtrip "\"\\" "62225C")
-  (check-roundtrip "\u00fc" "62C3BC")
-  (check-roundtrip "\u6c34" "63E6B0B4")
-  (check-roundtrip "\ud800\udd51" "64F0908591")
-  (is (= "streaming" (decode-hex "7F657374726561646D696E67FF"))
-      "streaming text string"))
+  (testing "direct strings"
+    (check-roundtrip "" "60")
+    (check-roundtrip "a" "6161")
+    (check-roundtrip "IETF" "6449455446")
+    (check-roundtrip "\"\\" "62225C")
+    (check-roundtrip "\u00fc" "62C3BC")
+    (check-roundtrip "\u6c34" "63E6B0B4")
+    (check-roundtrip "\ud800\udd51" "64F0908591"))
+  (testing "streamed chunks"
+    (is (= "streaming" (decode-hex "7F657374726561646D696E67FF")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-chunk-type
+                      :data {:stream-type :text-string
+                             :chunk-type :negative-integer}}
+          (decode-hex "7F6265732100FF")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-stream
+                      :data {:stream-type :text-string}}
+          (decode-hex "7F6265737F6161FFFF")))))
 
 
 (deftest data-arrays
-  (check-roundtrip [] "80")
-  (check-roundtrip [1 2 3] "83010203")
-  (check-roundtrip [1 [2 3] [4 5]] "8301820203820405")
-  (check-roundtrip (range 1 26) "98190102030405060708090A0B0C0D0E0F101112131415161718181819")
+  (testing "encoded size"
+    (check-roundtrip [] "80")
+    (check-roundtrip [1 2 3] "83010203")
+    (check-roundtrip [1 [2 3] [4 5]] "8301820203820405")
+    (check-roundtrip (range 1 26) "98190102030405060708090A0B0C0D0E0F101112131415161718181819"))
   (testing "streaming"
     (is (true? (:cbor/streaming (meta (decode-hex "9FFF")))))
     (is (= [] (decode-hex "9FFF")))
@@ -94,18 +114,26 @@
 
 
 (deftest data-maps
-  (check-roundtrip {} "A0")
-  (check-roundtrip {1 2, 3 4} "A201020304")
-  (check-roundtrip {"a" 1, "b" [2 3]} "A26161016162820203")
-  (check-roundtrip ["a" {"b" "c"}] "826161A161626163")
-  (check-roundtrip {"a" "A", "b" "B", "c" "C", "d" "D", "e" "E"}
-                   "A56161614161626142616361436164614461656145")
+  (testing "encoded size"
+    (check-roundtrip {} "A0")
+    (check-roundtrip {1 2, 3 4} "A201020304")
+    (check-roundtrip {"a" 1, "b" [2 3]} "A26161016162820203")
+    (check-roundtrip ["a" {"b" "c"}] "826161A161626163")
+    (check-roundtrip {"a" "A", "b" "B", "c" "C", "d" "D", "e" "E"}
+                     "A56161614161626142616361436164614461656145"))
   (testing "streaming"
     (is (true? (:cbor/streaming (meta (decode-hex "BFFF")))))
     (is (= {} (decode-hex "BFFF")))
     (is (= {"a" 1, "b" [2 3]} (decode-hex "BF61610161629F0203FFFF")))
     (is (= ["a" {"b" "c"}] (decode-hex "826161BF61626163FF")))
-    (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF")))))
+    (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF"))))
+  (testing "errors"
+    (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
+                      :data {:map {}, :key "Fun"}}
+          (decode-hex "BF6346756EFF")))
+    (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
+                      :data {:map {"Fun" true}, :key "Fun"}}
+          (decode-hex "A26346756EF56346756EF4FF")))))
 
 
 (deftest floating-point-numbers
@@ -155,10 +183,33 @@
   (testing "generic values"
     (check-roundtrip (data/simple-value 16)  "F0")
     (check-roundtrip (data/simple-value 32)  "F820")
-    (check-roundtrip (data/simple-value 255) "F8FF")))
+    (check-roundtrip (data/simple-value 255) "F8FF"))
+  (testing "reserved codes"
+    (is (cbor-error? :clj-cbor.codec/illegal-simple-type
+          (encoded-hex (data/simple-value 24))))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+                      :data {:code 28}}
+          (decode-hex "FC")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+                      :data {:code 29}}
+          (decode-hex "FD")))
+    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+                      :data {:code 30}}
+          (decode-hex "FE")))
+    (is (cbor-error? :clj-cbor.codec/unexpected-break
+          (decode-hex "FF")))))
 
 
 (deftest set-collections
   (with-codec {:set-tag 13}
     (check-roundtrip #{} "CD80")
-    (check-roundtrip #{1 2 3} "CD83010302")))
+    (check-roundtrip #{1 2 3} "CD83010302"))
+  (testing "read handler"
+    (is (cbor-error? :clj-cbor.codec/tag-handling-error
+          (decode-hex "CDA10102")))))
+
+
+(deftest tagged-values
+  (testing "unknown types"
+    (is (cbor-error? :clj-cbor.codec/unsupported-type
+          (encoded-hex (java.util.Currency/getInstance "USD"))))))

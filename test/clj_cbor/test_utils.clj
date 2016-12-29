@@ -21,43 +21,30 @@
   (and (bytes? value) (= (seq expected) (seq value))))
 
 
-(defmethod assert-expr 'cbor-errors?
+(defmethod assert-expr 'cbor-error?
   [msg [_ expected & body]]
-  (let [errors-sym (gensym "errors")]
-    `(let [~errors-sym (volatile! [])
-           record-error!# (fn [error-type# message# data#]
-                            (let [error# {:type error-type#
-                                          :message message#
-                                          :data data#}]
-                              (vswap! ~errors-sym conj error#)
-                              {:index (dec (count @~errors-sym))
-                               :type error-type#}))]
-       (binding [error/*handler* record-error!#]
+  `(let [errors# (volatile! [])
+         record-error# (fn [error-type# message# data#]
+                         (let [error# {:type error-type#
+                                       :message message#
+                                       :data data#}]
+                           (vswap! errors# conj error#)
+                           (throw (ex-info "Abort CBOR codec" {:type ::interrupt}))))]
+     (binding [error/*handler* record-error#]
+       (try
          ~@body
-         (if (empty? @~errors-sym)
-           (do-report
-             {:type :fail
-              :message ~(or msg "No CBOR errors thrown")
-              :expected '~expected
-              :actual nil})
-           (do
-             ~@(map-indexed
-                 (fn [i exp]
-                   `(let [~'error (get @~errors-sym ~i)]
-                      (if ~'error
-                        ~(cond
-                           (keyword? exp)
-                             `(is (~'= ~exp (:type ~'error)) ~msg)
-                           (map? exp)
-                             `(is (~'= ~exp (select-keys ~'error ~(vec (keys exp)))) ~msg)
-                           :else
-                             `(is (~'= ~exp ~'error) ~msg))
-                        (do-report
-                          {:type :fail
-                           :message ~(or msg (str "Expected error " exp " not found in handler calls"))
-                           :expected '~exp
-                           :actual nil}))))
-                 expected)))))))
+         (catch clojure.lang.ExceptionInfo ex#
+           (when-not (= ::interrupt (:type (ex-data ex#)))
+             (throw ex#))))
+       (if-let [~'error (first @errors#)]
+         ~(if (keyword? expected)
+            `(is (~'= ~expected (:type ~'error)) ~msg)
+            `(is (~'= ~expected (select-keys ~'error ~(vec (keys expected)))) ~msg))
+         (do-report
+           {:type :fail
+            :message ~(or msg (str "Expected error " expected " not found in handler calls"))
+            :expected '~expected
+            :actual nil})))))
 
 
 
