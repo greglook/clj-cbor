@@ -24,3 +24,11 @@
     (is (satisfies? codec/Decoder codec))
     (is (= {0 :x} (:read-handlers codec)))
     (is (= {Long :y} (:write-handlers codec)))))
+
+
+(deftest eof-handling
+  (testing "sequence of values"
+    (is (= (list :a 123 true "foo") (decode-hex-all cbor/default-codec "D827623A61187BF563666F6F"))))
+  (testing "interrupted data"
+    (is (cbor-error? :clj-cbor.codec/end-of-input
+          (decode-hex "D827623A61187BF563666F")))))

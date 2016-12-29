@@ -2,6 +2,7 @@
   "Core CBOR library API."
   (:require
     [clj-cbor.codec :as codec]
+    [clj-cbor.error :as error]
     (clj-cbor.tags
       [clojure :refer [clojure-read-handlers
                        clojure-write-handlers]]
@@ -107,8 +108,16 @@
          data-input (DataInputStream. (io/input-stream input))]
      (->>
        (repeatedly
-         #(try
-            (codec/read-value decoder data-input)
-            (catch EOFException ex
-              eof-guard)))
+         #(let [header (try
+                         (.readUnsignedByte data-input)
+                         (catch EOFException _
+                           eof-guard))]
+            (if (identical? eof-guard header)
+              eof-guard
+              (try
+                (codec/read-value* decoder data-input header)
+                (catch EOFException _
+                  (error/*handler* :clj-cbor.codec/end-of-input
+                    "Input data ended mid CBOR value."
+                    {:header header}))))))
        (take-while #(not (identical? eof-guard %)))))))
