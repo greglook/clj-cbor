@@ -290,7 +290,7 @@
      m
      (error/*handler*
        ::missing-map-value
-       (str "Streaming map did not contain a value for key: "
+       (str "Encoded map did not contain a value for key: "
             (pr-str k))
        {:map m, :key k})))
   ([[m k :as state] e]
@@ -299,7 +299,7 @@
        ; Duplicate key error.
        (error/*handler*
          ::duplicate-map-key
-         (str "Streaming map contains duplicate key: "
+         (str "Encoded map contains duplicate key: "
               (pr-str e))
          {:map m, :key e})
        ; Save key and wait for value.
@@ -340,13 +340,7 @@
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (try
-      (handle-tag decoder tag value)
-      (catch Exception ex
-        (error/*handler*
-          ::tag-handling-error
-          (.getMessage ex)
-          (assoc (ex-data ex) ::error ex))))))
+    (handle-tag decoder tag value)))
 
 
 
@@ -425,7 +419,7 @@
         (error/*handler*
           ::illegal-simple-type
           (str "Illegal or reserved simple value: " n)
-          {:value n}))))
+          {:code n}))))
 
 
 (defn- read-simple
@@ -444,10 +438,12 @@
       (error/*handler*
         ::illegal-simple-type
         (format "Additional information simple-value code %d is reserved."
-                info))
+                info)
+        {:code info})
     31 (error/*handler*
          ::unexpected-break
-         "Break encountered outside streaming context.")
+         "Break encountered outside streaming context."
+         {})
     (unknown-simple decoder info)))
 
 
@@ -551,10 +547,16 @@
     [this tag value]
     (if (= tag set-tag)
       (parse-set tag value)
-      (if-let [handler (read-handlers tag)]
-        (handler tag value)
-        ; TODO: check strict mode
-        (data/tagged-value tag value))))
+      (try
+        (if-let [handler (read-handlers tag)]
+          (handler tag value)
+          ; TODO: check strict mode
+          (data/tagged-value tag value))
+        (catch Exception ex
+          (error/*handler*
+            ::tag-handling-error
+            (.getMessage ex)
+            (assoc (ex-data ex) ::error ex))))))
 
   (unknown-simple
     [this value]
