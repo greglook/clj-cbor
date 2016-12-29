@@ -71,26 +71,30 @@
   "Reads chunks from the input in a streaming fashion, combining them with the
   given reducing function. All chunks must have the given major type and
   definite length."
-  [decoder ^DataInputStream input chunk-type reducer]
+  [decoder ^DataInputStream input stream-type reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
       (if (== header break)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (let [[mtype info] (header/decode header)]
+        (let [[chunk-type info] (header/decode header)]
           (cond
             ; Illegal element type.
-            (not= chunk-type mtype)
+            (not= stream-type chunk-type)
               (error/*handler*
-                ::illegal-chunk
-                (str chunk-type " stream may not contain chunks of type " mtype))
+                ::illegal-chunk-type
+                (str stream-type " stream may not contain chunks of type "
+                     chunk-type)
+                {:stream-type stream-type
+                 :chunk-type chunk-type})
 
             ; Illegal indefinite-length chunk.
             (= info 31)
               (error/*handler*
                 ::illegal-stream
-                (str chunk-type " stream chunks must have a definite length"))
+                (str stream-type " stream chunks must have a definite length")
+                {:stream-type stream-type})
 
             ; Reduce state with next value.
             :else
