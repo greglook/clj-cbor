@@ -151,7 +151,13 @@
 (defn- read-negative-integer
   "Reads a negative integer from the input stream."
   [decoder input info]
-  (- -1 (read-positive-integer decoder input info)))
+  (let [value (header/read-code input info)]
+    (if (= :indefinite value)
+      (error/*handler*
+        ::illegal-stream
+        "Encoded integers cannot have indefinite length."
+        {:code info})
+      (- -1 value))))
 
 
 
