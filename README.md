@@ -2,11 +2,17 @@ clj-cbor
 ========
 
 [![CircleCI](https://circleci.com/gh/greglook/clj-cbor.svg?style=shield&circle-token=21efcbc50fe431aa2efc22413ba1f4407fec6283)](https://circleci.com/gh/greglook/clj-cbor)
-[![API codox](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
-[![marginalia docs](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
+[![codecov](https://codecov.io/gh/greglook/clj-cbor/branch/develop/graph/badge.svg)](https://codecov.io/gh/greglook/clj-cbor)
+[![API documentation](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
+[![Literate documentation](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
 
-A native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
-specification.
+This library is a native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
+format specified in [RFC 7049](https://tools.ietf.org/html/rfc7049).
+
+CBOR is a binary encoding with the goal of small code size, compact messages,
+and extensibility without the need for version negotiation. This makes it a good
+alternative to [EDN](https://github.com/edn-format/edn) for storing and
+transmitting Clojure data in a more compact form.
 
 
 ## Installation
@@ -19,7 +25,9 @@ Leiningen, add the following dependency to your project definition:
 
 ## Usage
 
-The simple version:
+The `clj-cbor.core` namespace contains the high-level encoding and decoding
+functions. The simplest way to use this library is to require it and call them
+diretly with the data:
 
 ```clojure
 => (require '[clj-cbor.core :as cbor])
@@ -30,6 +38,56 @@ The simple version:
 => (cbor/decode *1)
 ([0 :foo/bar true {:x y} #{1/3} #"foo"])
 ```
+
+With no extra arguments, `encode` and `decode` will make use of the
+`default-codec`, which comes loaded with read and write handler support for many
+Java and Clojure types (see the [type extension](#type-extension) section
+below). Both functions accept an additional argument to specify the codec,
+should different behavior be desired.
+
+```clojure
+=> (def codec (cbor/cbor-codec :canonical true))
+
+=> (cbor/encode codec {:foo "bar", :baz 123})
+; 0xA2D827643A666F6F63626172D827643A62617A187B
+
+=> (cbor/decode codec *1)
+({:foo "bar", :baz 123})
+```
+
+There is also an asymmetry between the functions - `encode` returns the encoded
+data as a byte array, while `decode` returns a _sequence_ of values read from
+the input. This behavior becomes more useful in streaming contexts, where
+multiple items may present in the input stream. The full form of `encode` takes
+three arguments - the codec, the output stream to write to, and the value to
+encode.
+
+```clojure
+=> (def out (java.io.ByteArrayOutputStream.))
+
+=> (cbor/encode codec out :a)
+5
+
+=> (cbor/encode codec out 123)
+2
+
+=> (cbor/encode codec out true)
+1
+
+=> (cbor/encode codec out "foo")
+4
+
+=> (.toByteArray out))
+; 0xD827623A61187BF563666F6F
+
+=> (with-open [input (java.io.ByteArrayInputStream. *1)]
+     (doall (cbor/decode codec input)))
+(:a 123 true "foo")
+```
+
+In this mode, `encode` returns the number of bytes written instead of a byte
+array. The sequence returned by `decode` is lazy, so if the input is a file you
+must realize the values before closing the input.
 
 
 ## Type Extension
@@ -75,14 +133,20 @@ Continuing the example, the library comes with read handlers for both `Date` and
 
 A few things to keep in mind while using the library:
 
+- Streaming CBOR data can be parsed from input, but there is currently no way to
+  generate streaming output data.
 - Decoding half-precision (16-bit) floating-point numbers is supported, but the
   values are promoted to single-precision (32-bit) as the JVM does not have
   native support for them. There is currently no support for writing
-  half-precision floats except for special values `+Inf`, `-Inf`, and `NaN`.
+  half-precision floats except for the special values `0.0`, `+Inf`, `-Inf`, and
+  `NaN`, which are always written as two bytes for efficiency.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
 - Sets are currently represented using tag 13, which is not a part of the IANA
   registry.
+- Regular expressions are supported using tag 35, but beware that Java
+  `Pattern` objects do not compare equal or have the same hash code for
+  otherwise identical regexes. Using them in sets or as map keys is discouraged.
 
 
 ## License

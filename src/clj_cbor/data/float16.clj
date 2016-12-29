@@ -8,26 +8,30 @@
 (def not-a-number      2r0111111000000000)
 
 
-(defn from-bits
+(defn- combine-bits
+  "Combine values for different fields in the float into a composite binary
+  value."
+  [sign exp mant]
+  (Float/intBitsToFloat
+    (bit-or (if (zero? sign) 0 Integer/MIN_VALUE)
+            (bit-shift-left (bit-or exp mant) 13))))
+
+
+(defn decode
   "Returns a `float` value read as a half-precision IEEE floating-point number
   from the lower two bytes of x."
   [x]
-  (let [combine (fn combine-float
-                  [sign exp mant]
-                  (Float/intBitsToFloat
-                    (bit-or (if (zero? sign) 0 Integer/MIN_VALUE)
-                            (bit-shift-left (bit-or exp mant) 13))))
-        sign (bit-and x 0x8000)
+  (let [sign (bit-and x 0x8000)
         exp  (bit-and x 0x7c00)
         mant (bit-and x 0x03ff)]
     (cond
       ; NaN and Infinite values.
       (= exp 0x7c00)
-        (combine sign 0x3fc00 mant)
+        (combine-bits sign 0x3fc00 mant)
 
       ; Normalized value.
       (not (zero? exp))
-        (combine sign (+ exp 0x1c000) mant)
+        (combine-bits sign (+ exp 0x1c000) mant)
 
       ; Subnormal value.
       (not (zero? mant))
@@ -35,14 +39,14 @@
                mant mant]
           (if (zero? (bit-and mant 0x400))
             (recur (- exp 0x400) (bit-shift-left mant 1))
-            (combine sign exp (bit-and mant 0x3ff))))
+            (combine-bits sign exp (bit-and mant 0x3ff))))
 
       ; +/- 0
       :else
-        (combine sign exp mant))))
+        (combine-bits sign exp mant))))
 
 
-(defn to-bits
+(defn encode
   "Returns an integer whose lower two bytes encode the given number in the
   half-precision IEEE floating point format."
   [x]

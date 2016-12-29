@@ -1,5 +1,5 @@
-(defproject mvxcvi/clj-cbor "0.1.0"
-  :description "Clojure library for Concise Binary Object Representation."
+(defproject mvxcvi/clj-cbor "0.2.0"
+  :description "Concise Binary Object Representation (RFC 7049)"
   :url "https://github.com/greglook/clj-cbor"
   :license {:name "Public Domain"
             :url "http://unlicense.org/"}
@@ -9,6 +9,10 @@
 
   :dependencies
   [[org.clojure/clojure "1.8.0"]]
+
+  :test-selectors
+  {:default (complement :generative)
+   :generative :generative}
 
   :hiera
   {:cluster-depth 2
@@ -21,7 +25,10 @@
    :output-path "target/doc/api"}
 
   :profiles
-  {:repl
+  {:dev
+   {:dependencies [[org.clojure/test.check "0.9.0"]]}
+
+   :repl
    {:source-paths ["dev"]}
 
    :test

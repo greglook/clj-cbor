@@ -2,5 +2,6 @@ clj-cbor.core/cbor-codec
 clj-cbor.core/encode
 clj-cbor.core/decode
 
+clj-cbor.data.float16/encode
 clj-cbor.tags.time/date-read-handlers
 clj-cbor.tags.time/string-time-write-handlers

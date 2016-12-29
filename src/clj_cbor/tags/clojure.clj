@@ -15,7 +15,7 @@
   - http://cbor.schmorp.de/generic-object
   "
   (:require
-    [clj-cbor.data.model :as data])
+    [clj-cbor.data.core :as data])
   (:import
     (clojure.lang
       Keyword
