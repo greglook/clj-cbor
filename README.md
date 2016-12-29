@@ -41,7 +41,7 @@ diretly with the data:
 
 With no extra arguments, `encode` and `decode` will make use of the
 `default-codec`, which comes loaded with read and write handler support for many
-Java and Clojure types (see the [type extension](#type-extension) section
+Java and Clojure types (see the [type extensions](#type-extensions) section
 below). Both functions accept an additional argument to specify the codec,
 should different behavior be desired.
 
@@ -90,7 +90,7 @@ array. The sequence returned by `decode` is lazy, so if the input is a file you
 must realize the values before closing the input.
 
 
-## Type Extension
+## Type Extensions
 
 In order to support types of values outside the ones which are a native to CBOR,
 the format uses _tagged values_, similar to EDN. In CBOR, the tags are integer
@@ -104,9 +104,26 @@ tag 0 codes a timestamp string, while tag 1 codes a number in epoch seconds. The
 former is more human-friendly, but the latter is more efficient.
 
 New types are implemented by using read and write handlers - functions which map
-from typed value to representation and back. This library comes with most of
-the tag extensions in the RFC, as well as support for Clojure types like sets,
-keywords, and symbols.
+from typed value to representation and back. Currently, the library comes with
+support for the following types:
+
+| Tag | Representation | Type | Semantics |
+|-----|----------------|------|-------------|
+|   0 | Text string    | `Date`/`Instant` | Standard date/time string |
+|   1 | Number         | `Date`/`Instant` | Epoch-based date/time |
+|   2 | Byte string    | `BigInt` | Positive bignum |
+|   3 | Byte string    | `BigInt` | Negative bignum |
+|   4 | Array(2)       | `BigDecimal` | Decimal fraction |
+|  13 | Array          | `Set` | Sets of unique entries |
+|  27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
+|  30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
+|  32 | Text string    | `URI` | Uniform Resource Identifier strings |
+|  35 | Text string    | `Pattern` | Regular expression strings |
+|  37 | Byte string    | `UUID` | Binary-encoded UUID values |
+|  39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+
+For further information about registered tag semantics, consult the
+[IANA Registry](https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml).
 
 ### Write Handlers
 
