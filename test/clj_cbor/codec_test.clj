@@ -210,6 +210,13 @@
 
 
 (deftest tagged-values
+  (testing "non-strict behavior"
+    (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
+  (testing "handler error"
+    (let [handler (fn [t v] (throw (Exception. "BOOM")))
+          codec (cbor/cbor-codec :read-handlers {0 handler})]
+      (is (cbor-error? :clj-cbor.codec/tag-handling-error
+            (decode-hex codec "C00F")))))
   (testing "unknown types"
     (is (cbor-error? :clj-cbor.codec/unsupported-type
           (encoded-hex (java.util.Currency/getInstance "USD"))))))
