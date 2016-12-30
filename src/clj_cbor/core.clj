@@ -76,7 +76,7 @@
 
 
 
-;; ## Coding Functions
+;; ## Encoding Functions
 
 (defn encode
   "Encodes a value as CBOR data.
@@ -95,6 +95,42 @@
      (codec/write-value encoder data-output value))))
 
 
+
+;; ## Decoding Functions
+
+(defn- maybe-read-header
+  "Attempts to read a header byte from the input stream. If there is no more
+  input, the `guard` value is returned."
+  [^DataInputStream input guard]
+  (try
+    (.readUnsignedByte input)
+    (catch EOFException _
+      guard)))
+
+
+(defn- try-read-value
+  "Attemtps to read the rest of a CBOR value from the input stream. If the
+  input ends during the read, the error handler is called with an
+  `end-of-input` error."
+  [decoder input header]
+  (try
+    (codec/read-value* decoder input header)
+    (catch EOFException _
+      (error/*handler* :clj-cbor.codec/end-of-input
+        "Input data ended while parsing a CBOR value."
+        {:header header}))))
+
+
+(defn- read-input-value
+  "Reads a CBOR value from the input stream, or returns the `guard` value if
+  the input is already exhausted."
+  [decoder input guard]
+  (let [header (maybe-read-header input guard)]
+    (if (identical? header guard)
+      guard
+      (try-read-value decoder input header))))
+
+
 (defn decode
   "Decodes a sequence of CBOR values from the input.
 
@@ -105,19 +141,8 @@
    (decode default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
-         data-input (DataInputStream. (io/input-stream input))]
-     (->>
-       (repeatedly
-         #(let [header (try
-                         (.readUnsignedByte data-input)
-                         (catch EOFException _
-                           eof-guard))]
-            (if (identical? eof-guard header)
-              eof-guard
-              (try
-                (codec/read-value* decoder data-input header)
-                (catch EOFException _
-                  (error/*handler* :clj-cbor.codec/end-of-input
-                    "Input data ended mid CBOR value."
-                    {:header header}))))))
-       (take-while #(not (identical? eof-guard %)))))))
+         data-input (DataInputStream. (io/input-stream input))
+         read-data! #(read-input-value decoder data-input eof-guard)]
+     (take-while
+       #(not (identical? eof-guard %))
+       (repeatedly read-data!)))))
