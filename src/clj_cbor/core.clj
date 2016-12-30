@@ -6,6 +6,9 @@
     (clj-cbor.tags
       [clojure :refer [clojure-read-handlers
                        clojure-write-handlers]]
+      [content :refer [content-write-handlers
+                       content-read-handlers
+                       format-self-described]]
       [numbers :refer [number-read-handlers
                        number-write-handlers]]
       [time :refer [instant-read-handlers
@@ -52,6 +55,7 @@
   The default choice of encoding for instants in time is the numeric epoch
   representation (tag 1)."
   (merge clojure-write-handlers
+         content-write-handlers
          number-write-handlers
          epoch-time-write-handlers
          text-write-handlers))
@@ -63,6 +67,7 @@
   The default choice of representation for instants in time is
   `java.time.Instant`."
   (merge clojure-read-handlers
+         content-read-handlers
          number-read-handlers
          instant-read-handlers
          text-read-handlers))
@@ -146,3 +151,13 @@
      (take-while
        #(not (identical? eof-guard %))
        (repeatedly read-data!)))))
+
+
+
+;; ## Utility Functions
+
+(defn self-describe
+  "Wrap a value with a self-describing CBOR tag. This will cause the first few
+  bytes of the data to `0xD9D9F7`, which serve as a distinguishing header."
+  [value]
+  (format-self-described value))
