@@ -25,17 +25,20 @@
 
 ;; ## Symbols & Keywords
 
+(def ^:const identifier-tag 39)
+
+
 (defn format-symbol
   [value]
-  (data/tagged-value 39 (str value)))
+  (data/tagged-value identifier-tag (str value)))
 
 
 (defn parse-symbol
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str "Symbols must be tagged strings, got: "
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (if (= \: (first value))
     (keyword (subs value 1))
     (symbol value)))
@@ -47,17 +50,22 @@
 ;; Tag 27
 ;; http://cbor.schmorp.de/generic-object
 
+(def ^:const generic-object-tag 27)
+
+
 (defn format-tagged-literal
   [value]
-  (data/tagged-value 27 [(str (:tag value)) (:form value)]))
+  (data/tagged-value
+    generic-object-tag
+    [(str (:tag value)) (:form value)]))
 
 
 (defn parse-tagged-literal
-  [tag value]
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str "Sets must be tagged two-element arrays, got: "
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (tagged-literal (symbol (first value)) (second value)))
 
 
@@ -73,5 +81,5 @@
 
 (def clojure-read-handlers
   "Map of tag codes to read handlers to parse Clojure values."
-  {27 parse-tagged-literal
-   39 parse-symbol})
+  {generic-object-tag parse-tagged-literal
+   identifier-tag     parse-symbol})

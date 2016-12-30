@@ -549,8 +549,9 @@
       (parse-set tag value)
       (try
         (if-let [handler (read-handlers tag)]
-          (handler tag value)
+          (handler value)
           ; TODO: check strict mode
+          ; TODO: fallback handler function?
           (data/tagged-value tag value))
         (catch Exception ex
           (error/*handler*

@@ -13,28 +13,33 @@
     java.util.Date))
 
 
+(def ^:const string-time-tag 0)
+(def ^:const epoch-time-tag  1)
+
+
 (defn- tagged-epoch-time
   [epoch-millis]
-  (data/tagged-value 1
+  (data/tagged-value
+    epoch-time-tag
     (if (zero? (mod epoch-millis 1000))
       (long (/ epoch-millis 1000))
       (/ epoch-millis 1000.0))))
 
 
 (defn- check-epoch-form!
-  [tag value]
+  [value]
   (when-not (number? value)
     (throw (ex-info (str "Tag 1 values must be tagged numbers, got: "
                          (class value))
-                    {:tag tag, :value value}))))
+                    {:value value}))))
 
 
 (defn- check-timestamp-form!
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str "Tag 0 values must be tagged strings, got: "
                          (class value))
-                    {:tag tag, :value value}))))
+                    {:value value}))))
 
 
 
@@ -46,20 +51,21 @@
 
 
 (defn parse-epoch-instant
-  [tag value]
-  (check-epoch-form! tag value)
+  [value]
+  (check-epoch-form! value)
   (Instant/ofEpochMilli (long (* value 1000))))
 
 
 (defn format-instant-string
   [^Instant value]
-  (data/tagged-value 0
+  (data/tagged-value
+    string-time-tag
     (.format DateTimeFormatter/ISO_INSTANT value)))
 
 
 (defn parse-string-instant
-  [tag value]
-  (check-timestamp-form! tag value)
+  [value]
+  (check-timestamp-form! value)
   (Instant/parse value))
 
 
@@ -72,8 +78,8 @@
 
 
 (defn parse-epoch-date
-  [tag value]
-  (check-epoch-form! tag value)
+  [value]
+  (check-epoch-form! value)
   (Date. (long (* value 1000))))
 
 
@@ -83,9 +89,9 @@
 
 
 (defn parse-string-date
-  [tag value]
-  (check-timestamp-form! tag value)
-  (Date/from (parse-string-instant tag value)))
+  [value]
+  (check-timestamp-form! value)
+  (Date/from (parse-string-instant value)))
 
 
 
@@ -105,11 +111,11 @@
 
 (def instant-read-handlers
   "Map of tag handlers to parse date-times as `java.time.Instant` values."
-  {0 parse-string-instant
-   1 parse-epoch-instant})
+  {string-time-tag parse-string-instant
+   epoch-time-tag  parse-epoch-instant})
 
 
 (def date-read-handlers
   "Map of tag handlers to parse date-times as `java.util.Date` values."
-  {0 parse-string-date
-   1 parse-epoch-date})
+  {string-time-tag parse-string-date
+   epoch-time-tag  parse-epoch-date})

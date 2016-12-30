@@ -127,9 +127,10 @@ For further information about registered tag semantics, consult the
 
 ### Write Handlers
 
-A write handler is a function with the signature `(f value) => repr`. In almost
-all cases the representation is a CBOR tagged value. The tag conveys the type
-semantic and generally the expected form that the value takes.
+A write handler is a function which takes a typed value and returns an encodable
+representation. In most cases the representation is a CBOR tagged value. The tag
+conveys the type semantic and generally the expected form that the
+representation takes.
 
 In some cases, multiple types will map to the same tag. For example, by default
 this library maps both `java.util.Date` and the newer `java.time.Instant` types
@@ -137,10 +138,9 @@ to the same representation.
 
 ### Read Handlers
 
-A read handler is a function with the signature `(f tag form) => value`. This
-converts the tagged representation back into a typed value. The choice of
-function to parse the values determines the 'preferred type' to represent values
-of that kind.
+A read handler is a function which takes the representation from a tagged value
+and returns an appropriately typed value. The choice of function to parse the
+values thus determines the 'preferred type' to represent values of that kind.
 
 Continuing the example, the library comes with read handlers for both `Date` and
 `Instant` types, allowing the user to choose their preferred time type.
