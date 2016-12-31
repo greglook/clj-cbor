@@ -1,19 +1,5 @@
 (ns clj-cbor.tags.clojure
-  "Read and write handler support for Clojure types.
-
-  Keywords and symbols are represented using tag 39 ('identifier') applied to
-  the string version of the value. This adds three bytes to the size of the
-  identifier itself for the header, tag code, and string header. Keywords are
-  symbols whose first character is a colon (:).
-
-  Tagged literals are represented using tag 27 ('generic object') applied to an
-  array containing two elements. The first element is the string version of the
-  EDN tag symbol and the second is the tagged literal form.
-
-  See:
-  - https://github.com/lucas-clemente/cbor-specs/blob/master/id.md
-  - http://cbor.schmorp.de/generic-object
-  "
+  "Read and write handler support for Clojure types."
   (:require
     [clj-cbor.data.core :as data])
   (:import
@@ -24,6 +10,13 @@
 
 
 ;; ## Symbols & Keywords
+
+;; Keywords and symbols are represented using tag 39 ('identifier') applied to
+;; the string version of the value. This adds three bytes to the size of the
+;; identifier itself for the header, tag code, and string header. Keywords are
+;; symbols whose first character is a colon (:).
+;;
+;; See: [https://github.com/lucas-clemente/cbor-specs/blob/master/id.md](https://github.com/lucas-clemente/cbor-specs/blob/master/id.md)
 
 (def ^:const identifier-tag 39)
 
@@ -47,8 +40,11 @@
 
 ;; ## Tagged Literals
 
-;; Tag 27
-;; http://cbor.schmorp.de/generic-object
+;; Tagged literals are represented using tag 27 ('generic object') applied to
+;; an array containing two elements. The first element is the string version of
+;; the EDN tag symbol and the second is the tagged literal form.
+;;
+;; See: [http://cbor.schmorp.de/generic-object](http://cbor.schmorp.de/generic-object)
 
 (def ^:const generic-object-tag 27)
 

@@ -14,9 +14,12 @@
 
 ;; ## Bignums
 
-;; Tag 2, 3
-;; RFC 7049 Section 2.4.2
-
+;; Bignums are integers that do not fit into the basic integer representations
+;; provided by major types 0 and 1.
+;;
+;; They are encoded as a byte string data item, which is interpreted as an
+;; unsigned integer n in network byte order. For tag value 2, the value of the
+;; bignum is `n`. For tag value 3, the value of the bignum is `-1 - n`.
 (def ^:const positive-bignum-tag 2)
 (def ^:const negative-bignum-tag 3)
 

@@ -157,7 +157,8 @@
 ;; ## Utility Functions
 
 (defn self-describe
-  "Wrap a value with a self-describing CBOR tag. This will cause the first few
-  bytes of the data to `0xD9D9F7`, which serve as a distinguishing header."
+  "Wraps a value with a self-describing CBOR tag. This will cause the first few
+  bytes of the data to be `D9D9F7`, which serves as a distinguishing header for
+  format detection."
   [value]
   (format-self-described value))

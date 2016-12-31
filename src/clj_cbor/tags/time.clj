@@ -13,8 +13,21 @@
     java.util.Date))
 
 
-(def ^:const string-time-tag 0)
-(def ^:const epoch-time-tag  1)
+(def ^:const string-time-tag
+  "Tag value 0 is for date/time strings that follow the standard format
+  described in RFC3339, as refined by Section 3.3 of RFC4287."
+  0)
+
+
+(def ^:const epoch-time-tag
+  "Tag value 1 is for numerical representation of seconds relative to
+  1970-01-01T00:00Z in UTC time.
+
+  The tagged item can be a positive or negative integer (major types 0 and 1),
+  or a floating-point number (major type 7 with additional information 25, 26,
+  or 27). Note that the number can be negative (time before 1970-01-01T00:00Z)
+  and, if a floating-point number, indicate fractional seconds."
+  1)
 
 
 (defn- tagged-epoch-time
@@ -45,6 +58,8 @@
 
 ;; ## Instants
 
+;; These functions interoperate with the `java.time.Instant` class.
+
 (defn format-instant-epoch
   [^Instant value]
   (tagged-epoch-time (.toEpochMilli value)))
@@ -71,6 +86,8 @@
 
 
 ;; ## Dates
+
+;; These functions interoperate with the `java.util.Date` class.
 
 (defn format-date-epoch
   [^Date value]
