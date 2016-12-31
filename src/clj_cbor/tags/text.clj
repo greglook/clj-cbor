@@ -12,7 +12,10 @@
 
 ;; ## URIs
 
-(def ^:const uri-tag 32)
+(def ^:const uri-tag
+  "Tag 32 indicates that the tagged string represents a Uniform Resource
+  Identifier."
+  32)
 
 
 (defn format-uri
@@ -32,7 +35,10 @@
 
 ;; ## Patterns
 
-(def ^:const pattern-tag 35)
+(def ^:const pattern-tag
+  "Tag 35 is used to represent regular expressions, expressed as a
+  Perl-compatible pattern."
+  35)
 
 
 (defn format-pattern
@@ -52,10 +58,11 @@
 
 ;; ## UUIDs
 
-;; tag 37
-;; https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md
+(def ^:const uuid-tag
+  "UUIDs are represented in binary form as a byte string tagged with code 37.
 
-(def ^:const uuid-tag 37)
+  See: [https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md](https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md)"
+  37)
 
 
 (defn format-uuid

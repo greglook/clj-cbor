@@ -67,10 +67,16 @@
 
 ;; ## Decimal Fractions
 
-;; Tag 4
-;; RFC 7049 Section 2.4.3
+;; Decimal fractions combine an integer mantissa with a base-10 scaling factor.
+;; They are most useful if an application needs the exact representation of a
+;; decimal fraction such as 1.1 because there is no exact representation for
+;; many decimal fractions in binary floating point.
 
-(def ^:const big-decimal-tag 4)
+(def ^:const big-decimal-tag
+  "Tag 4 indicates a decimal fraction represented by a tagged array with two
+  items, an integer exponent and an integer or bignum mantissa. The value of a
+  decimal fraction is `m*(10**e)`."
+  4)
 
 
 (defn format-big-decimal
@@ -91,21 +97,14 @@
 
 
 
-;; ## Bigfloats
-
-;; Tag 5
-;; RFC 7049 Section 2.4.3
-
-;; Not Supported
-
-
-
 ;; ## Ratios
 
-;; Tag 30
-;; http://peteroupc.github.io/CBOR/rational.html
+(def ^:const ratio-tag
+  "Tag 30 is used to represent a rational number composed of two integers, a
+  numerator and a denominator.
 
-(def ^:const ratio-tag 30)
+  See: [http://peteroupc.github.io/CBOR/rational.html](http://peteroupc.github.io/CBOR/rational.html)"
+  30)
 
 
 (defn format-ratio
