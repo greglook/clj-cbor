@@ -107,20 +107,21 @@ New types are implemented by using read and write handlers - functions which map
 from typed value to representation and back. Currently, the library comes with
 support for the following types:
 
-| Tag | Representation | Type | Semantics |
-|-----|----------------|------|-------------|
-|   0 | Text string    | `Date`/`Instant` | Standard date/time string |
-|   1 | Number         | `Date`/`Instant` | Epoch-based date/time |
-|   2 | Byte string    | `BigInt` | Positive bignum |
-|   3 | Byte string    | `BigInt` | Negative bignum |
-|   4 | Array(2)       | `BigDecimal` | Decimal fraction |
-|  13 | Array          | `Set` | Sets of unique entries |
-|  27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
-|  30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
-|  32 | Text string    | `URI` | Uniform Resource Identifier strings |
-|  35 | Text string    | `Pattern` | Regular expression strings |
-|  37 | Byte string    | `UUID` | Binary-encoded UUID values |
-|  39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+|   Tag | Representation | Type | Semantics |
+|-------|----------------|------|-----------|
+|     0 | Text string    | `Date`/`Instant` | Standard date/time string |
+|     1 | Number         | `Date`/`Instant` | Epoch-based date/time |
+|     2 | Byte string    | `BigInt` | Positive bignum |
+|     3 | Byte string    | `BigInt` | Negative bignum |
+|     4 | Array(2)       | `BigDecimal` | Decimal fraction |
+|    13 | Array          | `Set` | Sets of unique entries |
+|    27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
+|    30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
+|    32 | Text string    | `URI` | Uniform Resource Identifier strings |
+|    35 | Text string    | `Pattern` | Regular expression strings |
+|    37 | Byte string    | `UUID` | Binary-encoded UUID values |
+|    39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+| 55799 | Varies         | N/A | Self-describe CBOR |
 
 For further information about registered tag semantics, consult the
 [IANA Registry](https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml).

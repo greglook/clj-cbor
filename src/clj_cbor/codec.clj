@@ -562,6 +562,7 @@
   (unknown-simple
     [this value]
     ; TODO: check strict mode
+    ; TODO: generic lookup function? default to data/simple-value
     (data/simple-value value)))
 
 
