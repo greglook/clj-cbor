@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+## [0.3.0] - 2016-01-05
+
 ### Added
 - Support self-describe CBOR tag 55799. This provides a 'magic' three-byte
   sequence to simplify detection of the CBOR format. The
@@ -52,6 +56,7 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/greglook/clj-cbor/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/greglook/clj-cbor/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/greglook/clj-cbor/tag/0.1.0
