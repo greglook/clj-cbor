@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   tag.
 - Tag codes have been factored out into integer constants where appropriate to
   improve consistency.
+- Add `spit`, `slurp`, and `slurp-all` utility functions to the core namespace.
 
 ### Changed
 - Read handler functions are no longer called with the tag. This greatly

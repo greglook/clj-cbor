@@ -1,5 +1,6 @@
 (ns clj-cbor.core
   "Core CBOR library API."
+  (:refer-clojure :exclude [spit slurp])
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.error :as error]
@@ -155,6 +156,32 @@
 
 
 ;; ## Utility Functions
+
+(defn spit
+  "Opens an output stream to `f`, writes `value` to it, then closes the stream.
+
+  Options may include `:append` to write to the end of the file instead of
+  truncating."
+  [f value & opts]
+  (with-open [out (apply io/output-stream f opts)]
+    (encode default-codec out value)))
+
+
+(defn slurp
+  "Opens an input stream from `f`, reads the first value from it, then closes
+  the stream."
+  [f & opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (first (decode default-codec in))))
+
+
+(defn slurp-all
+  "Opens an input stream from `f`, reads all values from it, then closes the
+  stream."
+  [f & opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (doall (decode default-codec in))))
+
 
 (defn self-describe
   "Wraps a value with a self-describing CBOR tag. This will cause the first few

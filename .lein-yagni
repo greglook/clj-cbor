@@ -1,6 +1,10 @@
 clj-cbor.core/cbor-codec
 clj-cbor.core/encode
 clj-cbor.core/decode
+
+clj-cbor.core/spit
+clj-cbor.core/slurp
+clj-cbor.core/slurp-all
 clj-cbor.core/self-describe
 
 clj-cbor.data.float16/encode
