@@ -2865,14 +2865,19 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.2.0</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#clj-cbor.core">clj-cbor.core</a></li><li><a href="#clj-cbor.codec">clj-cbor.codec</a></li><li><a href="#clj-cbor.tags.time">clj-cbor.tags.time</a></li><li><a href="#clj-cbor.tags.text">clj-cbor.tags.text</a></li><li><a href="#clj-cbor.tags.clojure">clj-cbor.tags.clojure</a></li><li><a href="#clj-cbor.tags.numbers">clj-cbor.tags.numbers</a></li><li><a href="#clj-cbor.header">clj-cbor.header</a></li><li><a href="#clj-cbor.data.float16">clj-cbor.data.float16</a></li><li><a href="#clj-cbor.data.core">clj-cbor.data.core</a></li><li><a href="#clj-cbor.data.simple">clj-cbor.data.simple</a></li><li><a href="#clj-cbor.data.tagged">clj-cbor.data.tagged</a></li><li><a href="#clj-cbor.error">clj-cbor.error</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.core" name="clj-cbor.core"><h1 class="project-name">clj-cbor.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core CBOR library API.</p>
+</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.3.0</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#clj-cbor.core">clj-cbor.core</a></li><li><a href="#clj-cbor.codec">clj-cbor.codec</a></li><li><a href="#clj-cbor.tags.time">clj-cbor.tags.time</a></li><li><a href="#clj-cbor.tags.content">clj-cbor.tags.content</a></li><li><a href="#clj-cbor.tags.text">clj-cbor.tags.text</a></li><li><a href="#clj-cbor.tags.clojure">clj-cbor.tags.clojure</a></li><li><a href="#clj-cbor.tags.numbers">clj-cbor.tags.numbers</a></li><li><a href="#clj-cbor.header">clj-cbor.header</a></li><li><a href="#clj-cbor.data.float16">clj-cbor.data.float16</a></li><li><a href="#clj-cbor.data.core">clj-cbor.data.core</a></li><li><a href="#clj-cbor.data.simple">clj-cbor.data.simple</a></li><li><a href="#clj-cbor.data.tagged">clj-cbor.data.tagged</a></li><li><a href="#clj-cbor.error">clj-cbor.error</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.core" name="clj-cbor.core"><h1 class="project-name">clj-cbor.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core CBOR library API.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.core
+  (:refer-clojure :exclude [spit slurp])
   (:require
     [clj-cbor.codec :as codec]
+    [clj-cbor.error :as error]
     (clj-cbor.tags
       [clojure :refer [clojure-read-handlers
                        clojure-write-handlers]]
+      [content :refer [content-write-handlers
+                       content-read-handlers
+                       format-self-described]]
       [numbers :refer [number-read-handlers
                        number-write-handlers]]
       [time :refer [instant-read-handlers
@@ -2914,6 +2919,7 @@ the embedded item and return the parsed data value.</li>
   representation (tag 1).</p>
 </td><td class="codes"><pre class="brush: clojure">(def default-write-handlers
   (merge clojure-write-handlers
+         content-write-handlers
          number-write-handlers
          epoch-time-write-handlers
          text-write-handlers))</pre></td></tr><tr><td class="docs"><p>Map of default tag handlers to use, keyed by tag.</p>
@@ -2922,13 +2928,14 @@ the embedded item and return the parsed data value.</li>
   <code>java.time.Instant</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(def default-read-handlers
   (merge clojure-read-handlers
+         content-read-handlers
          number-read-handlers
          instant-read-handlers
          text-read-handlers))</pre></td></tr><tr><td class="docs"><p>Default CBOR codec to use when none is specified.</p>
 </td><td class="codes"><pre class="brush: clojure">(def default-codec
   (cbor-codec
     :write-handlers default-write-handlers
-    :read-handlers default-read-handlers))</pre></td></tr><tr><td class="docs"><h2>Coding Functions</h2>
+    :read-handlers default-read-handlers))</pre></td></tr><tr><td class="docs"><h2>Encoding Functions</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Encodes a value as CBOR data.</p>
 
 <p>  In the full argument form, this writes a value to an output stream and
@@ -2943,7 +2950,32 @@ the embedded item and return the parsed data value.</li>
      (.toByteArray buffer)))
   ([encoder ^OutputStream output value]
    (let [data-output (DataOutputStream. output)]
-     (codec/write-value encoder data-output value))))</pre></td></tr><tr><td class="docs"><p>Decodes a sequence of CBOR values from the input.</p>
+     (codec/write-value encoder data-output value))))</pre></td></tr><tr><td class="docs"><h2>Decoding Functions</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Attempts to read a header byte from the input stream. If there is no more
+  input, the <code>guard</code> value is returned.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- maybe-read-header
+  [^DataInputStream input guard]
+  (try
+    (.readUnsignedByte input)
+    (catch EOFException _
+      guard)))</pre></td></tr><tr><td class="docs"><p>Attemtps to read the rest of a CBOR value from the input stream. If the
+  input ends during the read, the error handler is called with an
+  <code>end-of-input</code> error.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- try-read-value
+  [decoder input header]
+  (try
+    (codec/read-value* decoder input header)
+    (catch EOFException _
+      (error/*handler* :clj-cbor.codec/end-of-input
+        &quot;Input data ended while parsing a CBOR value.&quot;
+        {:header header}))))</pre></td></tr><tr><td class="docs"><p>Reads a CBOR value from the input stream, or returns the <code>guard</code> value if
+  the input is already exhausted.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- read-input-value
+  [decoder input guard]
+  (let [header (maybe-read-header input guard)]
+    (if (identical? header guard)
+      guard
+      (try-read-value decoder input header))))</pre></td></tr><tr><td class="docs"><p>Decodes a sequence of CBOR values from the input.</p>
 
 <p>  The input may be a byte array or coercible to an <code>input-stream</code>. Uses the
   <code>default-codec</code> if none is provided. This returns a lazy sequence, so take
@@ -2953,14 +2985,34 @@ the embedded item and return the parsed data value.</li>
    (decode default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
-         data-input (DataInputStream. (io/input-stream input))]
-     (-&gt;&gt;
-       (repeatedly
-         #(try
-            (codec/read-value decoder data-input)
-            (catch EOFException ex
-              eof-guard)))
-       (take-while #(not (identical? eof-guard %)))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.codec" name="clj-cbor.codec"><h1 class="project-name">clj-cbor.codec</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Main CBOR codec implementation.</p>
+         data-input (DataInputStream. (io/input-stream input))
+         read-data! #(read-input-value decoder data-input eof-guard)]
+     (take-while
+       #(not (identical? eof-guard %))
+       (repeatedly read-data!)))))</pre></td></tr><tr><td class="docs"><h2>Utility Functions</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Opens an output stream to <code>f</code>, writes <code>value</code> to it, then closes the stream.</p>
+
+<p>  Options may include <code>:append</code> to write to the end of the file instead of
+  truncating.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn spit
+  [f value &amp; opts]
+  (with-open [out (apply io/output-stream f opts)]
+    (encode default-codec out value)))</pre></td></tr><tr><td class="docs"><p>Opens an input stream from <code>f</code>, reads the first value from it, then closes
+  the stream.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn slurp
+  [f &amp; opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (first (decode default-codec in))))</pre></td></tr><tr><td class="docs"><p>Opens an input stream from <code>f</code>, reads all values from it, then closes the
+  stream.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn slurp-all
+  [f &amp; opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (doall (decode default-codec in))))</pre></td></tr><tr><td class="docs"><p>Wraps a value with a self-describing CBOR tag. This will cause the first few
+  bytes of the data to be <code>D9D9F7</code>, which serves as a distinguishing header for
+  format detection.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn self-describe
+  [value]
+  (format-self-described value))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.codec" name="clj-cbor.codec"><h1 class="project-name">clj-cbor.codec</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Main CBOR codec implementation.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.codec
   (:require
     (clj-cbor
@@ -2977,11 +3029,17 @@ the embedded item and return the parsed data value.</li>
       ByteArrayOutputStream
       DataInputStream
       DataOutputStream)))</pre></td></tr><tr><td class="docs"><h2>Codec Protocols</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol for a data structure visitor which encodes CBOR.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>An <em>encoder</em> is a process that generates the representation format of a CBOR
+  data item from application information.</p>
 </td><td class="codes"><pre class="brush: clojure">(defprotocol Encoder
   (write-value
     [encoder out x]
-    &quot;Writes the given value `x` to the `DataOutputStream` `out`.&quot;))</pre></td></tr><tr><td class="docs">
+    &quot;Writes the given value `x` to the `DataOutputStream` `out`.&quot;))</pre></td></tr><tr><td class="docs"><p>A <em>decoder</em> is a process that reads a CBOR data item and makes it available
+  to an application.</p>
+
+<p>  Formally speaking, a decoder contains a parser to break up the input using
+  the syntax rules of CBOR, as well as a semantic processor to prepare the data
+  in a form suitable to the application.</p>
 </td><td class="codes"><pre class="brush: clojure">(defprotocol Decoder
   (read-value*
     [decoder input header]
@@ -2996,7 +3054,10 @@ the embedded item and return the parsed data value.</li>
 </td><td class="codes"><pre class="brush: clojure">(defn read-value
   [decoder ^DataInputStream input]
   (read-value* decoder input (.readUnsignedByte input)))</pre></td></tr><tr><td class="docs"><h2>Reader Functions</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Value of the break code.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>These functions provide some data-reading capabilities which later
+major-type readers are built on. In particular, these help deal with the
+four data types which can be <em>streamed</em> with indefinite lengths.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Encoded byte representing the <em>break</em> simple value.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:private ^:const break
   (short 0xFF))</pre></td></tr><tr><td class="docs"><p>Reads <code>length</code> bytes from the input stream and returns them as a byte
   array.</p>
@@ -3045,9 +3106,28 @@ the embedded item and return the parsed data value.</li>
         (reducer state)
         ; Read next value.
         (recur (reducer state (read-value* decoder input header)))))))</pre></td></tr><tr><td class="docs"><h2>Major Types</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><h3>0, 1 - Integers</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>The header byte of each CBOR encoded data value uses the high-order three
+bits to encode the <em>major type</em> of the value. The remaining five bits
+contain an additional information code, which often gives the size of the
+resulting value.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><h3>Integers</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Integers are represented by major types 0 and 1. Positive integers use type
+0, and the 5-bit additional information is either the integer itself (for
+additional information values 0 through 23) or the length of additional
+data.</p>
+
+<p>The encoding for negative integers follows the rules for unsigned integers,
+except that the type is 1 and the value is negative one minus the encoded
+unsigned integer.</p>
+
+<p>Additional information 24 means the value is represented in an additional
+<code>uint8</code>, 25 means a <code>uint16</code>, 26 means a <code>uint32</code>, and 27 means a <code>uint64</code>.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Determines whether the given value is small enough to represent using
   the normal integer major-type.</p>
+
+<p>  This is made slightly trickier at the high end of the representable range by
+  the JVM's lack of unsigned types, so some values that are represented in CBOR
+  as 8-byte integers must be represented by <code>BigInt</code> in memory.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- representable-integer?
   [value]
   (and (integer? value)
@@ -3075,8 +3155,15 @@ the embedded item and return the parsed data value.</li>
         ::illegal-stream
         &quot;Encoded integers cannot have indefinite length.&quot;
         {:code info})
-      (- -1 value))))</pre></td></tr><tr><td class="docs"><h3>2 - Byte Strings</h3>
-</td><td class="codes"></td></tr><tr><td class="docs">
+      (- -1 value))))</pre></td></tr><tr><td class="docs"><h3>Byte Strings</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Byte strings are represented by major type 2. The string's length in bytes
+is represented following the rules for positive integers (major type 0).</p>
+
+<p>If the additional info indicates an indefinite length, the header must be
+followed by a sequence of definite-length byte strings, terminated with a
+break stop code. The chunks will be concatenated together into the final
+byte string.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes an array of bytes to the output string as a CBOR byte string.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-byte-string
   [encoder ^DataOutputStream out bs]
   (let [hlen (header/write out :byte-string (count bs))]
@@ -3098,8 +3185,21 @@ the embedded item and return the parsed data value.</li>
       ; Read sequence of definite-length byte strings.
       (read-chunks decoder input :byte-string concat-bytes)
       ; Read definite-length byte string.
-      (read-bytes input length))))</pre></td></tr><tr><td class="docs"><h3>3 - Text Strings</h3>
-</td><td class="codes"></td></tr><tr><td class="docs">
+      (read-bytes input length))))</pre></td></tr><tr><td class="docs"><h3>Text Strings</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Major type 3 encodes a text string, specifically a string of Unicode
+characters that is encoded as UTF-8 [RFC3629]. </p>
+
+<p>The format of this type is identical to that of byte strings (major type 2),
+that is, as with major type 2, the length gives the number of bytes. This
+type is provided for systems that need to interpret or display
+human-readable text, and allows the differentiation between unstructured
+bytes and text that has a specified repertoire and encoding.</p>
+
+<p>If the additional info indicates an indefinite length, the header must be
+followed by a sequence of definite-length text strings, terminated with a
+break stop code. The chunks will be concatenated together into the final
+text string.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Write a string of characters to the output as a CBOR text string.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-text-string
   [encoder ^DataOutputStream out ts]
   (let [text (.getBytes ^String ts &quot;UTF-8&quot;)
@@ -3122,7 +3222,18 @@ the embedded item and return the parsed data value.</li>
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
       ; Read definite-length text string.
-      (String. (read-bytes input length) &quot;UTF-8&quot;))))</pre></td></tr><tr><td class="docs"><h3>4 - Data Arrays</h3>
+      (String. (read-bytes input length) &quot;UTF-8&quot;))))</pre></td></tr><tr><td class="docs"><h3>Data Arrays</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Arrays of data items are encoded using major type 4. Arrays are used to
+represent both lists and vectors in Clojure. Items in an array do not need
+to all be of the same type.</p>
+
+<p>The array's length follows the rules for byte strings (major type 2), except
+that the length denotes the number of data items, not the length in bytes
+that the array takes up.</p>
+
+<p>If the additional info indicates an indefinite length, the header must be
+followed by a sequence of element data values, terminated with a break stop
+code.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes an array of data items to the output. The array will be encoded with
   a definite length, so <code>xs</code> will be fully realized.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-array
@@ -3145,7 +3256,22 @@ the embedded item and return the parsed data value.</li>
       (-&gt;&gt;
         (repeatedly #(read-value decoder input))
         (take length)
-        (vec)))))</pre></td></tr><tr><td class="docs"><h3>5 - Data Maps</h3>
+        (vec)))))</pre></td></tr><tr><td class="docs"><h3>Data Maps</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Maps of key-value entries are encoded using major type 5. A map is comprised
+of pairs of data items, each pair consisting of a key that is immediately
+followed by a value.</p>
+
+<p>The map's length follows the rules for byte strings (major type 2), except
+that the length denotes the number of pairs, not the length in bytes that
+the map takes up.</p>
+
+<p>If the additional info indicates an indefinite length, the header must be
+followed by a sequence of data value pairs, terminated with a break stop
+code. An odd number of values before the break means the map is not
+well-formed.</p>
+
+<p>A map that has duplicate keys may be well-formed, but it is not valid, and
+thus it causes indeterminate decoding.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a map of key/value pairs to the output. The map will be encoded with
   a definite length, so <code>xm</code> will be fully realized.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-map
@@ -3184,7 +3310,8 @@ the embedded item and return the parsed data value.</li>
        ; Save key and wait for value.
        [m e])
      ; Add completed entry to map.
-     [(assoc m k e)])))</pre></td></tr><tr><td class="docs">
+     [(assoc m k e)])))</pre></td></tr><tr><td class="docs"><p>Reads a CBOR map from the input stream, returning the constructed map
+  value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- read-map
   [decoder ^DataInputStream input info]
   (let [length (header/read-code input info)]
@@ -3197,7 +3324,8 @@ the embedded item and return the parsed data value.</li>
       (-&gt;&gt;
         (repeatedly #(read-value decoder input))
         (take (* 2 length))
-        (transduce identity build-map)))))</pre></td></tr><tr><td class="docs"><h3>6 - Tagged Values</h3>
+        (transduce identity build-map)))))</pre></td></tr><tr><td class="docs"><h3>Tagged Values</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Major type 6 is used for optional semantic tagging of other CBOR values.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes out a tagged value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-tagged
   ([encoder ^DataOutputStream out ^TaggedValue tv]
@@ -3210,7 +3338,14 @@ the embedded item and return the parsed data value.</li>
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (handle-tag decoder tag value)))</pre></td></tr><tr><td class="docs"><h3>7 - Simple Values</h3>
+    (handle-tag decoder tag value)))</pre></td></tr><tr><td class="docs"><h3>Simple Values</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Major type 7 is for two types of data: floating-point numbers and "simple
+values" that do not need any content, as well as the "break" stop code. Each
+value of the 5-bit additional information in the initial byte has its own
+separate meaning.</p>
+
+<p>Like the major types for integers, items of this major type do not carry
+content data; all the information is in the initial bytes.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Predicate which returns true if <code>x</code> is a boolean value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- boolean?
   [x]
@@ -3291,22 +3426,37 @@ the embedded item and return the parsed data value.</li>
          ::unexpected-break
          &quot;Break encountered outside streaming context.&quot;
          {})
-    (unknown-simple decoder info)))</pre></td></tr><tr><td class="docs"><h3>Extension - Sets</h3>
+    (unknown-simple decoder info)))</pre></td></tr><tr><td class="docs"><h3>Sets</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Sets are represented as arrays of elements tagged with code 13.</p>
+
+<p>This support is implemented here rather than as a normal read/write handler
+pair for two reasons. First, unlike the normal write-handlers which operate
+on <em>concrete types</em>, there are many types which represent the 'set' semantic
+in Clojure, and we don't want to maintain a brittle list of such types. That
+approach would also prevent easy extension to new set types outside the core
+libray. Instead, we use the <code>set?</code> predicate to trigger this handler.</p>
+
+<p>Second, when the codec is in canonical mode, we want to sort the entries in
+the set before writing them out. A write handler wouldn't have a way to know
+whether the codec had this behavior enabled, requiring coordination between
+the codec setting and the selection of a canonical writer vs a regular one.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a set of values to the output as a tagged array.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-set
   [encoder ^DataOutputStream out tag xs]
   ; TODO: sort keys by encoded bytes in canonical mode
-  (write-value encoder out (data/tagged-value tag (vec xs))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- parse-set
-  [tag value]
+  (write-value encoder out (data/tagged-value tag (vec xs))))</pre></td></tr><tr><td class="docs"><p>Parse a set from the value contained in the tagged representation.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- read-set
+  [codec value]
   (if (sequential? value)
+    ; TODO: check strict mode for duplicate keys
     (set value)
     (error/*handler*
       ::tag-handling-error
       (str &quot;Sets must be tagged arrays, got: &quot; (class value))
-      {:tag tag, :value value})))</pre></td></tr><tr><td class="docs"><h2>Codec Implementation</h2>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- write-builtin
+      {:value value})))</pre></td></tr><tr><td class="docs"><h2>Codec Implementation</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes the value <code>x</code> as one of the native CBOR values and return the number
+  of bytes written. Returns nil if <code>x</code> is not a native type.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-native
   [codec out x]
   (cond
     ; Special and simple values
@@ -3323,13 +3473,16 @@ the embedded item and return the parsed data value.</li>
     (data/bytes? x) (write-byte-string codec out x)
     ; Tag extensions
     (data/tagged-value? x) (write-tagged codec out x)
-    :else nil))</pre></td></tr><tr><td class="docs">
+    :else nil))</pre></td></tr><tr><td class="docs"><p>Writes the value <code>x</code> using a write-handler, if one is returned by the
+  <code>write-handlers</code> lookup function. Returns the number of bytes written, or nil
+  if no handler was found.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-handled
   [codec out x]
   (let [dispatch (:dispatch codec)
         write-handlers (:write-handlers codec)]
     (when-let [formatter (write-handlers (dispatch x))]
-      (write-value codec out (formatter x)))))</pre></td></tr><tr><td class="docs">
+      (write-value codec out (formatter x)))))</pre></td></tr><tr><td class="docs"><p>Writes the value <code>x</code> as a collection type. Returns the number of bytes
+  written, or nil if <code>x</code> is not a collection.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-collection
   [codec out x]
   (cond
@@ -3343,7 +3496,7 @@ the embedded item and return the parsed data value.</li>
   Encoder
   (write-value
     [this out x]
-    (or (write-builtin this out x)
+    (or (write-native this out x)
         (write-handled this out x)
         (write-collection this out x)
         (error/*handler*
@@ -3366,11 +3519,12 @@ the embedded item and return the parsed data value.</li>
   (handle-tag
     [this tag value]
     (if (= tag set-tag)
-      (parse-set tag value)
+      (read-set this value)
       (try
         (if-let [handler (read-handlers tag)]
-          (handler tag value)
+          (handler value)
           ; TODO: check strict mode
+          ; TODO: fallback handler function?
           (data/tagged-value tag value))
         (catch Exception ex
           (error/*handler*
@@ -3380,6 +3534,7 @@ the embedded item and return the parsed data value.</li>
   (unknown-simple
     [this value]
     ; TODO: check strict mode
+    ; TODO: generic lookup function? default to data/simple-value
     (data/simple-value value)))</pre></td></tr><tr><td class="docs"><p>Constructs a new <code>CBORCodec</code> record with default empty field values.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn blank-codec
   []
@@ -3401,56 +3556,71 @@ the embedded item and return the parsed data value.</li>
   (:import
     java.time.Instant
     java.time.format.DateTimeFormatter
-    java.util.Date))</pre></td></tr><tr><td class="docs">
+    java.util.Date))</pre></td></tr><tr><td class="docs"><p>Tag value 0 is for date/time strings that follow the standard format
+  described in RFC3339, as refined by Section 3.3 of RFC4287.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const string-time-tag
+  0)</pre></td></tr><tr><td class="docs"><p>Tag value 1 is for numerical representation of seconds relative to
+  1970-01-01T00:00Z in UTC time.</p>
+
+<p>  The tagged item can be a positive or negative integer (major types 0 and 1),
+  or a floating-point number (major type 7 with additional information 25, 26,
+  or 27). Note that the number can be negative (time before 1970-01-01T00:00Z)
+  and, if a floating-point number, indicate fractional seconds.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const epoch-time-tag
+  1)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- tagged-epoch-time
   [epoch-millis]
-  (data/tagged-value 1
+  (data/tagged-value
+    epoch-time-tag
     (if (zero? (mod epoch-millis 1000))
       (long (/ epoch-millis 1000))
       (/ epoch-millis 1000.0))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- check-epoch-form!
-  [tag value]
+  [value]
   (when-not (number? value)
     (throw (ex-info (str &quot;Tag 1 values must be tagged numbers, got: &quot;
                          (class value))
-                    {:tag tag, :value value}))))</pre></td></tr><tr><td class="docs">
+                    {:value value}))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- check-timestamp-form!
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str &quot;Tag 0 values must be tagged strings, got: &quot;
                          (class value))
-                    {:tag tag, :value value}))))</pre></td></tr><tr><td class="docs"><h2>Instants</h2>
+                    {:value value}))))</pre></td></tr><tr><td class="docs"><h2>Instants</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>These functions interoperate with the <code>java.time.Instant</code> class.</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-instant-epoch
   [^Instant value]
   (tagged-epoch-time (.toEpochMilli value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-epoch-instant
-  [tag value]
-  (check-epoch-form! tag value)
+  [value]
+  (check-epoch-form! value)
   (Instant/ofEpochMilli (long (* value 1000))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-instant-string
   [^Instant value]
-  (data/tagged-value 0
+  (data/tagged-value
+    string-time-tag
     (.format DateTimeFormatter/ISO_INSTANT value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-string-instant
-  [tag value]
-  (check-timestamp-form! tag value)
+  [value]
+  (check-timestamp-form! value)
   (Instant/parse value))</pre></td></tr><tr><td class="docs"><h2>Dates</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>These functions interoperate with the <code>java.util.Date</code> class.</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-date-epoch
   [^Date value]
   (tagged-epoch-time (.getTime value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-epoch-date
-  [tag value]
-  (check-epoch-form! tag value)
+  [value]
+  (check-epoch-form! value)
   (Date. (long (* value 1000))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-date-string
   [^Date value]
   (format-instant-string (.toInstant value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-string-date
-  [tag value]
-  (check-timestamp-form! tag value)
-  (Date/from (parse-string-instant tag value)))</pre></td></tr><tr><td class="docs"><h2>Codec Maps</h2>
+  [value]
+  (check-timestamp-form! value)
+  (Date/from (parse-string-instant value)))</pre></td></tr><tr><td class="docs"><h2>Codec Maps</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Map of date-time types to render as tag 1 epoch offsets.</p>
 </td><td class="codes"><pre class="brush: clojure">(def epoch-time-write-handlers
   {Date    format-date-epoch
@@ -3459,11 +3629,35 @@ the embedded item and return the parsed data value.</li>
   {Date    format-date-string
    Instant format-instant-string})</pre></td></tr><tr><td class="docs"><p>Map of tag handlers to parse date-times as <code>java.time.Instant</code> values.</p>
 </td><td class="codes"><pre class="brush: clojure">(def instant-read-handlers
-  {0 parse-string-instant
-   1 parse-epoch-instant})</pre></td></tr><tr><td class="docs"><p>Map of tag handlers to parse date-times as <code>java.util.Date</code> values.</p>
+  {string-time-tag parse-string-instant
+   epoch-time-tag  parse-epoch-instant})</pre></td></tr><tr><td class="docs"><p>Map of tag handlers to parse date-times as <code>java.util.Date</code> values.</p>
 </td><td class="codes"><pre class="brush: clojure">(def date-read-handlers
-  {0 parse-string-date
-   1 parse-epoch-date})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.text" name="clj-cbor.tags.text"><h1 class="project-name">clj-cbor.tags.text</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Built-in tag support for the text extensions in RFC 7049. See section
+  {string-time-tag parse-string-date
+   epoch-time-tag  parse-epoch-date})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.content" name="clj-cbor.tags.content"><h1 class="project-name">clj-cbor.tags.content</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Read and write handler support for content sharing and encoding hints.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.tags.content
+  (:require
+    [clj-cbor.data.core :as data]))</pre></td></tr><tr><td class="docs"><h2>Self-Describe CBOR</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>In many applications, it will be clear from the context that CBOR is being
+employed for encoding a data item. For instance, a specific protocol might
+specify the use of CBOR, or a media type is indicated that specifies its
+use. However, there may be applications where such context information is
+not available, such as when CBOR data is stored in a file and disambiguating
+metadata is not in use. Here, it may help to have some distinguishing
+characteristics for the data itself.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 55799 is defined for self-described CBOR values. It does not impart any
+  special semantics on the data item that follows; that is, the semantics of a
+  data item tagged with tag 55799 is exactly identical to the semantics of the
+  data item itself.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const self-describe-cbor-tag
+  55799)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn format-self-described
+  [value]
+  (data/tagged-value self-describe-cbor-tag value))</pre></td></tr><tr><td class="docs"><h2>Codec Formatter/Handler Maps</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Map of misc types to write handler functions.</p>
+</td><td class="codes"><pre class="brush: clojure">(def content-write-handlers
+  {})</pre></td></tr><tr><td class="docs"><p>Map of tag codes to read handlers to parse misc values.</p>
+</td><td class="codes"><pre class="brush: clojure">(def content-read-handlers
+  {self-describe-cbor-tag identity})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.text" name="clj-cbor.tags.text"><h1 class="project-name">clj-cbor.tags.text</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Built-in tag support for the text extensions in RFC 7049. See section
   2.4.4.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.tags.text
   (:require
@@ -3473,41 +3667,51 @@ the embedded item and return the parsed data value.</li>
     java.nio.ByteBuffer
     java.util.UUID
     java.util.regex.Pattern))</pre></td></tr><tr><td class="docs"><h2>URIs</h2>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 32 indicates that the tagged string represents a Uniform Resource
+  Identifier.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const uri-tag
+  32)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-uri
   [^URI value]
-  (data/tagged-value 32 (str value)))</pre></td></tr><tr><td class="docs">
+  (data/tagged-value uri-tag (str value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-uri
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str &quot;URIs must be tagged strings, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (URI. value))</pre></td></tr><tr><td class="docs"><h2>Patterns</h2>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 35 is used to represent regular expressions, expressed as a
+  Perl-compatible pattern.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const pattern-tag
+  35)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-pattern
   [^Pattern value]
-  (data/tagged-value 35 (str value)))</pre></td></tr><tr><td class="docs">
+  (data/tagged-value pattern-tag (str value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-pattern
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str &quot;Regular expressions must be tagged strings, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (Pattern/compile value))</pre></td></tr><tr><td class="docs"><h2>UUIDs</h2>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>UUIDs are represented in binary form as a byte string tagged with code 37.</p>
+
+<p>  See: <a href="https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md">https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md</a></p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const uuid-tag
+  37)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-uuid
   [^UUID value]
   (let [data (ByteBuffer/allocate 16)]
     (.putLong data (.getMostSignificantBits value))
     (.putLong data (.getLeastSignificantBits value))
-    (data/tagged-value 37 (.array data))))</pre></td></tr><tr><td class="docs">
+    (data/tagged-value uuid-tag (.array data))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-uuid
-  [tag value]
+  [value]
   (when-not (data/bytes? value)
     (throw (ex-info (str &quot;UUIDs must be tagged byte strings, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [data (ByteBuffer/wrap value)]
     (UUID. (.getLong data) (.getLong data))))</pre></td></tr><tr><td class="docs"><h2>Codec Formatter/Handler Maps</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Map of text types to formatting functions.</p>
@@ -3516,22 +3720,9 @@ the embedded item and return the parsed data value.</li>
    UUID    format-uuid
    Pattern format-pattern})</pre></td></tr><tr><td class="docs"><p>Map of tag handlers to parse text values.</p>
 </td><td class="codes"><pre class="brush: clojure">(def text-read-handlers
-  {32 parse-uri
-   35 parse-pattern
-   37 parse-uuid})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.clojure" name="clj-cbor.tags.clojure"><h1 class="project-name">clj-cbor.tags.clojure</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Read and write handler support for Clojure types.</p>
-
-<p>  Keywords and symbols are represented using tag 39 ('identifier') applied to
-  the string version of the value. This adds three bytes to the size of the
-  identifier itself for the header, tag code, and string header. Keywords are
-  symbols whose first character is a colon (:).</p>
-
-<p>  Tagged literals are represented using tag 27 ('generic object') applied to an
-  array containing two elements. The first element is the string version of the
-  EDN tag symbol and the second is the tagged literal form.</p>
-
-<p>  See:
-  - https://github.com/lucas-clemente/cbor-specs/blob/master/id.md
-  - http://cbor.schmorp.de/generic-object</p>
+  {uri-tag     parse-uri
+   pattern-tag parse-pattern
+   uuid-tag    parse-uuid})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.clojure" name="clj-cbor.tags.clojure"><h1 class="project-name">clj-cbor.tags.clojure</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Read and write handler support for Clojure types.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.tags.clojure
   (:require
     [clj-cbor.data.core :as data])
@@ -3540,31 +3731,44 @@ the embedded item and return the parsed data value.</li>
       Keyword
       Symbol
       TaggedLiteral)))</pre></td></tr><tr><td class="docs"><h2>Symbols & Keywords</h2>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Keywords and symbols are represented using tag 39 ('identifier') applied to
+  the string version of the value. This adds three bytes to the size of the
+  identifier itself for the header, tag code, and string header. Keywords are
+  symbols whose first character is a colon (:).</p>
+
+<p>  See: <a href="https://github.com/lucas-clemente/cbor-specs/blob/master/id.md">https://github.com/lucas-clemente/cbor-specs/blob/master/id.md</a></p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const identifier-tag
+  39)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-symbol
   [value]
-  (data/tagged-value 39 (str value)))</pre></td></tr><tr><td class="docs">
+  (data/tagged-value identifier-tag (str value)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-symbol
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str &quot;Symbols must be tagged strings, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (if (= \: (first value))
     (keyword (subs value 1))
     (symbol value)))</pre></td></tr><tr><td class="docs"><h2>Tagged Literals</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 27
-http://cbor.schmorp.de/generic-object</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tagged literals are represented using tag 27 ('generic object') applied to
+  an array containing two elements. The first element is the string version of
+  the EDN tag symbol and the second is the tagged literal form.</p>
+
+<p>  See: <a href="http://cbor.schmorp.de/generic-object">http://cbor.schmorp.de/generic-object</a></p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const generic-object-tag
+  27)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-tagged-literal
   [value]
-  (data/tagged-value 27 [(str (:tag value)) (:form value)]))</pre></td></tr><tr><td class="docs">
+  (data/tagged-value
+    generic-object-tag
+    [(str (:tag value)) (:form value)]))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-tagged-literal
-  [tag value]
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str &quot;Sets must be tagged two-element arrays, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (tagged-literal (symbol (first value)) (second value)))</pre></td></tr><tr><td class="docs"><h2>Codec Formatter/Handler Maps</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Map of Clojure types to write handler functions.</p>
 </td><td class="codes"><pre class="brush: clojure">(def clojure-write-handlers
@@ -3572,8 +3776,8 @@ http://cbor.schmorp.de/generic-object</p>
    Symbol        format-symbol
    TaggedLiteral format-tagged-literal})</pre></td></tr><tr><td class="docs"><p>Map of tag codes to read handlers to parse Clojure values.</p>
 </td><td class="codes"><pre class="brush: clojure">(def clojure-read-handlers
-  {27 parse-tagged-literal
-   39 parse-symbol})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.numbers" name="clj-cbor.tags.numbers"><h1 class="project-name">clj-cbor.tags.numbers</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Built-in tag support for the number extensions in RFC 7049. See section
+  {generic-object-tag parse-tagged-literal
+   identifier-tag     parse-symbol})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.numbers" name="clj-cbor.tags.numbers"><h1 class="project-name">clj-cbor.tags.numbers</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Built-in tag support for the number extensions in RFC 7049. See section
   2.4.2.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.tags.numbers
   (:require
@@ -3585,73 +3789,95 @@ http://cbor.schmorp.de/generic-object</p>
     (java.math
       BigDecimal
       BigInteger)))</pre></td></tr><tr><td class="docs"><h2>Bignums</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 2, 3
-RFC 7049 Section 2.4.2</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn format-big-int
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Bignums are integers that do not fit into the basic integer representations
+provided by major types 0 and 1.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 2 is for positive bignums, which are encoded as a byte string data item.
+  This is interpreted as an unsigned integer <code>n</code> in network byte order.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const positive-bignum-tag
+  2)</pre></td></tr><tr><td class="docs"><p>Tag 3 is for negative bignums. These are encoded the same as for positive
+  bignums (tag 2), but the value of the bignum is <code>-1 - n</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const negative-bignum-tag
+  3)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn format-bignum
   [value]
   (let [big-integer (biginteger value)]
-    (if (pos? big-integer)
-      (data/tagged-value 2 (.toByteArray big-integer))
-      (data/tagged-value 3 (-&gt; big-integer
-                               (.add BigInteger/ONE)
-                               (.negate)
-                               (.toByteArray))))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn parse-big-int
-  [^long tag ^bytes value]
+    (if-not (neg? big-integer)
+      (data/tagged-value
+        positive-bignum-tag
+        (.toByteArray big-integer))
+      (data/tagged-value
+        negative-bignum-tag
+        (-&gt; big-integer
+            (.add BigInteger/ONE)
+            (.negate)
+            (.toByteArray))))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn parse-positive-bignum
+  [value]
   (when-not (data/bytes? value)
     (throw (ex-info (str &quot;Bignums must be represented as a tagged byte string, got: &quot;
                          (class value))
-                    {:tag tag, :value value})))
-  (let [big-integer (BigInteger. value)]
-    (case tag
-      2 (bigint big-integer)
-      3 (bigint (.negate (.add big-integer BigInteger/ONE))))))</pre></td></tr><tr><td class="docs"><h2>Decimal Fractions</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 4
-RFC 7049 Section 2.4.3</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
+                    {:value value})))
+  (bigint (BigInteger. ^bytes value)))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn parse-negative-bignum
+  [value]
+  (when-not (data/bytes? value)
+    (throw (ex-info (str &quot;Bignums must be represented as a tagged byte string, got: &quot;
+                         (class value))
+                    {:value value})))
+  (-&gt; (BigInteger. ^bytes value)
+      (.add BigInteger/ONE)
+      (.negate)
+      (bigint)))</pre></td></tr><tr><td class="docs"><h2>Decimal Fractions</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Decimal fractions combine an integer mantissa with a base-10 scaling factor.
+They are most useful if an application needs the exact representation of a
+decimal fraction such as 1.1 because there is no exact representation for
+many decimal fractions in binary floating point.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 4 indicates a decimal fraction represented by a tagged array with two
+  items, an integer exponent and an integer or bignum mantissa. The value of a
+  decimal fraction is <code>m*(10**e)</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const big-decimal-tag
+  4)</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn format-big-decimal
   [^BigDecimal value]
   (let [exponent (.scale value)
         mantissa (.unscaledValue value)]
-    (data/tagged-value 4 [(- exponent) mantissa])))</pre></td></tr><tr><td class="docs">
+    (data/tagged-value big-decimal-tag [(- exponent) mantissa])))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn parse-big-decimal
-  [^long tag value]
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str &quot;Decimal fractions must be represented with a two-element array, got: &quot;
                          (pr-str value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [[exponent mantissa] value]
-    (BigDecimal. (biginteger mantissa) (int (- exponent)))))</pre></td></tr><tr><td class="docs"><h2>Bigfloats</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 5
-RFC 7049 Section 2.4.3</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Not Supported</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><h2>Rationals</h2>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 30
-http://peteroupc.github.io/CBOR/rational.html</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn format-rational
+    (BigDecimal. (biginteger mantissa) (int (- exponent)))))</pre></td></tr><tr><td class="docs"><h2>Ratios</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Tag 30 is used to represent a rational number composed of two integers, a
+  numerator and a denominator.</p>
+
+<p>  See: <a href="http://peteroupc.github.io/CBOR/rational.html">http://peteroupc.github.io/CBOR/rational.html</a></p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const ratio-tag
+  30)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn format-ratio
   [value]
-  (data/tagged-value 30 [(numerator value) (denominator value)]))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn parse-rational
-  [^long tag value]
+  (data/tagged-value ratio-tag [(numerator value) (denominator value)]))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn parse-ratio
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str &quot;Rational numbers must be represented with a two-element array, got: &quot;
                          (pr-str value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [[numerator denominator] value]
     (Ratio. (biginteger numerator) (biginteger denominator))))</pre></td></tr><tr><td class="docs"><h2>Codec Formatter/Handler Maps</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Map of number types to write handler functions.</p>
 </td><td class="codes"><pre class="brush: clojure">(def number-write-handlers
-  {BigInt     format-big-int
-   BigInteger format-big-int
+  {BigInt     format-bignum
+   BigInteger format-bignum
    BigDecimal format-big-decimal
-   Ratio      format-rational})</pre></td></tr><tr><td class="docs"><p>Map of tag codes to read handlers to parse number values.</p>
+   Ratio      format-ratio})</pre></td></tr><tr><td class="docs"><p>Map of tag codes to read handlers to parse number values.</p>
 </td><td class="codes"><pre class="brush: clojure">(def number-read-handlers
-  { 2 parse-big-int
-    3 parse-big-int
-    4 parse-big-decimal
-   30 parse-rational})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.header" name="clj-cbor.header"><h1 class="project-name">clj-cbor.header</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for reading and writing CBOR headers.</p>
+  {positive-bignum-tag parse-positive-bignum
+   negative-bignum-tag parse-negative-bignum
+   big-decimal-tag     parse-big-decimal
+   ratio-tag           parse-ratio})</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.header" name="clj-cbor.header"><h1 class="project-name">clj-cbor.header</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for reading and writing CBOR headers.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.header
   (:require
     [clj-cbor.error :as error]
@@ -3944,12 +4170,13 @@ http://peteroupc.github.io/CBOR/rational.html</p>
 (derive :clj-cbor.codec/illegal-simple-type ::encoding-error)
 (derive :clj-cbor.codec/unsupported-type    ::encoding-error)</pre></td></tr><tr><td class="docs"><p>Decoding errors.</p>
 </td><td class="codes"><pre class="brush: clojure">(derive :clj-cbor.header/reserved-info-code ::decoding-error)
-(derive :clj-cbor.codec/illegal-chunk       ::decoding-error)
+(derive :clj-cbor.codec/illegal-chunk-type  ::decoding-error)
 (derive :clj-cbor.codec/illegal-stream      ::decoding-error)
 (derive :clj-cbor.codec/missing-map-value   ::decoding-error)
 (derive :clj-cbor.codec/duplicate-map-key   ::decoding-error)
 (derive :clj-cbor.codec/tag-handling-error  ::decoding-error)
-(derive :clj-cbor.codec/unexpected-break    ::decoding-error)</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_clj-cbor.core">clj-cbor.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.codec">clj-cbor.codec</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.time">clj-cbor.tags.time</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.text">clj-cbor.tags.text</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.clojure">clj-cbor.tags.clojure</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.numbers">clj-cbor.tags.numbers</li><li class="floating-toc-li" id="floating-toc_clj-cbor.header">clj-cbor.header</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.float16">clj-cbor.data.float16</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.core">clj-cbor.data.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.simple">clj-cbor.data.simple</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.tagged">clj-cbor.data.tagged</li><li class="floating-toc-li" id="floating-toc_clj-cbor.error">clj-cbor.error</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+(derive :clj-cbor.codec/unexpected-break    ::decoding-error)
+(derive :clj-cbor.codec/end-of-input        ::decoding-error)</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_clj-cbor.core">clj-cbor.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.codec">clj-cbor.codec</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.time">clj-cbor.tags.time</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.content">clj-cbor.tags.content</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.text">clj-cbor.tags.text</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.clojure">clj-cbor.tags.clojure</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.numbers">clj-cbor.tags.numbers</li><li class="floating-toc-li" id="floating-toc_clj-cbor.header">clj-cbor.header</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.float16">clj-cbor.data.float16</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.core">clj-cbor.data.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.simple">clj-cbor.data.simple</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.tagged">clj-cbor.data.tagged</li><li class="floating-toc-li" id="floating-toc_clj-cbor.error">clj-cbor.error</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
