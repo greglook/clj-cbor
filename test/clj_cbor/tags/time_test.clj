@@ -12,7 +12,7 @@
 (deftest epoch-datetimes
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged numbers"
-          (parse-epoch-instant 1 "not-a-number"))))
+          (parse-epoch-instant "not-a-number"))))
   (testing "java.util.Date"
     (with-codec {:write-handlers epoch-time-write-handlers
                  :read-handlers date-read-handlers}
@@ -28,7 +28,7 @@
 (deftest string-datetimes
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged strings"
-          (parse-string-instant 0 123456.789))))
+          (parse-string-instant 123456.789))))
   (testing "java.util.Date"
     (with-codec {:write-handlers string-time-write-handlers
                  :read-handlers date-read-handlers}

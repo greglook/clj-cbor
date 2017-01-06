@@ -12,57 +12,73 @@
 
 ;; ## URIs
 
+(def ^:const uri-tag
+  "Tag 32 indicates that the tagged string represents a Uniform Resource
+  Identifier."
+  32)
+
+
 (defn format-uri
   [^URI value]
-  (data/tagged-value 32 (str value)))
+  (data/tagged-value uri-tag (str value)))
 
 
 (defn parse-uri
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str "URIs must be tagged strings, got: "
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (URI. value))
 
 
 
 ;; ## Patterns
 
+(def ^:const pattern-tag
+  "Tag 35 is used to represent regular expressions, expressed as a
+  Perl-compatible pattern."
+  35)
+
+
 (defn format-pattern
   [^Pattern value]
-  (data/tagged-value 35 (str value)))
+  (data/tagged-value pattern-tag (str value)))
 
 
 (defn parse-pattern
-  [tag value]
+  [value]
   (when-not (string? value)
     (throw (ex-info (str "Regular expressions must be tagged strings, got: "
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (Pattern/compile value))
 
 
 
 ;; ## UUIDs
 
-; tag 37
-; https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md
+(def ^:const uuid-tag
+  "UUIDs are represented in binary form as a byte string tagged with code 37.
+
+  See: [https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md](https://github.com/lucas-clemente/cbor-specs/blob/master/uuid.md)"
+  37)
+
 
 (defn format-uuid
   [^UUID value]
   (let [data (ByteBuffer/allocate 16)]
     (.putLong data (.getMostSignificantBits value))
     (.putLong data (.getLeastSignificantBits value))
-    (data/tagged-value 37 (.array data))))
+    (data/tagged-value uuid-tag (.array data))))
 
 
 (defn parse-uuid
-  [tag value]
+  [value]
   (when-not (data/bytes? value)
     (throw (ex-info (str "UUIDs must be tagged byte strings, got: "
                          (class value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [data (ByteBuffer/wrap value)]
     (UUID. (.getLong data) (.getLong data))))
 
@@ -79,6 +95,6 @@
 
 (def text-read-handlers
   "Map of tag handlers to parse text values."
-  {32 parse-uri
-   35 parse-pattern
-   37 parse-uuid})
+  {uri-tag     parse-uri
+   pattern-tag parse-pattern
+   uuid-tag    parse-uuid})

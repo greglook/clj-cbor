@@ -9,7 +9,7 @@
 (deftest keywords
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged strings"
-          (parse-symbol 39 123))))
+          (parse-symbol 123))))
   (with-codec {:write-handlers clojure-write-handlers
                :read-handlers clojure-read-handlers}
     (check-roundtrip :a "D827623A61")
@@ -21,7 +21,7 @@
 (deftest tagged-literals
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be tagged two-element arrays"
-          (parse-tagged-literal 27 123))))
+          (parse-tagged-literal 123))))
   (with-codec {:write-handlers clojure-write-handlers
                :read-handlers clojure-read-handlers}
     (check-roundtrip (juxt :tag :form) (tagged-literal 'foo 123) "D81B8263666F6F187B")))

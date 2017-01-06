@@ -20,7 +20,8 @@
 ;; ## Codec Protocols
 
 (defprotocol Encoder
-  "Protocol for a data structure visitor which encodes CBOR."
+  "An _encoder_ is a process that generates the representation format of a CBOR
+  data item from application information."
 
   (write-value
     [encoder out x]
@@ -28,6 +29,12 @@
 
 
 (defprotocol Decoder
+  "A _decoder_ is a process that reads a CBOR data item and makes it available
+  to an application.
+
+  Formally speaking, a decoder contains a parser to break up the input using
+  the syntax rules of CBOR, as well as a semantic processor to prepare the data
+  in a form suitable to the application."
 
   (read-value*
     [decoder input header]
@@ -52,8 +59,12 @@
 
 ;; ## Reader Functions
 
+;; These functions provide some data-reading capabilities which later
+;; major-type readers are built on. In particular, these help deal with the
+;; four data types which can be _streamed_ with indefinite lengths.
+
 (def ^:private ^:const break
-  "Value of the break code."
+  "Encoded byte representing the _break_ simple value."
   (short 0xFF))
 
 
@@ -117,11 +128,32 @@
 
 ;; ## Major Types
 
-;; ### 0, 1 - Integers
+;; The header byte of each CBOR encoded data value uses the high-order three
+;; bits to encode the _major type_ of the value. The remaining five bits
+;; contain an additional information code, which often gives the size of the
+;; resulting value.
+
+;; ### Integers
+
+;; Integers are represented by major types 0 and 1. Positive integers use type
+;; 0, and the 5-bit additional information is either the integer itself (for
+;; additional information values 0 through 23) or the length of additional
+;; data.
+;;
+;; The encoding for negative integers follows the rules for unsigned integers,
+;; except that the type is 1 and the value is negative one minus the encoded
+;; unsigned integer.
+;;
+;; Additional information 24 means the value is represented in an additional
+;; `uint8`, 25 means a `uint16`, 26 means a `uint32`, and 27 means a `uint64`.
 
 (defn- representable-integer?
   "Determines whether the given value is small enough to represent using
-  the normal integer major-type."
+  the normal integer major-type.
+
+  This is made slightly trickier at the high end of the representable range by
+  the JVM's lack of unsigned types, so some values that are represented in CBOR
+  as 8-byte integers must be represented by `BigInt` in memory."
   [value]
   (and (integer? value)
        (<= (*  2N Long/MIN_VALUE) value)
@@ -161,9 +193,18 @@
 
 
 
-;; ### 2 - Byte Strings
+;; ### Byte Strings
+
+;; Byte strings are represented by major type 2. The string's length in bytes
+;; is represented following the rules for positive integers (major type 0).
+;;
+;; If the additional info indicates an indefinite length, the header must be
+;; followed by a sequence of definite-length byte strings, terminated with a
+;; break stop code. The chunks will be concatenated together into the final
+;; byte string.
 
 (defn- write-byte-string
+  "Writes an array of bytes to the output string as a CBOR byte string."
   [encoder ^DataOutputStream out bs]
   (let [hlen (header/write out :byte-string (count bs))]
     (.write out ^bytes bs)
@@ -194,9 +235,24 @@
 
 
 
-;; ### 3 - Text Strings
+;; ### Text Strings
+
+;; Major type 3 encodes a text string, specifically a string of Unicode
+;; characters that is encoded as UTF-8 [RFC3629]. 
+;;
+;; The format of this type is identical to that of byte strings (major type 2),
+;; that is, as with major type 2, the length gives the number of bytes. This
+;; type is provided for systems that need to interpret or display
+;; human-readable text, and allows the differentiation between unstructured
+;; bytes and text that has a specified repertoire and encoding.
+;;
+;; If the additional info indicates an indefinite length, the header must be
+;; followed by a sequence of definite-length text strings, terminated with a
+;; break stop code. The chunks will be concatenated together into the final
+;; text string.
 
 (defn- write-text-string
+  "Write a string of characters to the output as a CBOR text string."
   [encoder ^DataOutputStream out ts]
   (let [text (.getBytes ^String ts "UTF-8")
         hlen (header/write out :text-string (count text))]
@@ -228,7 +284,19 @@
 
 
 
-;; ### 4 - Data Arrays
+;; ### Data Arrays
+
+;; Arrays of data items are encoded using major type 4. Arrays are used to
+;; represent both lists and vectors in Clojure. Items in an array do not need
+;; to all be of the same type.
+;;
+;; The array's length follows the rules for byte strings (major type 2), except
+;; that the length denotes the number of data items, not the length in bytes
+;; that the array takes up.
+;;
+;; If the additional info indicates an indefinite length, the header must be
+;; followed by a sequence of element data values, terminated with a break stop
+;; code.
 
 (defn- write-array
   "Writes an array of data items to the output. The array will be encoded with
@@ -262,7 +330,23 @@
 
 
 
-;; ### 5 - Data Maps
+;; ### Data Maps
+
+;; Maps of key-value entries are encoded using major type 5. A map is comprised
+;; of pairs of data items, each pair consisting of a key that is immediately
+;; followed by a value.
+;;
+;; The map's length follows the rules for byte strings (major type 2), except
+;; that the length denotes the number of pairs, not the length in bytes that
+;; the map takes up.
+;;
+;; If the additional info indicates an indefinite length, the header must be
+;; followed by a sequence of data value pairs, terminated with a break stop
+;; code. An odd number of values before the break means the map is not
+;; well-formed.
+;;
+;; A map that has duplicate keys may be well-formed, but it is not valid, and
+;; thus it causes indeterminate decoding.
 
 (defn- write-map
   "Writes a map of key/value pairs to the output. The map will be encoded with
@@ -309,6 +393,8 @@
 
 
 (defn- read-map
+  "Reads a CBOR map from the input stream, returning the constructed map
+  value."
   [decoder ^DataInputStream input info]
   (let [length (header/read-code input info)]
     (if (= length :indefinite)
@@ -324,7 +410,9 @@
 
 
 
-;; ### 6 - Tagged Values
+;; ### Tagged Values
+
+;; Major type 6 is used for optional semantic tagging of other CBOR values.
 
 (defn- write-tagged
   "Writes out a tagged value."
@@ -344,7 +432,15 @@
 
 
 
-;; ### 7 - Simple Values
+;; ### Simple Values
+
+;; Major type 7 is for two types of data: floating-point numbers and "simple
+;; values" that do not need any content, as well as the "break" stop code. Each
+;; value of the 5-bit additional information in the initial byte has its own
+;; separate meaning.
+;;
+;; Like the major types for integers, items of this major type do not carry
+;; content data; all the information is in the initial bytes.
 
 (defn- boolean?
   "Predicate which returns true if `x` is a boolean value."
@@ -448,7 +544,21 @@
 
 
 
-;; ### Extension - Sets
+;; ### Sets
+
+;; Sets are represented as arrays of elements tagged with code 13.
+;;
+;; This support is implemented here rather than as a normal read/write handler
+;; pair for two reasons. First, unlike the normal write-handlers which operate
+;; on _concrete types_, there are many types which represent the 'set' semantic
+;; in Clojure, and we don't want to maintain a brittle list of such types. That
+;; approach would also prevent easy extension to new set types outside the core
+;; libray. Instead, we use the `set?` predicate to trigger this handler.
+;;
+;; Second, when the codec is in canonical mode, we want to sort the entries in
+;; the set before writing them out. A write handler wouldn't have a way to know
+;; whether the codec had this behavior enabled, requiring coordination between
+;; the codec setting and the selection of a canonical writer vs a regular one.
 
 (defn- write-set
   "Writes a set of values to the output as a tagged array."
@@ -457,20 +567,24 @@
   (write-value encoder out (data/tagged-value tag (vec xs))))
 
 
-(defn- parse-set
-  [tag value]
+(defn- read-set
+  "Parse a set from the value contained in the tagged representation."
+  [codec value]
   (if (sequential? value)
+    ; TODO: check strict mode for duplicate keys
     (set value)
     (error/*handler*
       ::tag-handling-error
       (str "Sets must be tagged arrays, got: " (class value))
-      {:tag tag, :value value})))
+      {:value value})))
 
 
 
 ;; ## Codec Implementation
 
-(defn- write-builtin
+(defn- write-native
+  "Writes the value `x` as one of the native CBOR values and return the number
+  of bytes written. Returns nil if `x` is not a native type."
   [codec out x]
   (cond
     ; Special and simple values
@@ -495,6 +609,9 @@
 
 
 (defn- write-handled
+  "Writes the value `x` using a write-handler, if one is returned by the
+  `write-handlers` lookup function. Returns the number of bytes written, or nil
+  if no handler was found."
   [codec out x]
   (let [dispatch (:dispatch codec)
         write-handlers (:write-handlers codec)]
@@ -503,6 +620,8 @@
 
 
 (defn- write-collection
+  "Writes the value `x` as a collection type. Returns the number of bytes
+  written, or nil if `x` is not a collection."
   [codec out x]
   (cond
     (seq? x)    (write-array codec out x)
@@ -519,7 +638,7 @@
 
   (write-value
     [this out x]
-    (or (write-builtin this out x)
+    (or (write-native this out x)
         (write-handled this out x)
         (write-collection this out x)
         (error/*handler*
@@ -546,11 +665,12 @@
   (handle-tag
     [this tag value]
     (if (= tag set-tag)
-      (parse-set tag value)
+      (read-set this value)
       (try
         (if-let [handler (read-handlers tag)]
-          (handler tag value)
+          (handler value)
           ; TODO: check strict mode
+          ; TODO: fallback handler function?
           (data/tagged-value tag value))
         (catch Exception ex
           (error/*handler*
@@ -561,6 +681,7 @@
   (unknown-simple
     [this value]
     ; TODO: check strict mode
+    ; TODO: generic lookup function? default to data/simple-value
     (data/simple-value value)))
 
 

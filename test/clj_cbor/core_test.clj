@@ -3,7 +3,10 @@
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.codec :as codec]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils :refer :all])
+  (:import
+    java.io.File
+    java.time.Instant))
 
 
 (deftest codec-construction
@@ -24,3 +27,22 @@
     (is (satisfies? codec/Decoder codec))
     (is (= {0 :x} (:read-handlers codec)))
     (is (= {Long :y} (:write-handlers codec)))))
+
+
+(deftest eof-handling
+  (testing "sequence of values"
+    (is (= (list :a 123 true "foo") (decode-hex-all cbor/default-codec "D827623A61187BF563666F6F"))))
+  (testing "interrupted data"
+    (is (cbor-error? :clj-cbor.codec/end-of-input
+          (decode-hex "D827623A61187BF563666F")))))
+
+
+(deftest slobber-utils
+  (let [file (File/createTempFile "clj-cbor.core-test" ".cbor")
+        data-a [3 4.7 true "foo" :bar 'baz/qux {(Instant/ofEpochMilli 1234567890) {:foo 123.456M}}]
+        data-b {:foo "bar", :abc 123}]
+    (is (= 60 (cbor/spit file data-a)))
+    (is (= 21 (cbor/spit file data-b :append true)))
+    (is (= 81 (.length file)))
+    (is (= data-a (cbor/slurp file)))
+    (is (= [data-a data-b] (cbor/slurp-all file)))))

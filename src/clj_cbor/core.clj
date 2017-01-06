@@ -1,10 +1,15 @@
 (ns clj-cbor.core
   "Core CBOR library API."
+  (:refer-clojure :exclude [spit slurp])
   (:require
     [clj-cbor.codec :as codec]
+    [clj-cbor.error :as error]
     (clj-cbor.tags
       [clojure :refer [clojure-read-handlers
                        clojure-write-handlers]]
+      [content :refer [content-write-handlers
+                       content-read-handlers
+                       format-self-described]]
       [numbers :refer [number-read-handlers
                        number-write-handlers]]
       [time :refer [instant-read-handlers
@@ -51,6 +56,7 @@
   The default choice of encoding for instants in time is the numeric epoch
   representation (tag 1)."
   (merge clojure-write-handlers
+         content-write-handlers
          number-write-handlers
          epoch-time-write-handlers
          text-write-handlers))
@@ -62,6 +68,7 @@
   The default choice of representation for instants in time is
   `java.time.Instant`."
   (merge clojure-read-handlers
+         content-read-handlers
          number-read-handlers
          instant-read-handlers
          text-read-handlers))
@@ -75,7 +82,7 @@
 
 
 
-;; ## Coding Functions
+;; ## Encoding Functions
 
 (defn encode
   "Encodes a value as CBOR data.
@@ -94,6 +101,42 @@
      (codec/write-value encoder data-output value))))
 
 
+
+;; ## Decoding Functions
+
+(defn- maybe-read-header
+  "Attempts to read a header byte from the input stream. If there is no more
+  input, the `guard` value is returned."
+  [^DataInputStream input guard]
+  (try
+    (.readUnsignedByte input)
+    (catch EOFException _
+      guard)))
+
+
+(defn- try-read-value
+  "Attemtps to read the rest of a CBOR value from the input stream. If the
+  input ends during the read, the error handler is called with an
+  `end-of-input` error."
+  [decoder input header]
+  (try
+    (codec/read-value* decoder input header)
+    (catch EOFException _
+      (error/*handler* :clj-cbor.codec/end-of-input
+        "Input data ended while parsing a CBOR value."
+        {:header header}))))
+
+
+(defn- read-input-value
+  "Reads a CBOR value from the input stream, or returns the `guard` value if
+  the input is already exhausted."
+  [decoder input guard]
+  (let [header (maybe-read-header input guard)]
+    (if (identical? header guard)
+      guard
+      (try-read-value decoder input header))))
+
+
 (defn decode
   "Decodes a sequence of CBOR values from the input.
 
@@ -104,11 +147,45 @@
    (decode default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
-         data-input (DataInputStream. (io/input-stream input))]
-     (->>
-       (repeatedly
-         #(try
-            (codec/read-value decoder data-input)
-            (catch EOFException ex
-              eof-guard)))
-       (take-while #(not (identical? eof-guard %)))))))
+         data-input (DataInputStream. (io/input-stream input))
+         read-data! #(read-input-value decoder data-input eof-guard)]
+     (take-while
+       #(not (identical? eof-guard %))
+       (repeatedly read-data!)))))
+
+
+
+;; ## Utility Functions
+
+(defn spit
+  "Opens an output stream to `f`, writes `value` to it, then closes the stream.
+
+  Options may include `:append` to write to the end of the file instead of
+  truncating."
+  [f value & opts]
+  (with-open [out (apply io/output-stream f opts)]
+    (encode default-codec out value)))
+
+
+(defn slurp
+  "Opens an input stream from `f`, reads the first value from it, then closes
+  the stream."
+  [f & opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (first (decode default-codec in))))
+
+
+(defn slurp-all
+  "Opens an input stream from `f`, reads all values from it, then closes the
+  stream."
+  [f & opts]
+  (with-open [in (apply io/input-stream f opts)]
+    (doall (decode default-codec in))))
+
+
+(defn self-describe
+  "Wraps a value with a self-describing CBOR tag. This will cause the first few
+  bytes of the data to be `D9D9F7`, which serves as a distinguishing header for
+  format detection."
+  [value]
+  (format-self-described value))

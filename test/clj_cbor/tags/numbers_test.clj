@@ -9,10 +9,9 @@
 (deftest bignums
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be represented as a tagged byte string"
-          (parse-big-int 2 "not-bytes")))
-    (is (thrown? Exception
-          (parse-big-int 4 (byte-array 7)))
-        "tag outside 2-3 should throw exception"))
+          (parse-positive-bignum "not-bytes")))
+    (is (thrown-with-msg? Exception #"must be represented as a tagged byte string"
+          (parse-negative-bignum "not-bytes"))))
   (with-codec {:write-handlers number-write-handlers
                :read-handlers number-read-handlers}
     (check-roundtrip 18446744073709551616N "C249010000000000000000")
@@ -22,13 +21,13 @@
 (deftest decimal-fractions
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 "not-sequential")))
+          (parse-big-decimal "not-sequential")))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 [])))
+          (parse-big-decimal [])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 [0])))
+          (parse-big-decimal [0])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 [0 123 456]))))
+          (parse-big-decimal [0 123 456]))))
   (with-codec {:write-handlers number-write-handlers
                :read-handlers number-read-handlers}
     (check-roundtrip 273.15M "C48221196AB3")
@@ -39,13 +38,13 @@
 (deftest rationals
   (testing "parsing checks"
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-rational 30 "not-sequential")))
+          (parse-ratio "not-sequential")))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-rational 4 [])))
+          (parse-ratio [])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 [0])))
+          (parse-ratio [0])))
     (is (thrown-with-msg? Exception #"must be represented with a two-element array"
-          (parse-big-decimal 4 [0 123 456]))))
+          (parse-ratio [0 123 456]))))
   (with-codec {:write-handlers number-write-handlers
                :read-handlers number-read-handlers}
     (check-roundtrip 1/3 "D81E820103")

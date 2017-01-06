@@ -62,11 +62,18 @@
   (DatatypeConverter/parseHexBinary value))
 
 
+(defn decode-hex-all
+  ([string]
+   (decode-hex-all (cbor/cbor-codec) string))
+  ([decoder string]
+   (doall (cbor/decode decoder (hex->bin string)))))
+
+
 (defn decode-hex
   ([string]
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
-   (first (doall (cbor/decode decoder (hex->bin string))))))
+   (first (decode-hex-all decoder string))))
 
 
 (defn encoded-hex

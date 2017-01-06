@@ -14,81 +14,110 @@
 
 ;; ## Bignums
 
-;; Tag 2, 3
-;; RFC 7049 Section 2.4.2
+;; Bignums are integers that do not fit into the basic integer representations
+;; provided by major types 0 and 1.
 
-(defn format-big-int
+(def ^:const positive-bignum-tag
+  "Tag 2 is for positive bignums, which are encoded as a byte string data item.
+  This is interpreted as an unsigned integer `n` in network byte order."
+  2)
+
+(def ^:const negative-bignum-tag
+  "Tag 3 is for negative bignums. These are encoded the same as for positive
+  bignums (tag 2), but the value of the bignum is `-1 - n`."
+  3)
+
+
+(defn format-bignum
   [value]
   (let [big-integer (biginteger value)]
-    (if (pos? big-integer)
-      (data/tagged-value 2 (.toByteArray big-integer))
-      (data/tagged-value 3 (-> big-integer
-                               (.add BigInteger/ONE)
-                               (.negate)
-                               (.toByteArray))))))
+    (if-not (neg? big-integer)
+      (data/tagged-value
+        positive-bignum-tag
+        (.toByteArray big-integer))
+      (data/tagged-value
+        negative-bignum-tag
+        (-> big-integer
+            (.add BigInteger/ONE)
+            (.negate)
+            (.toByteArray))))))
 
 
-(defn parse-big-int
-  [^long tag ^bytes value]
+(defn parse-positive-bignum
+  [value]
   (when-not (data/bytes? value)
     (throw (ex-info (str "Bignums must be represented as a tagged byte string, got: "
                          (class value))
-                    {:tag tag, :value value})))
-  (let [big-integer (BigInteger. value)]
-    (case tag
-      2 (bigint big-integer)
-      3 (bigint (.negate (.add big-integer BigInteger/ONE))))))
+                    {:value value})))
+  (bigint (BigInteger. ^bytes value)))
+
+
+(defn parse-negative-bignum
+  [value]
+  (when-not (data/bytes? value)
+    (throw (ex-info (str "Bignums must be represented as a tagged byte string, got: "
+                         (class value))
+                    {:value value})))
+  (-> (BigInteger. ^bytes value)
+      (.add BigInteger/ONE)
+      (.negate)
+      (bigint)))
 
 
 
 ;; ## Decimal Fractions
 
-;; Tag 4
-;; RFC 7049 Section 2.4.3
+;; Decimal fractions combine an integer mantissa with a base-10 scaling factor.
+;; They are most useful if an application needs the exact representation of a
+;; decimal fraction such as 1.1 because there is no exact representation for
+;; many decimal fractions in binary floating point.
+
+(def ^:const big-decimal-tag
+  "Tag 4 indicates a decimal fraction represented by a tagged array with two
+  items, an integer exponent and an integer or bignum mantissa. The value of a
+  decimal fraction is `m*(10**e)`."
+  4)
+
 
 (defn format-big-decimal
   [^BigDecimal value]
   (let [exponent (.scale value)
         mantissa (.unscaledValue value)]
-    (data/tagged-value 4 [(- exponent) mantissa])))
+    (data/tagged-value big-decimal-tag [(- exponent) mantissa])))
 
 
 (defn parse-big-decimal
-  [^long tag value]
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str "Decimal fractions must be represented with a two-element array, got: "
                          (pr-str value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [[exponent mantissa] value]
     (BigDecimal. (biginteger mantissa) (int (- exponent)))))
 
 
 
-;; ## Bigfloats
+;; ## Ratios
 
-;; Tag 5
-;; RFC 7049 Section 2.4.3
+(def ^:const ratio-tag
+  "Tag 30 is used to represent a rational number composed of two integers, a
+  numerator and a denominator.
 
-;; Not Supported
+  See: [http://peteroupc.github.io/CBOR/rational.html](http://peteroupc.github.io/CBOR/rational.html)"
+  30)
 
 
-
-;; ## Rationals
-
-;; Tag 30
-;; http://peteroupc.github.io/CBOR/rational.html
-
-(defn format-rational
+(defn format-ratio
   [value]
-  (data/tagged-value 30 [(numerator value) (denominator value)]))
+  (data/tagged-value ratio-tag [(numerator value) (denominator value)]))
 
 
-(defn parse-rational
-  [^long tag value]
+(defn parse-ratio
+  [value]
   (when-not (and (sequential? value) (= 2 (count value)))
     (throw (ex-info (str "Rational numbers must be represented with a two-element array, got: "
                          (pr-str value))
-                    {:tag tag, :value value})))
+                    {:value value})))
   (let [[numerator denominator] value]
     (Ratio. (biginteger numerator) (biginteger denominator))))
 
@@ -98,15 +127,15 @@
 
 (def number-write-handlers
   "Map of number types to write handler functions."
-  {BigInt     format-big-int
-   BigInteger format-big-int
+  {BigInt     format-bignum
+   BigInteger format-bignum
    BigDecimal format-big-decimal
-   Ratio      format-rational})
+   Ratio      format-ratio})
 
 
 (def number-read-handlers
   "Map of tag codes to read handlers to parse number values."
-  { 2 parse-big-int
-    3 parse-big-int
-    4 parse-big-decimal
-   30 parse-rational})
+  {positive-bignum-tag parse-positive-bignum
+   negative-bignum-tag parse-negative-bignum
+   big-decimal-tag     parse-big-decimal
+   ratio-tag           parse-ratio})
