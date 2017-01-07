@@ -8,7 +8,8 @@
   :pedantic? :abort
 
   :aliases
-  {"bench" ["with-profile" "+bench" "run" "-m" "clj-cbor.bench"]}
+  {"bench" ["with-profile" "+bench" "run" "-m" "clj-cbor.bench"]
+   "bench-repl" ["with-profile" "+bench" "repl"]}
 
   :dependencies
   [[org.clojure/clojure "1.8.0"]]
@@ -45,6 +46,7 @@
     [[com.cognitect/transit-clj "0.8.297"]
      [com.taoensso/nippy "2.12.2"]
      [criterium "0.4.4"]
+     [mvxcvi/blocks "0.8.0"]
      [org.clojure/data.fressian "0.2.1"]]}
 
    :doc
