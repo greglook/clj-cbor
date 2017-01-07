@@ -10,6 +10,9 @@
     [criterium.core :as crit]
     [taoensso.nippy :as nippy])
   (:import
+    (java.io
+      ByteArrayInputStream
+      ByteArrayOutputStream)
     java.nio.ByteBuffer))
 
 
@@ -67,55 +70,107 @@
    :date         (java.util.Date.)})
 
 
-(defn bench-implementation
-  [codec-type encoder-fn decoder-fn data]
-  (let [encoded (encoder-fn data)
-        decoded (decoder-fn encoded)
-        encode-stats (crit/quick-benchmark (encoder-fn data) {})
-        encode-time (first (:mean encode-stats))
-        decode-stats (crit/quick-benchmark (decoder-fn encoded) {})
-        decode-time (first (:mean decode-stats))]
+;; Codec Definitions
+
+(defn fressian-encode
+  [data]
+  (let [^ByteBuffer buffer (fressian/write data)
+        size (.remaining buffer)
+        bytes (byte-array size)]
+    (.get buffer bytes 0 size)
+    bytes))
+
+
+(defn fressian-decode
+  [content]
+  (fressian/read (ByteBuffer/wrap content)))
+
+
+(defn transit-encode
+  [type data]
+  (let [out (ByteArrayOutputStream.)
+        writer (transit/writer out type)]
+    (transit/write writer data)
+    (.toByteArray out)))
+
+
+(defn transit-decode
+  [type content]
+  (let [in (ByteArrayInputStream. ^bytes content)
+        reader (transit/reader in type)]
+    (transit/read reader)))
+
+
+(def codecs
+  "Map of codec definitions for the benchmarking harness."
+  {:reader
+   {:encoder #(.getBytes (pr-str %) "UTF-8")
+    :decoder #(read-string (String. ^bytes % "UTF-8"))}
+
+   :cbor
+   {:encoder cbor/encode
+    :decoder (comp first cbor/decode)}
+
+   :nippy
+   {:encoder nippy/freeze
+    :decoder nippy/thaw}
+
+   :fressian
+   {:encoder fressian-encode
+    :decoder fressian-decode}
+
+   :transit+json
+   {:encoder (partial transit-encode :json)
+    :decoder (partial transit-decode :json)}
+
+   :transit+msgpack
+   {:encoder (partial transit-encode :msgpack)
+    :decoder (partial transit-decode :msgpack)}})
+
+
+(defn bench-codec
+  "Benchmark a codec defined in `codecs` against the given `data` value."
+  [codec-type data]
+  (let [{:keys [encoder decoder]} (get codecs codec-type)
+        encoded (encoder data)
+        decoded (decoder encoded)
+        encode-stats (crit/quick-benchmark (encoder data) {})
+        encode-mean (-> encode-stats :mean first (* 1000))
+        decode-stats (crit/quick-benchmark (decoder encoded) {})
+        decode-mean (-> decode-stats :mean first (* 1000))]
     {:codec codec-type
-     :encode encode-time
-     :decode decode-time
-     :roundtrip (+ encode-time decode-time)
+     :encode encode-mean
+     :decode decode-mean
+     :roundtrip (+ encode-mean decode-mean)
      :size (count encoded)
      :equivalent? (util/equivalent data decoded)}))
 
 
-(defn bench-reader
+(defn bench-all
+  "Benchmarks all available codecs on the given `data` value."
   [data]
-  (bench-implementation
-    :reader
-    #(.getBytes (pr-str %) "UTF-8")
-    #(read-string (String. ^bytes % "UTF-8"))
-    data))
-
-
-(defn bench-cbor
-  [data]
-  (bench-implementation
-    :cbor
-    cbor/encode
-    (comp first cbor/decode)
-    data))
-
-
-(defn bench-fressian
-  [data]
-  (bench-implementation
-    :fressian
-    (fn fressian-encode
-      [data]
-      (let [^ByteBuffer buffer (fressian/write data)
-            size (.remaining buffer)
-            bytes (byte-array size)]
-        (.get buffer bytes 0 size)
-        bytes))
-    (fn fressian-decode
-      [bytes]
-      (fressian/read (ByteBuffer/wrap bytes)))
-    data))
+  ; Check all codecs for basic round-trip first.
+  (doseq [codec-type (keys codecs)]
+    (try
+      (let [codec (get codecs codec-type)]
+        ((:decoder codec) ((:encoder codec) data)))
+      (catch Exception ex
+        (throw (ex-info (str "Benchmark data doesn't round-trip on codec " codec-type)
+                        {:type codec-type
+                         :data data
+                         :error ex})))))
+  ; Return sequence of results.
+  (mapv
+    (fn [codec-type]
+      (printf "Benchmarking codec %s...\n" (name codec-type))
+      (flush)
+      (let [start (System/nanoTime)
+            result (bench-codec codec-type data)
+            elapsed (/ (- (System/nanoTime) start) 1000000.0)]
+        (printf "Finished %s in %.3f ms\n" (name codec-type) elapsed)
+        (flush)
+        result))
+    (keys codecs)))
 
 
 (defn -main
