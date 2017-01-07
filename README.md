@@ -87,7 +87,28 @@ encode.
 
 In this mode, `encode` returns the number of bytes written instead of a byte
 array. The sequence returned by `decode` is lazy, so if the input is a file you
-must realize the values before closing the input.
+must realize the values before closing the input. As a convenience, the library
+provides the `spit`, `slurp`, and `slurp-all` functions:
+
+```clojure
+=> (cbor/spit "data.cbor" {:abc 123, :foo "qux", :bar true})
+29
+
+=> (cbor/spit "data.cbor" [0.0 'x] :append true)
+8
+
+=> (cbor/spit "data.cbor" #{-42} :append true)
+4
+
+=> (.length (io/file "data.cbor"))
+41
+
+=> (cbor/slurp "data.cbor")
+{:abc 123, :bar true, :foo "qux"}
+
+=> (cbor/slurp-all "data.cbor")
+({:abc 123, :bar true, :foo "qux"} [0.0 x] #{-42})
+```
 
 
 ## Type Extensions
