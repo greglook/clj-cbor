@@ -9,8 +9,10 @@
     [clojure.data.fressian :as fressian]
     [clojure.edn :as edn]
     [clojure.java.io :as io]
+    [clojure.string :as str]
     [clojure.test.check.generators :as gen]
     [criterium.core :as crit]
+    [multihash.core :as multihash]
     [taoensso.nippy :as nippy])
   (:import
     (java.io
@@ -71,6 +73,7 @@
    :ratio        22/7
    :uuid         (java.util.UUID/randomUUID)
    :date         (java.util.Date.)})
+
 
 
 ;; Codec Definitions
@@ -161,7 +164,7 @@
           (printf "Benchmark data doesn't round-trip: %s\n"
                   (.getMessage ex))
           (flush)
-          {:error ex})))))
+          {:error (.getMessage ex)})))))
 
 
 (defn bench-all
@@ -199,12 +202,14 @@
 
 
 (defn- print-size-histogram
+  "Print out a human-consumable version of the histogram. Returns the histogram
+  value."
   [histogram]
   (printf "%d objects in %d bytes\n" (:count histogram) (:size histogram))
   (doseq [[index bucket-count] (->> histogram :buckets (sort-by key))]
-    (printf "%8s bytes: %4d\n"
+    (printf "%s bytes: %4d\n"
             (if-let [threshold (get size-thresholds index)]
-              (format "< %6d" threshold)
+              (format "< %4d" threshold)
               "> ...")
             bucket-count))
   (flush))
@@ -221,7 +226,7 @@
        (print-size-histogram)))
 
 
-(defn report-sample-store
+(defn- report-sample-store
   [store]
   (println "Scanning stored sample data...")
   (flush)
@@ -233,8 +238,7 @@
 
 (defn -main
   [& args]
-  (let [store (file-block-store "bench/samples")
-        #_#_datafile (io/file "bench/data.tsv")]
+  (let [store (file-block-store "bench/samples")]
     (case (first args)
       "gen"
       (let [n (or (some-> (second args) Integer/parseInt) 100)]
@@ -248,9 +252,11 @@
 
       ; No args
       nil
-      (do (println "Usage: lein bench <gen|stats|run>")
-          (System/exit 1))
+      (binding [*out* *err*]
+        (println "Usage: lein bench <gen|stats|run>")
+        (System/exit 1))
 
       ; Unknown command.
-      (do (println "Unknown command:" (first args))
-          (System/exit 1)))))
+      (binding [*out* *err*]
+        (println "Unknown command:" (first args))
+        (System/exit 1)))))
