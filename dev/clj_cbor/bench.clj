@@ -212,14 +212,31 @@
               (format "< %4d" threshold)
               "> ...")
             bucket-count))
-  (flush))
+  (flush)
+  histogram)
 
 
-(defn generate-sample-data
-  [store n]
+(defn generate-sample
+  [size]
+  ; TODO: review supported vs generated types
+  ; byte-arrays
+  ; dates (read as dates)
+  ; bignums
+  ; bigdecs
+  ; sets (probably already generated)
+  ; ratio
+  ; URI
+  ; regex (not as keys in maps or sets)
+  (let [any-data (gen/recursive-gen gen/container-type
+                                    gen/simple-type-printable)]
+    (gen/generate any-data size)))
+
+
+(defn- generate-sample-data
+  [store n min-size max-size]
   (printf "Generating %d data samples...\n" n)
   (flush)
-  (->> (repeatedly #(gen/generate gen/any-printable))
+  (->> (repeatedly #(generate-sample (+ min-size (rand-int (- max-size min-size)))))
        (take n)
        (map #(:size (block/store! store (cbor/encode %))))
        (into-size-histogram)
@@ -241,8 +258,12 @@
   (let [store (file-block-store "bench/samples")]
     (case (first args)
       "gen"
-      (let [n (or (some-> (second args) Integer/parseInt) 100)]
-        (generate-sample-data store n))
+      (let [n (Integer/parseInt (nth args 1 "100"))
+            min-size (Integer/parseInt (nth args 2 "0"))
+            max-size (if (< 3 (count args))
+                       (Integer/parseInt (nth args 3 "200"))
+                       min-size)]
+        (generate-sample-data store min-size max-size))
 
       "stats"
       (report-sample-store store)
