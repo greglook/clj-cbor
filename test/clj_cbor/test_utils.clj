@@ -93,6 +93,10 @@
   [a b]
   (= a b))
 
+(defmethod equivalent (class (byte-array 0))
+  [a b]
+  (bytes= a b))
+
 (defmethod equivalent Character
   [a b]
   (= (str a) (str b)))
