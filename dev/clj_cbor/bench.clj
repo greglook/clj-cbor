@@ -253,6 +253,52 @@
        (print-size-histogram)))
 
 
+(def ^:private tsv-column-order
+  [:size :encode :decode :equiv])
+
+
+(defn- tsv-header
+  []
+  (->>
+    (keys codecs)
+    (sort)
+    (mapcat (fn [codec-type]
+              (map #(str (name codec-type) \/ (name %))
+                   tsv-column-order)))
+    (list* "block/id" "block/size")
+    (str/join \tab)))
+
+
+(defn- tsv-report-line
+  [block-id block-size results]
+  (->>
+    (keys codecs)
+    (sort)
+    (map results)
+    (mapcat
+      (fn [result]
+        (if (:error result)
+          ["" "" "" ""]
+          [(:size result)
+           (format "%.3f" (* 1000 (:encode result)))
+           (format "%.3f" (* 1000 (:decode result)))
+           (if (:equivalent? result) 1 0)])))
+    (list* block-id block-size)
+    (str/join \tab)))
+
+
+(defn- benched-blocks
+  "Reads in the data TSV file and constructs a set of the ids of all the blocks
+  which have been benchmarked."
+  [data-file]
+  (->>
+    (str/split (slurp data-file) #"\n")
+    (drop 1)
+    (map #(first (str/split % #"\t")))
+    (map multihash/decode)
+    (set)))
+
+
 (defn -main
   [& args]
   (let [store (file-block-store "bench/samples")]
@@ -269,7 +315,38 @@
       (report-sample-store store)
 
       "run"
-      '...
+      (let [[_ strategy rounds out-path] args
+            data-file (io/file (or out-path "bench/data.tsv"))]
+        (when-not (.exists data-file)
+          (io/make-parents data-file)
+          (spit data-file (str (tsv-header) "\n")))
+        (case strategy
+          "all"
+          (let [stats (report-sample-store store)
+                benched (benched-blocks data-file)]
+            (doseq [[i block] (map-indexed vector (block/list store))
+                    :let [hex-id (multihash/hex (:id block))]]
+              (if (benched (:id block))
+                (printf "Skipping block %d/%d (%.1f%%) %s (already tested)\n"
+                        (inc i) (:count stats) (* 100.0 (/ i (:count stats)))
+                        hex-id)
+                (do
+                  (printf "Testing block %d/%d (%.1f%%) %s (%d bytes)...\n"
+                          (inc i) (:count stats) (* 100.0 (/ i (:count stats)))
+                          hex-id (:size block))
+                  (let [data (with-open [input (block/open (block/get store (:id block)))]
+                               (first (cbor/decode input)))
+                        result (bench-all data)]
+                    (spit data-file
+                          (str (tsv-report-line hex-id (:size block) result) "\n")
+                          :append true))))))
+
+          "random"
+          '...
+
+          (binding [*out* *err*]
+            (println "Unknown run strategy:" strategy)
+            (System/exit 1))))
 
       ; No args
       nil
