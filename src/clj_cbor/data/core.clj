@@ -11,6 +11,35 @@
     clj_cbor.data.tagged.TaggedValue))
 
 
+;; ## Byte Arrays
+
+;; Sorting is performed on the bytes of the representation of the key data
+;; items without paying attention to the 3/5 bit splitting for major types.
+;; The sorting rules are:
+;;
+;; * If two keys have different lengths, the shorter one sorts
+;;   earlier;
+;;
+;; * If two keys have the same length, the one with the lower value
+;;   in  (byte-wise) lexical order sorts earlier.
+
+(defn compare-bytes
+  "Returns a negative number, zero, or a positive number when `x` is 'less
+  than', 'equal to', or 'greater than' `y`."
+  [x y]
+  (cond
+    (< (count x) (count y)) -1
+    (> (count x) (count y))  1
+    :else
+    (if-let [[x' y'] (some
+                       (fn [[x' y' :as data]]
+                         (when (not= x' y')
+                           data))
+                       (map vector x y))]
+      (if (< x' y') -1 1)
+      0)))
+
+
 (let [byte-array-class (class (byte-array 0))]
   (defn bytes?
     "Predicate which returns true if `x` is a byte-array."
