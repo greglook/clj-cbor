@@ -136,6 +136,19 @@
           (decode-hex "A26346756EF56346756EF4FF")))))
 
 
+(deftest set-collections
+  (with-codec {:set-tag 13}
+    (check-roundtrip #{} "CD80")
+    (check-roundtrip #{1 2 3} "CD83010302"))
+  (testing "read handler"
+    (is (cbor-error? :clj-cbor.codec/tag-handling-error
+          (decode-hex "CDA10102"))))
+  (testing "strict behavior"
+    (let [codec (cbor/cbor-codec :strict true)]
+      (is (cbor-error? :clj-cbor.codec/duplicate-set-entry
+            (decode-hex codec "CD820101"))))))
+
+
 (deftest floating-point-numbers
   (testing "special value encoding"
     (is (= "F90000" (encoded-hex  0.0)))
@@ -197,21 +210,19 @@
                       :data {:code 30}}
           (decode-hex "FE")))
     (is (cbor-error? :clj-cbor.codec/unexpected-break
-          (decode-hex "FF")))))
-
-
-(deftest set-collections
-  (with-codec {:set-tag 13}
-    (check-roundtrip #{} "CD80")
-    (check-roundtrip #{1 2 3} "CD83010302"))
-  (testing "read handler"
-    (is (cbor-error? :clj-cbor.codec/tag-handling-error
-          (decode-hex "CDA10102")))))
+          (decode-hex "FF"))))
+  (testing "strict mode"
+    (is (cbor-error? :clj-cbor.codec/unknown-simple-value
+          (decode-hex (cbor/cbor-codec :strict true) "EF")))))
 
 
 (deftest tagged-values
   (testing "non-strict behavior"
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
+  (testing "strict behavior"
+    (let [codec (cbor/cbor-codec :strict true)]
+      (is (cbor-error? :clj-cbor.codec/unknown-tag
+            (decode-hex codec "CC08")))))
   (testing "handler error"
     (let [handler (fn [t v] (throw (Exception. "BOOM")))
           codec (cbor/cbor-codec :read-handlers {0 handler})]

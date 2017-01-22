@@ -39,15 +39,7 @@
   (read-value*
     [decoder input header]
     "Reads a single value from the `DataInputStream`, given the just-read
-    initial byte.")
-
-  (handle-tag
-    [decoder tag value]
-    "Return a representation for a tagged value.")
-
-  (unknown-simple
-    [decoder value]
-    "Return a representation for an unknown simple value."))
+    initial byte."))
 
 
 (defn read-value
@@ -410,6 +402,47 @@
 
 
 
+;; ### Sets
+
+;; Sets are represented as arrays of elements tagged with code 13.
+;;
+;; This support is implemented here rather than as a normal read/write handler
+;; pair for two reasons. First, unlike the normal write-handlers which operate
+;; on _concrete types_, there are many types which represent the 'set' semantic
+;; in Clojure, and we don't want to maintain a brittle list of such types. That
+;; approach would also prevent easy extension to new set types outside the core
+;; libray. Instead, we use the `set?` predicate to trigger this handler.
+;;
+;; Second, when the codec is in canonical mode, we want to sort the entries in
+;; the set before writing them out. A write handler wouldn't have a way to know
+;; whether the codec had this behavior enabled, requiring coordination between
+;; the codec setting and the selection of a canonical writer vs a regular one.
+
+(defn- write-set
+  "Writes a set of values to the output as a tagged array."
+  [encoder ^DataOutputStream out tag xs]
+  ; TODO: sort keys by encoded bytes in canonical mode
+  (write-value encoder out (data/tagged-value tag (vec xs))))
+
+
+(defn- read-set
+  "Parse a set from the value contained in the tagged representation."
+  [decoder value]
+  (if (sequential? value)
+    (let [result (set value)]
+      (if (and (:strict decoder) (< (count result) (count value)))
+        (error/*handler*
+          ::duplicate-set-entry
+          "Encoded set contains duplicate entries"
+          {:value value})
+        result))
+    (error/*handler*
+      ::tag-handling-error
+      (str "Sets must be tagged arrays, got: " (class value))
+      {:value value})))
+
+
+
 ;; ### Tagged Values
 
 ;; Major type 6 is used for optional semantic tagging of other CBOR values.
@@ -428,7 +461,22 @@
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (handle-tag decoder tag value)))
+    (if (= tag (:set-tag decoder))
+      (read-set decoder value)
+      (try
+        (if-let [handler ((:read-handlers decoder) tag)]
+          (handler value)
+          (if (:strict decoder)
+            (error/*handler*
+              ::unknown-tag
+              (str "Unknown tag code " tag)
+              {:tag tag, :value value})
+            (data/tagged-value tag value)))
+        (catch Exception ex
+          (error/*handler*
+            ::tag-handling-error
+            (.getMessage ex)
+            (assoc (ex-data ex) ::error ex)))))))
 
 
 
@@ -518,6 +566,16 @@
           {:code n}))))
 
 
+(defn- unknown-simple
+  [decoder value]
+  (if (:strict decoder)
+    (error/*handler*
+      ::unknown-simple-value
+      (str "Unknown simple value " value)
+      {:code value})
+    (data/simple-value value)))
+
+
 (defn- read-simple
   "Reads a simple value from the input."
   [decoder ^DataInputStream input ^long info]
@@ -541,42 +599,6 @@
          "Break encountered outside streaming context."
          {})
     (unknown-simple decoder info)))
-
-
-
-;; ### Sets
-
-;; Sets are represented as arrays of elements tagged with code 13.
-;;
-;; This support is implemented here rather than as a normal read/write handler
-;; pair for two reasons. First, unlike the normal write-handlers which operate
-;; on _concrete types_, there are many types which represent the 'set' semantic
-;; in Clojure, and we don't want to maintain a brittle list of such types. That
-;; approach would also prevent easy extension to new set types outside the core
-;; libray. Instead, we use the `set?` predicate to trigger this handler.
-;;
-;; Second, when the codec is in canonical mode, we want to sort the entries in
-;; the set before writing them out. A write handler wouldn't have a way to know
-;; whether the codec had this behavior enabled, requiring coordination between
-;; the codec setting and the selection of a canonical writer vs a regular one.
-
-(defn- write-set
-  "Writes a set of values to the output as a tagged array."
-  [encoder ^DataOutputStream out tag xs]
-  ; TODO: sort keys by encoded bytes in canonical mode
-  (write-value encoder out (data/tagged-value tag (vec xs))))
-
-
-(defn- read-set
-  "Parse a set from the value contained in the tagged representation."
-  [codec value]
-  (if (sequential? value)
-    ; TODO: check strict mode for duplicate keys
-    (set value)
-    (error/*handler*
-      ::tag-handling-error
-      (str "Sets must be tagged arrays, got: " (class value))
-      {:value value})))
 
 
 
@@ -660,29 +682,7 @@
         :data-array       (read-array this input info)
         :data-map         (read-map this input info)
         :tagged-value     (read-tagged this input info)
-        :simple-value     (read-simple this input info))))
-
-  (handle-tag
-    [this tag value]
-    (if (= tag set-tag)
-      (read-set this value)
-      (try
-        (if-let [handler (read-handlers tag)]
-          (handler value)
-          ; TODO: check strict mode
-          ; TODO: fallback handler function?
-          (data/tagged-value tag value))
-        (catch Exception ex
-          (error/*handler*
-            ::tag-handling-error
-            (.getMessage ex)
-            (assoc (ex-data ex) ::error ex))))))
-
-  (unknown-simple
-    [this value]
-    ; TODO: check strict mode
-    ; TODO: generic lookup function? default to data/simple-value
-    (data/simple-value value)))
+        :simple-value     (read-simple this input info)))))
 
 
 (defn blank-codec
