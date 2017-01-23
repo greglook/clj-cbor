@@ -7,7 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Added
+- Implemented canonical mode sorting of map keys and set entries.
 
 ## [0.3.0] - 2016-01-05
 

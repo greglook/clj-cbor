@@ -48,6 +48,15 @@
   (read-value* decoder input (.readUnsignedByte input)))
 
 
+(defn- write-bytes
+  "Writes the given value `x` to a byte array."
+  [encoder x]
+  (let [out (ByteArrayOutputStream.)]
+    (with-open [data (DataOutputStream. out)]
+      (write-value encoder data x))
+    (.toByteArray out)))
+
+
 
 ;; ## Reader Functions
 
@@ -340,20 +349,47 @@
 ;; A map that has duplicate keys may be well-formed, but it is not valid, and
 ;; thus it causes indeterminate decoding.
 
-(defn- write-map
-  "Writes a map of key/value pairs to the output. The map will be encoded with
-  a definite length, so `xm` will be fully realized."
+(defn- write-map-seq
+  "Writes a sequence of key/value pairs to the output in the order given. The
+  map will be encoded with a definite length, so `xm` will be fully realized."
   [encoder ^DataOutputStream out xm]
   (let [hlen (header/write out :data-map (count xm))]
-    (reduce-kv
+    (reduce
       (fn encode-entry
-        [sum k v]
+        [sum [k v]]
         (let [klen (write-value encoder out k)
               vlen (write-value encoder out v)]
           (+ sum klen vlen)))
       hlen
-      ; TODO: sort keys by encoded bytes in canonical mode
       xm)))
+
+
+(defn- write-map-canonical
+  "Writes a sequence of key/value pairs to the output in canonical order. This
+  requires serializing the keys in order to compare bytes."
+  [encoder ^DataOutputStream out xm]
+  (let [hlen (header/write out :data-map (count xm))]
+    (->>
+      xm
+      (map (fn encode-key
+             [[k v]]
+             [(write-bytes encoder k) v]))
+      (sort-by first data/compare-bytes)
+      (reduce
+        (fn encode-entry
+          [sum [k v]]
+          (.write out ^bytes k)
+          (+ sum (count k) (write-value encoder out v)))
+        hlen))))
+
+
+(defn- write-map
+  "Writes a map of key/value pairs to the output. The map will be encoded with
+  a definite length, so `xm` will be fully realized."
+  [encoder ^DataOutputStream out xm]
+  (if (:canonical encoder)
+    (write-map-canonical encoder out xm)
+    (write-map-seq encoder out xm)))
 
 
 (defn- build-map
@@ -418,11 +454,40 @@
 ;; whether the codec had this behavior enabled, requiring coordination between
 ;; the codec setting and the selection of a canonical writer vs a regular one.
 
+(defn- write-set-seq
+  "Writes a sequence of set entries to the output in the order given. The set
+  will be encoded with a definite length, so `xm` will be fully realized."
+  [encoder ^DataOutputStream out tag xs]
+  (->>
+    (vec xs)
+    (data/tagged-value tag)
+    (write-value encoder out)))
+
+
+(defn- write-set-canonical
+  "Writes a set of entries to the output in canonical order. This requires
+  serializing the entries in order to compare bytes."
+  [encoder ^DataOutputStream out tag xs]
+  (let [tag-hlen (header/write out :tagged-value tag)
+        array-hlen (header/write out :data-array (count xs))]
+    (->>
+      xs
+      (map (partial write-bytes encoder))
+      (sort data/compare-bytes)
+      (reduce
+        (fn encode-entry
+          [sum v]
+          (.write out ^bytes v)
+          (+ sum (count v)))
+        (+ tag-hlen array-hlen)))))
+
+
 (defn- write-set
   "Writes a set of values to the output as a tagged array."
   [encoder ^DataOutputStream out tag xs]
-  ; TODO: sort keys by encoded bytes in canonical mode
-  (write-value encoder out (data/tagged-value tag (vec xs))))
+  (if (:canonical encoder)
+    (write-set-canonical encoder out tag xs)
+    (write-set-seq encoder out tag xs)))
 
 
 (defn- read-set

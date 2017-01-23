@@ -127,6 +127,10 @@
     (is (= {"a" 1, "b" [2 3]} (decode-hex "BF61610161629F0203FFFF")))
     (is (= ["a" {"b" "c"}] (decode-hex "826161BF61626163FF")))
     (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF"))))
+  (testing "canonical mode"
+    (let [codec (cbor/cbor-codec :canonical true)]
+      (is (= "A3000861610243000102626263"
+             (encoded-hex codec {0 8, "a" 2, (byte-array [0 1 2]) "bc"})))))
   (testing "errors"
     (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
                       :data {:map {}, :key "Fun"}}
@@ -146,7 +150,11 @@
   (testing "strict behavior"
     (let [codec (cbor/cbor-codec :strict true)]
       (is (cbor-error? :clj-cbor.codec/duplicate-set-entry
-            (decode-hex codec "CD820101"))))))
+            (decode-hex codec "CD820101")))))
+  (testing "canonical mode"
+    (let [codec (cbor/cbor-codec :canonical true)]
+      (is (= "CD840018406161820304"
+             (encoded-hex codec #{[3 4] 0 64 "a"}))))))
 
 
 (deftest floating-point-numbers
