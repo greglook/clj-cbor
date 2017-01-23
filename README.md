@@ -168,6 +168,31 @@ Continuing the example, the library comes with read handlers for both `Date` and
 `Instant` types, allowing the user to choose their preferred time type.
 
 
+## Performance
+
+As of `0.3.0`, this library is roughly on par with many other comparable
+serialization formats. Some benchmarking results can be found in
+[this spreadsheet](https://docs.google.com/spreadsheets/d/142LhWX5aCnOoF6v0T46RASULQDuG7JIckKiCohDPgq8/edit?usp=sharing).
+
+For small data sizes, CBOR is more compact, while at larger sizes (above 512
+bytes) all formats are fairly close in size (within 3%, generally). Other than
+Nippy, which was by far the fastest codec, clj-cbor was one of the fastest
+encoders and is mid-to-bottom of the pack in decoding times.
+
+This is still pretty fast, however - here's a few samples from the dataset:
+
+| Size | Encode | Decode |
+|------|--------|--------|
+|    3 | 2.7 ms | 4.8 ms |
+|   45 | 5.7 ms | 4.7 ms |
+|  173 |  11 ms | 9.5 ms |
+|  408 |  15 ms |  14 ms |
+|  922 |  15 ms |  17 ms |
+| 1817 |  28 ms |  27 ms |
+| 3036 |  70 ms |  76 ms |
+| 7328 | 102 ms | 118 ms |
+
+
 ## Notes
 
 A few things to keep in mind while using the library:
