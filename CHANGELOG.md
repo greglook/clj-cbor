@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+## [0.4.0] - 2017-03-14
+
 ### Added
 - Implemented canonical mode sorting of map keys and set entries.
 
@@ -57,7 +61,8 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.4.0...HEAD
+[0.4.0]: https://github.com/greglook/clj-cbor/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/greglook/clj-cbor/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/greglook/clj-cbor/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/greglook/clj-cbor/tag/0.1.0
