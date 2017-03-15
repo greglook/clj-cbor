@@ -127,6 +127,10 @@
     (is (= {"a" 1, "b" [2 3]} (decode-hex "BF61610161629F0203FFFF")))
     (is (= ["a" {"b" "c"}] (decode-hex "826161BF61626163FF")))
     (is (= {"Fun" true, "Amt" -2} (decode-hex "BF6346756EF563416D7421FF"))))
+  (testing "canonical mode"
+    (let [codec (cbor/cbor-codec :canonical true)]
+      (is (= "A3000861610243000102626263"
+             (encoded-hex codec {0 8, "a" 2, (byte-array [0 1 2]) "bc"})))))
   (testing "errors"
     (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
                       :data {:map {}, :key "Fun"}}
@@ -134,6 +138,23 @@
     (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
                       :data {:map {"Fun" true}, :key "Fun"}}
           (decode-hex "A26346756EF56346756EF4FF")))))
+
+
+(deftest set-collections
+  (with-codec {:set-tag 13}
+    (check-roundtrip #{} "CD80")
+    (check-roundtrip #{1 2 3} "CD83010302"))
+  (testing "read handler"
+    (is (cbor-error? :clj-cbor.codec/tag-handling-error
+          (decode-hex "CDA10102"))))
+  (testing "strict behavior"
+    (let [codec (cbor/cbor-codec :strict true)]
+      (is (cbor-error? :clj-cbor.codec/duplicate-set-entry
+            (decode-hex codec "CD820101")))))
+  (testing "canonical mode"
+    (let [codec (cbor/cbor-codec :canonical true)]
+      (is (= "CD840018406161820304"
+             (encoded-hex codec #{[3 4] 0 64 "a"}))))))
 
 
 (deftest floating-point-numbers
@@ -197,21 +218,19 @@
                       :data {:code 30}}
           (decode-hex "FE")))
     (is (cbor-error? :clj-cbor.codec/unexpected-break
-          (decode-hex "FF")))))
-
-
-(deftest set-collections
-  (with-codec {:set-tag 13}
-    (check-roundtrip #{} "CD80")
-    (check-roundtrip #{1 2 3} "CD83010302"))
-  (testing "read handler"
-    (is (cbor-error? :clj-cbor.codec/tag-handling-error
-          (decode-hex "CDA10102")))))
+          (decode-hex "FF"))))
+  (testing "strict mode"
+    (is (cbor-error? :clj-cbor.codec/unknown-simple-value
+          (decode-hex (cbor/cbor-codec :strict true) "EF")))))
 
 
 (deftest tagged-values
   (testing "non-strict behavior"
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
+  (testing "strict behavior"
+    (let [codec (cbor/cbor-codec :strict true)]
+      (is (cbor-error? :clj-cbor.codec/unknown-tag
+            (decode-hex codec "CC08")))))
   (testing "handler error"
     (let [handler (fn [t v] (throw (Exception. "BOOM")))
           codec (cbor/cbor-codec :read-handlers {0 handler})]

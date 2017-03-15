@@ -23,6 +23,7 @@
       DataInputStream
       DataOutputStream
       EOFException
+      InputStream
       OutputStream)))
 
 
@@ -163,7 +164,7 @@
   Options may include `:append` to write to the end of the file instead of
   truncating."
   [f value & opts]
-  (with-open [out (apply io/output-stream f opts)]
+  (with-open [out ^OutputStream (apply io/output-stream f opts)]
     (encode default-codec out value)))
 
 
@@ -171,7 +172,7 @@
   "Opens an input stream from `f`, reads the first value from it, then closes
   the stream."
   [f & opts]
-  (with-open [in (apply io/input-stream f opts)]
+  (with-open [in ^InputStream (apply io/input-stream f opts)]
     (first (decode default-codec in))))
 
 
@@ -179,7 +180,7 @@
   "Opens an input stream from `f`, reads all values from it, then closes the
   stream."
   [f & opts]
-  (with-open [in (apply io/input-stream f opts)]
+  (with-open [in ^InputStream (apply io/input-stream f opts)]
     (doall (decode default-codec in))))
 
 
