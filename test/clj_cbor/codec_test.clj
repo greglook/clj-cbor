@@ -7,6 +7,31 @@
     [clj-cbor.test-utils :refer :all]))
 
 
+(deftest integer-typing
+  (let [roundtrip (comp first cbor/decode cbor/encode)]
+    (testing "direct values"
+      (are [i] (instance? Long (roundtrip i))
+        -24 -1 0 1 23))
+    (testing "int8"
+      (are [i] (instance? Long (roundtrip i))
+        -256 -25 24 255))
+    (testing "int16"
+      (are [i] (instance? Long (roundtrip i))
+        -65536 -257 256 65535))
+    (testing "int32"
+      (are [i] (instance? Long (roundtrip i))
+        -4294967296 -65537 65536 4294967295))
+    (testing "int64"
+      (are [i] (instance? Long (roundtrip i))
+        Long/MIN_VALUE -4294967297 4294967296 Long/MAX_VALUE))
+    (testing "int64+"
+      (are [i] (instance? clojure.lang.BigInt (roundtrip i))
+        -18446744073709551616N
+        (dec' Long/MIN_VALUE)
+        (inc' Long/MAX_VALUE)
+        18446744073709551615N))))
+
+
 (deftest unsigned-integers
   (testing "direct values"
     (check-roundtrip 0 "00")
@@ -29,6 +54,7 @@
   (testing "uint64"
     (check-roundtrip 4294967296 "1B0000000100000000")
     (check-roundtrip 1000000000000 "1B000000E8D4A51000")
+    (check-roundtrip Long/MAX_VALUE "1B7FFFFFFFFFFFFFFF")
     (check-roundtrip 18446744073709551615N "1BFFFFFFFFFFFFFFFF"))
   (testing "errors"
     (is (cbor-error? :clj-cbor.codec/illegal-stream
@@ -54,6 +80,7 @@
     (check-roundtrip -4294967296 "3AFFFFFFFF"))
   (testing "int64"
     (check-roundtrip -4294967297 "3B0000000100000000")
+    (check-roundtrip Long/MIN_VALUE "3B7FFFFFFFFFFFFFFF")
     (check-roundtrip -18446744073709551616 "3BFFFFFFFFFFFFFFFF"))
   (testing "errors"
     (is (cbor-error? :clj-cbor.codec/illegal-stream
