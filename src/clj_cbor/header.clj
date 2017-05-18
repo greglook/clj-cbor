@@ -133,9 +133,9 @@
     info
     ; Otherwise, signify the number of bytes following.
     (case info
-      24 (.readUnsignedByte input)
-      25 (.readUnsignedShort input)
-      26 (bit-and (.readInt input) 0xFFFFFFFF)
+      24 (long (.readUnsignedByte input))
+      25 (long (.readUnsignedShort input))
+      26 (long (bit-and (.readInt input) 0xFFFFFFFF))
       27 (read-unsigned-long input)
       (28 29 30)
         (error/*handler*

@@ -165,7 +165,7 @@
   "Writes an integer value."
   [encoder ^DataOutputStream out n]
   (if (neg? n)
-    (header/write out :negative-integer (- -1 n))
+    (header/write out :negative-integer (-' -1 n))
     (header/write out :unsigned-integer n)))
 
 
