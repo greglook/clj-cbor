@@ -2865,7 +2865,7 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.3.0</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
+</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.4.1</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
 </div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#clj-cbor.core">clj-cbor.core</a></li><li><a href="#clj-cbor.codec">clj-cbor.codec</a></li><li><a href="#clj-cbor.tags.time">clj-cbor.tags.time</a></li><li><a href="#clj-cbor.tags.content">clj-cbor.tags.content</a></li><li><a href="#clj-cbor.tags.text">clj-cbor.tags.text</a></li><li><a href="#clj-cbor.tags.clojure">clj-cbor.tags.clojure</a></li><li><a href="#clj-cbor.tags.numbers">clj-cbor.tags.numbers</a></li><li><a href="#clj-cbor.header">clj-cbor.header</a></li><li><a href="#clj-cbor.data.float16">clj-cbor.data.float16</a></li><li><a href="#clj-cbor.data.core">clj-cbor.data.core</a></li><li><a href="#clj-cbor.data.simple">clj-cbor.data.simple</a></li><li><a href="#clj-cbor.data.tagged">clj-cbor.data.tagged</a></li><li><a href="#clj-cbor.error">clj-cbor.error</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.core" name="clj-cbor.core"><h1 class="project-name">clj-cbor.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core CBOR library API.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.core
   (:refer-clojure :exclude [spit slurp])
@@ -2891,6 +2891,7 @@ net.brehaut.ClojureTools = (function (SH) {
       DataInputStream
       DataOutputStream
       EOFException
+      InputStream
       OutputStream)))</pre></td></tr><tr><td class="docs"><h2>Codec Construction</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Constructs a new CBOR codec with no configuration. Note that this does not
   include <strong>any</strong> read and write handlers. See the <code>default-codec</code> and the
@@ -2996,17 +2997,17 @@ the embedded item and return the parsed data value.</li>
   truncating.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn spit
   [f value &amp; opts]
-  (with-open [out (apply io/output-stream f opts)]
+  (with-open [out ^OutputStream (apply io/output-stream f opts)]
     (encode default-codec out value)))</pre></td></tr><tr><td class="docs"><p>Opens an input stream from <code>f</code>, reads the first value from it, then closes
   the stream.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn slurp
   [f &amp; opts]
-  (with-open [in (apply io/input-stream f opts)]
+  (with-open [in ^InputStream (apply io/input-stream f opts)]
     (first (decode default-codec in))))</pre></td></tr><tr><td class="docs"><p>Opens an input stream from <code>f</code>, reads all values from it, then closes the
   stream.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn slurp-all
   [f &amp; opts]
-  (with-open [in (apply io/input-stream f opts)]
+  (with-open [in ^InputStream (apply io/input-stream f opts)]
     (doall (decode default-codec in))))</pre></td></tr><tr><td class="docs"><p>Wraps a value with a self-describing CBOR tag. This will cause the first few
   bytes of the data to be <code>D9D9F7</code>, which serves as a distinguishing header for
   format detection.</p>
@@ -3044,16 +3045,16 @@ the embedded item and return the parsed data value.</li>
   (read-value*
     [decoder input header]
     &quot;Reads a single value from the `DataInputStream`, given the just-read
-    initial byte.&quot;)
-  (handle-tag
-    [decoder tag value]
-    &quot;Return a representation for a tagged value.&quot;)
-  (unknown-simple
-    [decoder value]
-    &quot;Return a representation for an unknown simple value.&quot;))</pre></td></tr><tr><td class="docs"><p>Reads a single value from the <code>DataInputStream</code>.</p>
+    initial byte.&quot;))</pre></td></tr><tr><td class="docs"><p>Reads a single value from the <code>DataInputStream</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn read-value
   [decoder ^DataInputStream input]
-  (read-value* decoder input (.readUnsignedByte input)))</pre></td></tr><tr><td class="docs"><h2>Reader Functions</h2>
+  (read-value* decoder input (.readUnsignedByte input)))</pre></td></tr><tr><td class="docs"><p>Writes the given value <code>x</code> to a byte array.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-bytes
+  [encoder x]
+  (let [out (ByteArrayOutputStream.)]
+    (with-open [data (DataOutputStream. out)]
+      (write-value encoder data x))
+    (.toByteArray out)))</pre></td></tr><tr><td class="docs"><h2>Reader Functions</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>These functions provide some data-reading capabilities which later
 major-type readers are built on. In particular, these help deal with the
 four data types which can be <em>streamed</em> with indefinite lengths.</p>
@@ -3136,7 +3137,7 @@ unsigned integer.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-integer
   [encoder ^DataOutputStream out n]
   (if (neg? n)
-    (header/write out :negative-integer (- -1 n))
+    (header/write out :negative-integer (-' -1 n))
     (header/write out :unsigned-integer n)))</pre></td></tr><tr><td class="docs"><p>Reads an unsigned integer from the input stream.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- read-positive-integer
   [decoder ^DataInputStream input info]
@@ -3272,20 +3273,41 @@ well-formed.</p>
 
 <p>A map that has duplicate keys may be well-formed, but it is not valid, and
 thus it causes indeterminate decoding.</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a map of key/value pairs to the output. The map will be encoded with
-  a definite length, so <code>xm</code> will be fully realized.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- write-map
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a sequence of key/value pairs to the output in the order given. The
+  map will be encoded with a definite length, so <code>xm</code> will be fully realized.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-map-seq
   [encoder ^DataOutputStream out xm]
   (let [hlen (header/write out :data-map (count xm))]
-    (reduce-kv
+    (reduce
       (fn encode-entry
-        [sum k v]
+        [sum [k v]]
         (let [klen (write-value encoder out k)
               vlen (write-value encoder out v)]
           (+ sum klen vlen)))
       hlen
-      ; TODO: sort keys by encoded bytes in canonical mode
-      xm)))</pre></td></tr><tr><td class="docs"><p>Reducing function which builds a map from a sequence of alternating key and
+      xm)))</pre></td></tr><tr><td class="docs"><p>Writes a sequence of key/value pairs to the output in canonical order. This
+  requires serializing the keys in order to compare bytes.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-map-canonical
+  [encoder ^DataOutputStream out xm]
+  (let [hlen (header/write out :data-map (count xm))]
+    (-&gt;&gt;
+      xm
+      (map (fn encode-key
+             [[k v]]
+             [(write-bytes encoder k) v]))
+      (sort-by first data/compare-bytes)
+      (reduce
+        (fn encode-entry
+          [sum [k v]]
+          (.write out ^bytes k)
+          (+ sum (count k) (write-value encoder out v)))
+        hlen))))</pre></td></tr><tr><td class="docs"><p>Writes a map of key/value pairs to the output. The map will be encoded with
+  a definite length, so <code>xm</code> will be fully realized.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-map
+  [encoder ^DataOutputStream out xm]
+  (if (:canonical encoder)
+    (write-map-canonical encoder out xm)
+    (write-map-seq encoder out xm)))</pre></td></tr><tr><td class="docs"><p>Reducing function which builds a map from a sequence of alternating key and
   value elements.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- build-map
   ([]
@@ -3324,7 +3346,62 @@ thus it causes indeterminate decoding.</p>
       (-&gt;&gt;
         (repeatedly #(read-value decoder input))
         (take (* 2 length))
-        (transduce identity build-map)))))</pre></td></tr><tr><td class="docs"><h3>Tagged Values</h3>
+        (transduce identity build-map)))))</pre></td></tr><tr><td class="docs"><h3>Sets</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Sets are represented as arrays of elements tagged with code 13.</p>
+
+<p>This support is implemented here rather than as a normal read/write handler
+pair for two reasons. First, unlike the normal write-handlers which operate
+on <em>concrete types</em>, there are many types which represent the 'set' semantic
+in Clojure, and we don't want to maintain a brittle list of such types. That
+approach would also prevent easy extension to new set types outside the core
+libray. Instead, we use the <code>set?</code> predicate to trigger this handler.</p>
+
+<p>Second, when the codec is in canonical mode, we want to sort the entries in
+the set before writing them out. A write handler wouldn't have a way to know
+whether the codec had this behavior enabled, requiring coordination between
+the codec setting and the selection of a canonical writer vs a regular one.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a sequence of set entries to the output in the order given. The set
+  will be encoded with a definite length, so <code>xm</code> will be fully realized.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-set-seq
+  [encoder ^DataOutputStream out tag xs]
+  (-&gt;&gt;
+    (vec xs)
+    (data/tagged-value tag)
+    (write-value encoder out)))</pre></td></tr><tr><td class="docs"><p>Writes a set of entries to the output in canonical order. This requires
+  serializing the entries in order to compare bytes.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-set-canonical
+  [encoder ^DataOutputStream out tag xs]
+  (let [tag-hlen (header/write out :tagged-value tag)
+        array-hlen (header/write out :data-array (count xs))]
+    (-&gt;&gt;
+      xs
+      (map (partial write-bytes encoder))
+      (sort data/compare-bytes)
+      (reduce
+        (fn encode-entry
+          [sum v]
+          (.write out ^bytes v)
+          (+ sum (count v)))
+        (+ tag-hlen array-hlen)))))</pre></td></tr><tr><td class="docs"><p>Writes a set of values to the output as a tagged array.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- write-set
+  [encoder ^DataOutputStream out tag xs]
+  (if (:canonical encoder)
+    (write-set-canonical encoder out tag xs)
+    (write-set-seq encoder out tag xs)))</pre></td></tr><tr><td class="docs"><p>Parse a set from the value contained in the tagged representation.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- read-set
+  [decoder value]
+  (if (sequential? value)
+    (let [result (set value)]
+      (if (and (:strict decoder) (&lt; (count result) (count value)))
+        (error/*handler*
+          ::duplicate-set-entry
+          &quot;Encoded set contains duplicate entries&quot;
+          {:value value})
+        result))
+    (error/*handler*
+      ::tag-handling-error
+      (str &quot;Sets must be tagged arrays, got: &quot; (class value))
+      {:value value})))</pre></td></tr><tr><td class="docs"><h3>Tagged Values</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Major type 6 is used for optional semantic tagging of other CBOR values.</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes out a tagged value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-tagged
@@ -3338,7 +3415,22 @@ thus it causes indeterminate decoding.</p>
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (handle-tag decoder tag value)))</pre></td></tr><tr><td class="docs"><h3>Simple Values</h3>
+    (if (= tag (:set-tag decoder))
+      (read-set decoder value)
+      (try
+        (if-let [handler ((:read-handlers decoder) tag)]
+          (handler value)
+          (if (:strict decoder)
+            (error/*handler*
+              ::unknown-tag
+              (str &quot;Unknown tag code &quot; tag)
+              {:tag tag, :value value})
+            (data/tagged-value tag value)))
+        (catch Exception ex
+          (error/*handler*
+            ::tag-handling-error
+            (.getMessage ex)
+            (assoc (ex-data ex) ::error ex)))))))</pre></td></tr><tr><td class="docs"><h3>Simple Values</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Major type 7 is for two types of data: floating-point numbers and "simple
 values" that do not need any content, as well as the "break" stop code. Each
 value of the 5-bit additional information in the initial byte has its own
@@ -3404,7 +3496,15 @@ content data; all the information is in the initial bytes.</p>
         (error/*handler*
           ::illegal-simple-type
           (str &quot;Illegal or reserved simple value: &quot; n)
-          {:code n}))))</pre></td></tr><tr><td class="docs"><p>Reads a simple value from the input.</p>
+          {:code n}))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- unknown-simple
+  [decoder value]
+  (if (:strict decoder)
+    (error/*handler*
+      ::unknown-simple-value
+      (str &quot;Unknown simple value &quot; value)
+      {:code value})
+    (data/simple-value value)))</pre></td></tr><tr><td class="docs"><p>Reads a simple value from the input.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- read-simple
   [decoder ^DataInputStream input ^long info]
   (case info
@@ -3426,34 +3526,7 @@ content data; all the information is in the initial bytes.</p>
          ::unexpected-break
          &quot;Break encountered outside streaming context.&quot;
          {})
-    (unknown-simple decoder info)))</pre></td></tr><tr><td class="docs"><h3>Sets</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Sets are represented as arrays of elements tagged with code 13.</p>
-
-<p>This support is implemented here rather than as a normal read/write handler
-pair for two reasons. First, unlike the normal write-handlers which operate
-on <em>concrete types</em>, there are many types which represent the 'set' semantic
-in Clojure, and we don't want to maintain a brittle list of such types. That
-approach would also prevent easy extension to new set types outside the core
-libray. Instead, we use the <code>set?</code> predicate to trigger this handler.</p>
-
-<p>Second, when the codec is in canonical mode, we want to sort the entries in
-the set before writing them out. A write handler wouldn't have a way to know
-whether the codec had this behavior enabled, requiring coordination between
-the codec setting and the selection of a canonical writer vs a regular one.</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Writes a set of values to the output as a tagged array.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- write-set
-  [encoder ^DataOutputStream out tag xs]
-  ; TODO: sort keys by encoded bytes in canonical mode
-  (write-value encoder out (data/tagged-value tag (vec xs))))</pre></td></tr><tr><td class="docs"><p>Parse a set from the value contained in the tagged representation.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- read-set
-  [codec value]
-  (if (sequential? value)
-    ; TODO: check strict mode for duplicate keys
-    (set value)
-    (error/*handler*
-      ::tag-handling-error
-      (str &quot;Sets must be tagged arrays, got: &quot; (class value))
-      {:value value})))</pre></td></tr><tr><td class="docs"><h2>Codec Implementation</h2>
+    (unknown-simple decoder info)))</pre></td></tr><tr><td class="docs"><h2>Codec Implementation</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Writes the value <code>x</code> as one of the native CBOR values and return the number
   of bytes written. Returns nil if <code>x</code> is not a native type.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-native
@@ -3515,27 +3588,7 @@ the codec setting and the selection of a canonical writer vs a regular one.</p>
         :data-array       (read-array this input info)
         :data-map         (read-map this input info)
         :tagged-value     (read-tagged this input info)
-        :simple-value     (read-simple this input info))))
-  (handle-tag
-    [this tag value]
-    (if (= tag set-tag)
-      (read-set this value)
-      (try
-        (if-let [handler (read-handlers tag)]
-          (handler value)
-          ; TODO: check strict mode
-          ; TODO: fallback handler function?
-          (data/tagged-value tag value))
-        (catch Exception ex
-          (error/*handler*
-            ::tag-handling-error
-            (.getMessage ex)
-            (assoc (ex-data ex) ::error ex))))))
-  (unknown-simple
-    [this value]
-    ; TODO: check strict mode
-    ; TODO: generic lookup function? default to data/simple-value
-    (data/simple-value value)))</pre></td></tr><tr><td class="docs"><p>Constructs a new <code>CBORCodec</code> record with default empty field values.</p>
+        :simple-value     (read-simple this input info)))))</pre></td></tr><tr><td class="docs"><p>Constructs a new <code>CBORCodec</code> record with default empty field values.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn blank-codec
   []
   (map-&gt;CBORCodec
@@ -3987,9 +4040,9 @@ many decimal fractions in binary floating point.</p>
     info
     ; Otherwise, signify the number of bytes following.
     (case info
-      24 (.readUnsignedByte input)
-      25 (.readUnsignedShort input)
-      26 (bit-and (.readInt input) 0xFFFFFFFF)
+      24 (long (.readUnsignedByte input))
+      25 (long (.readUnsignedShort input))
+      26 (long (bit-and (.readInt input) 0xFFFFFFFF))
       27 (read-unsigned-long input)
       (28 29 30)
         (error/*handler*
@@ -4073,7 +4126,32 @@ many decimal fractions in binary floating point.</p>
     (clj_cbor.data.simple
       SimpleValue
       Undefined)
-    clj_cbor.data.tagged.TaggedValue))</pre></td></tr><tr><td class="docs"><p>Predicate which returns true if <code>x</code> is a byte-array.</p>
+    clj_cbor.data.tagged.TaggedValue))</pre></td></tr><tr><td class="docs"><h2>Byte Arrays</h2>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Sorting is performed on the bytes of the representation of the key data
+items without paying attention to the 3/5 bit splitting for major types.
+The sorting rules are:</p>
+
+<ul>
+<li><p>If two keys have different lengths, the shorter one sorts
+earlier;</p></li>
+<li><p>If two keys have the same length, the one with the lower value
+in  (byte-wise) lexical order sorts earlier.</p></li>
+</ul>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns a negative number, zero, or a positive number when <code>x</code> is 'less
+  than', 'equal to', or 'greater than' <code>y</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn compare-bytes
+  [x y]
+  (cond
+    (&lt; (count x) (count y)) -1
+    (&gt; (count x) (count y))  1
+    :else
+    (if-let [[x' y'] (some
+                       (fn [[x' y' :as data]]
+                         (when (not= x' y')
+                           data))
+                       (map vector x y))]
+      (if (&lt; x' y') -1 1)
+      0)))</pre></td></tr><tr><td class="docs"><p>Predicate which returns true if <code>x</code> is a byte-array.</p>
 </td><td class="codes"><pre class="brush: clojure">(let [byte-array-class (class (byte-array 0))]
   (defn bytes?
     [x]
