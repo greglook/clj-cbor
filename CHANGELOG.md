@@ -9,6 +9,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ...
 
+## [0.4.1] - 2017-05-17
+
+### Fixed
+- Resolved an overflow issue when encoding `Long/MIN_VALUE`.
+- Integer values are always decoded as `Long` values, no matter their encoded
+  size. Previously, numbers between `Short/MAX_VALUE` and `Integer/MAX_VALUE`
+  would return `Integer` values.
+  [#4](https://github.com/greglook/clj-cbor/issues/4)
+  [#5](https://github.com/greglook/clj-cbor/pull/5)
+
 ## [0.4.0] - 2017-03-14
 
 ### Added
