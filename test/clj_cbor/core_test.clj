@@ -29,6 +29,10 @@
     (is (= {Long :y} (:write-handlers codec)))))
 
 
+(deftest multi-value-coding
+  (is (= [true 123 :abc] (cbor/decode-all (cbor/encode-all [true 123 :abc])))))
+
+
 (deftest eof-handling
   (testing "sequence of values"
     (is (= (list :a 123 true "foo") (decode-hex-all cbor/default-codec "D827623A61187BF563666F6F"))))
@@ -45,4 +49,7 @@
     (is (= 21 (cbor/spit file data-b :append true)))
     (is (= 81 (.length file)))
     (is (= data-a (cbor/slurp file)))
-    (is (= [data-a data-b] (cbor/slurp-all file)))))
+    (is (= [data-a data-b] (cbor/slurp-all file)))
+    (.delete file)
+    (is (= 81 (cbor/spit-all file [data-b data-a])))
+    (is (= [data-b data-a] (cbor/slurp-all file)))))
