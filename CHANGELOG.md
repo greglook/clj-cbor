@@ -10,6 +10,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - *Breaking:* the default set tag is now 258, matching the IANA registry.
   [#6](//github.com/greglook/clj-cbor/issues/6)
+- *Breaking:* `clj-cbor.core/decode` now only decodes a single value; previous
+  behavior moved to `decode-all`.
+  [#7](//github.com/greglook/clj-cbor/issues/7)
+
+### Added
+- `clj-cbor.core/encode-all` writes a sequence of values to a byte array or
+  output stream.
+- `clj-cbor.core/spit-all` similarly writes a sequence of values to an output
+  file like `spit`.
 
 ## [0.4.1] - 2017-05-17
 
