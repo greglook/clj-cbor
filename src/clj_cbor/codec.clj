@@ -1,12 +1,10 @@
 (ns clj-cbor.codec
   "Main CBOR codec implementation."
   (:require
-    (clj-cbor
-      [error :as error]
-      [header :as header])
-    (clj-cbor.data
-      [core :as data]
-      [float16 :as float16])
+    [clj-cbor.error :as error]
+    [clj-cbor.header :as header]
+    [clj-cbor.data.core :as data]
+    [clj-cbor.data.float16 :as float16]
     [clojure.string :as str])
   (:import
     clj_cbor.data.simple.SimpleValue
@@ -440,7 +438,7 @@
 
 ;; ### Sets
 
-;; Sets are represented as arrays of elements tagged with code 13.
+;; Sets are represented as arrays of elements tagged with code 258.
 ;;
 ;; This support is implemented here rather than as a normal read/write handler
 ;; pair for two reasons. First, unlike the normal write-handlers which operate
@@ -757,6 +755,6 @@
     {:dispatch class
      :write-handlers {}
      :read-handlers {}
-     :set-tag 13
+     :set-tag 258
      :canonical false
      :strict false}))

@@ -7,7 +7,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Changed
+- *Breaking:* the default set tag is now 258, matching the IANA registry.
+  [#6](//github.com/greglook/clj-cbor/issues/6)
 
 ## [0.4.1] - 2017-05-17
 

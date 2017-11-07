@@ -135,13 +135,13 @@ support for the following types:
 |     2 | Byte string    | `BigInt` | Positive bignum |
 |     3 | Byte string    | `BigInt` | Negative bignum |
 |     4 | Array(2)       | `BigDecimal` | Decimal fraction |
-|    13 | Array          | `Set` | Sets of unique entries |
 |    27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
 |    30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
 |    32 | Text string    | `URI` | Uniform Resource Identifier strings |
 |    35 | Text string    | `Pattern` | Regular expression strings |
 |    37 | Byte string    | `UUID` | Binary-encoded UUID values |
 |    39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+|   258 | Array          | `Set` | Sets of unique entries |
 | 55799 | Varies         | N/A | Self-describe CBOR |
 
 For further information about registered tag semantics, consult the
@@ -206,8 +206,6 @@ A few things to keep in mind while using the library:
   `NaN`, which are always written as two bytes for efficiency.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
-- Sets are currently represented using tag 13, which is not a part of the IANA
-  registry.
 - Regular expressions are supported using tag 35, but beware that Java
   `Pattern` objects do not compare equal or have the same hash code for
   otherwise identical regexes. Using them in sets or as map keys is discouraged.
