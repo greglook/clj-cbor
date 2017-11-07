@@ -73,7 +73,7 @@
   ([string]
    (decode-hex-all (cbor/cbor-codec) string))
   ([decoder string]
-   (doall (cbor/decode-all decoder (hex->bin string)))))
+   (doall (cbor/decode-seq decoder (hex->bin string)))))
 
 
 (defn encoded-hex

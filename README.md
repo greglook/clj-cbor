@@ -78,14 +78,14 @@ output stream, and the value to encode.
 ; 0xD827623A61187BF563666F6F
 
 => (with-open [input (java.io.ByteArrayInputStream. *1)]
-     (doall (cbor/decode-all codec input)))
+     (doall (cbor/decode-seq codec input)))
 (:a 123 true "foo")
 ```
 
 In this mode, `encode` returns the number of bytes written instead of a byte
-array. We can read multiple items from an input stream using `decode-all`, which
+array. We can read multiple items from an input stream using `decode-seq`, which
 returns a lazy sequence. If the input is a file you must realize the values
-before closing the input. Similarly, `encode-all` will write a sequence of
+before closing the input. Similarly, `encode-seq` will write a sequence of
 multiple values to an output stream.
 
 As a convenience, the library also provides the `spit`, `spit-all`, `slurp`, and

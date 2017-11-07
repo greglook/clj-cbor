@@ -104,7 +104,7 @@
      (codec/write-value encoder data-output value))))
 
 
-(defn encode-all
+(defn encode-seq
   "Encode a sequence of values as CBOR data. This eagerly consumes the
   input sequence.
 
@@ -112,11 +112,11 @@
   returns the number of bytes written. If output is omitted, the function
   returns a byte array instead. Uses the `default-codec` if none is provided."
   ([values]
-   (encode-all default-codec values))
+   (encode-seq default-codec values))
   ([encoder values]
    (let [buffer (ByteArrayOutputStream.)]
      (with-open [output (data-output-stream buffer)]
-       (encode-all encoder output values))
+       (encode-seq encoder output values))
      (.toByteArray buffer)))
   ([encoder ^OutputStream output values]
    (let [data-output (data-output-stream output)]
@@ -175,14 +175,14 @@
        (try-read-value decoder input header)))))
 
 
-(defn decode-all
+(defn decode-seq
   "Decode a sequence of CBOR values from the input.
 
   The input may be a byte array or coercible to an `input-stream`. Uses the
   `default-codec` if none is provided. This returns a lazy sequence, so take
   care that the input stream is not closed before the entries are realized."
   ([input]
-   (decode-all default-codec input))
+   (decode-seq default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
          data-input (data-input-stream input)
@@ -213,7 +213,7 @@
   truncating."
   [f values & opts]
   (with-open [out ^OutputStream (apply io/output-stream f opts)]
-    (encode-all default-codec out values)))
+    (encode-seq default-codec out values)))
 
 
 (defn slurp
@@ -229,7 +229,7 @@
   stream."
   [f & opts]
   (with-open [in ^InputStream (apply io/input-stream f opts)]
-    (doall (decode-all default-codec in))))
+    (doall (decode-seq default-codec in))))
 
 
 (defn self-describe

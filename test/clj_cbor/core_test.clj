@@ -30,7 +30,7 @@
 
 
 (deftest multi-value-coding
-  (is (= [true 123 :abc] (cbor/decode-all (cbor/encode-all [true 123 :abc])))))
+  (is (= [true 123 :abc] (cbor/decode-seq (cbor/encode-seq [true 123 :abc])))))
 
 
 (deftest eof-handling
