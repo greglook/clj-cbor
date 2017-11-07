@@ -4,18 +4,11 @@
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.error :as error]
-    (clj-cbor.tags
-      [clojure :refer [clojure-read-handlers
-                       clojure-write-handlers]]
-      [content :refer [content-write-handlers
-                       content-read-handlers
-                       format-self-described]]
-      [numbers :refer [number-read-handlers
-                       number-write-handlers]]
-      [time :refer [instant-read-handlers
-                    epoch-time-write-handlers]]
-      [text :refer [text-read-handlers
-                    text-write-handlers]])
+    [clj-cbor.tags.clojure :as tags.clj]
+    [clj-cbor.tags.content :as tags.content]
+    [clj-cbor.tags.numbers :as tags.num]
+    [clj-cbor.tags.text :as tags.text]
+    [clj-cbor.tags.time :as tags.time]
     [clojure.java.io :as io])
   (:import
     (java.io
@@ -56,11 +49,11 @@
 
   The default choice of encoding for instants in time is the numeric epoch
   representation (tag 1)."
-  (merge clojure-write-handlers
-         content-write-handlers
-         number-write-handlers
-         epoch-time-write-handlers
-         text-write-handlers))
+  (merge tags.clj/clojure-write-handlers
+         tags.content/content-write-handlers
+         tags.num/number-write-handlers
+         tags.time/epoch-time-write-handlers
+         tags.text/text-write-handlers))
 
 
 (def default-read-handlers
@@ -68,11 +61,11 @@
 
   The default choice of representation for instants in time is
   `java.time.Instant`."
-  (merge clojure-read-handlers
-         content-read-handlers
-         number-read-handlers
-         instant-read-handlers
-         text-read-handlers))
+  (merge tags.clj/clojure-read-handlers
+         tags.content/content-read-handlers
+         tags.num/number-read-handlers
+         tags.time/instant-read-handlers
+         tags.text/text-read-handlers))
 
 
 (def default-codec
@@ -189,4 +182,4 @@
   bytes of the data to be `D9D9F7`, which serves as a distinguishing header for
   format detection."
   [value]
-  (format-self-described value))
+  (tags.content/format-self-described value))
