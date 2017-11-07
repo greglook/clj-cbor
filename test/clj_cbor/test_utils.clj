@@ -62,18 +62,18 @@
   (DatatypeConverter/parseHexBinary value))
 
 
-(defn decode-hex-all
-  ([string]
-   (decode-hex-all (cbor/cbor-codec) string))
-  ([decoder string]
-   (doall (cbor/decode decoder (hex->bin string)))))
-
-
 (defn decode-hex
   ([string]
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
-   (first (decode-hex-all decoder string))))
+   (cbor/decode decoder (hex->bin string))))
+
+
+(defn decode-hex-all
+  ([string]
+   (decode-hex-all (cbor/cbor-codec) string))
+  ([decoder string]
+   (doall (cbor/decode-all decoder (hex->bin string)))))
 
 
 (defn encoded-hex
@@ -155,8 +155,10 @@
 
 (defmacro check-roundtrip
   ([value hex-string]
-   `(do (is (~'= ~hex-string (encoded-hex *test-codec* ~value)))
-        (is (~'= ~value (decode-hex *test-codec* ~hex-string)))))
+   `(let [value# ~value]
+      (is (~'= ~hex-string (encoded-hex *test-codec* value#)))
+      (is (~'= value# (decode-hex *test-codec* ~hex-string)))))
   ([compare-by value hex-string]
-   `(do (is (~'= ~hex-string (encoded-hex *test-codec* ~value)))
-        (is (~'= (~compare-by ~value) (~compare-by (decode-hex *test-codec* ~hex-string)))))))
+   `(let [value# ~value]
+      (is (~'= ~hex-string (encoded-hex *test-codec* value#)))
+      (is (~'= (~compare-by value#) (~compare-by (decode-hex *test-codec* ~hex-string)))))))

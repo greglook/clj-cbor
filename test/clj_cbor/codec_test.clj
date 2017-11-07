@@ -8,7 +8,7 @@
 
 
 (deftest integer-typing
-  (let [roundtrip (comp first cbor/decode cbor/encode)]
+  (let [roundtrip (comp cbor/decode cbor/encode)]
     (testing "direct values"
       (are [i] (instance? Long (roundtrip i))
         -24 -1 0 1 23))
@@ -174,7 +174,7 @@
   (testing "read handler"
     (is (cbor-error? :clj-cbor.codec/tag-handling-error
           (decode-hex "D90102A10102"))))
-  (testing "strict behavior"
+  (testing "strict mode"
     (let [codec (cbor/cbor-codec :strict true)]
       (is (cbor-error? :clj-cbor.codec/duplicate-set-entry
             (decode-hex codec "D90102820101")))))
@@ -252,9 +252,9 @@
 
 
 (deftest tagged-values
-  (testing "non-strict behavior"
+  (testing "non-strict mode"
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
-  (testing "strict behavior"
+  (testing "strict mode"
     (let [codec (cbor/cbor-codec :strict true)]
       (is (cbor-error? :clj-cbor.codec/unknown-tag
             (decode-hex codec "CC08")))))

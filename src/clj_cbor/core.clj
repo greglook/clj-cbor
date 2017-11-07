@@ -23,7 +23,7 @@
 ;; ## Codec Construction
 
 (defn cbor-codec
-  "Constructs a new CBOR codec with no configuration. Note that this does not
+  "Construct a new CBOR codec with no configuration. Note that this does not
   include **any** read and write handlers. See the `default-codec` and the
   `default-read-handlers` and `default-write-handlers` vars.
 
@@ -78,8 +78,16 @@
 
 ;; ## Encoding Functions
 
+(defn- data-output-stream
+  "Coerce the argument to a `DataOutputStream`."
+  [input]
+  (if (instance? DataOutputStream input)
+    input
+    (DataOutputStream. (io/output-stream input))))
+
+
 (defn encode
-  "Encodes a value as CBOR data.
+  "Encode a single value as CBOR data.
 
   In the full argument form, this writes a value to an output stream and
   returns the number of bytes written. If output is omitted, the function
@@ -88,15 +96,43 @@
    (encode default-codec value))
   ([encoder value]
    (let [buffer (ByteArrayOutputStream.)]
-     (encode encoder buffer value)
+     (with-open [output (data-output-stream buffer)]
+       (encode encoder output value))
      (.toByteArray buffer)))
   ([encoder ^OutputStream output value]
-   (let [data-output (DataOutputStream. output)]
+   (let [data-output (data-output-stream output)]
      (codec/write-value encoder data-output value))))
+
+
+(defn encode-all
+  "Encode a sequence of values as CBOR data. This eagerly consumes the
+  input sequence.
+
+  In the full argument form, this writes a value to an output stream and
+  returns the number of bytes written. If output is omitted, the function
+  returns a byte array instead. Uses the `default-codec` if none is provided."
+  ([values]
+   (encode-all default-codec values))
+  ([encoder values]
+   (let [buffer (ByteArrayOutputStream.)]
+     (with-open [output (data-output-stream buffer)]
+       (encode-all encoder output values))
+     (.toByteArray buffer)))
+  ([encoder ^OutputStream output values]
+   (let [data-output (data-output-stream output)]
+     (transduce (map (partial encode encoder data-output)) + 0 values))))
 
 
 
 ;; ## Decoding Functions
+
+(defn- data-input-stream
+  "Coerce the argument to a `DataInputStream`."
+  [input]
+  (if (instance? DataInputStream input)
+    input
+    (DataInputStream. (io/input-stream input))))
+
 
 (defn- maybe-read-header
   "Attempts to read a header byte from the input stream. If there is no more
@@ -121,28 +157,36 @@
         {:header header}))))
 
 
-(defn- read-input-value
-  "Reads a CBOR value from the input stream, or returns the `guard` value if
-  the input is already exhausted."
-  [decoder input guard]
-  (let [header (maybe-read-header input guard)]
-    (if (identical? header guard)
-      guard
-      (try-read-value decoder input header))))
-
-
 (defn decode
-  "Decodes a sequence of CBOR values from the input.
+  "Decode a single CBOR value from the input.
+
+  The input may be a byte array or coercible to an `input-stream`. Uses the
+  `default-codec` if none is provided. If at the end of the input, returns nil
+  or `eof-guard` if provided."
+  ([input]
+   (decode default-codec input))
+  ([decoder input]
+   (decode decoder input nil))
+  ([decoder input eof-guard]
+   (let [input (data-input-stream input)
+         header (maybe-read-header input eof-guard)]
+     (if (identical? header eof-guard)
+       eof-guard
+       (try-read-value decoder input header)))))
+
+
+(defn decode-all
+  "Decode a sequence of CBOR values from the input.
 
   The input may be a byte array or coercible to an `input-stream`. Uses the
   `default-codec` if none is provided. This returns a lazy sequence, so take
   care that the input stream is not closed before the entries are realized."
   ([input]
-   (decode default-codec input))
+   (decode-all default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
-         data-input (DataInputStream. (io/input-stream input))
-         read-data! #(read-input-value decoder data-input eof-guard)]
+         data-input (data-input-stream input)
+         read-data! #(decode decoder data-input eof-guard)]
      (take-while
        #(not (identical? eof-guard %))
        (repeatedly read-data!)))))
@@ -161,12 +205,23 @@
     (encode default-codec out value)))
 
 
+(defn spit-all
+  "Opens an output stream to `f`, writes each element in `values` to it, then
+  closes the stream.
+
+  Options may include `:append` to write to the end of the file instead of
+  truncating."
+  [f values & opts]
+  (with-open [out ^OutputStream (apply io/output-stream f opts)]
+    (encode-all default-codec out values)))
+
+
 (defn slurp
   "Opens an input stream from `f`, reads the first value from it, then closes
   the stream."
   [f & opts]
   (with-open [in ^InputStream (apply io/input-stream f opts)]
-    (first (decode default-codec in))))
+    (decode default-codec in)))
 
 
 (defn slurp-all
@@ -174,7 +229,7 @@
   stream."
   [f & opts]
   (with-open [in ^InputStream (apply io/input-stream f opts)]
-    (doall (decode default-codec in))))
+    (doall (decode-all default-codec in))))
 
 
 (defn self-describe
