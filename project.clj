@@ -1,4 +1,4 @@
-(defproject mvxcvi/clj-cbor "0.4.1"
+(defproject mvxcvi/clj-cbor "0.5.0"
   :description "Concise Binary Object Representation (RFC 7049)"
   :url "https://github.com/greglook/clj-cbor"
   :license {:name "Public Domain"
@@ -30,15 +30,13 @@
 
   :profiles
   {:dev
-   {:dependencies
+   {:plugins
+    [[lein-cloverage "1.0.10"]]
+    :dependencies
     [[org.clojure/test.check "0.9.0"]]}
 
    :repl
    {:source-paths ["dev"]}
-
-   :test
-   {:plugins
-    [[lein-cloverage "1.0.9"]]}
 
    :bench
    {:source-paths ["dev"]
@@ -47,9 +45,4 @@
      [com.taoensso/nippy "2.12.2"]
      [criterium "0.4.4"]
      [mvxcvi/blocks "0.8.0"]
-     [org.clojure/data.fressian "0.2.1"]]}
-
-   :doc
-   {:plugins
-    [[lein-codox "0.10.2"]
-     [michaelblume/lein-marginalia "0.9.0"]]}})
+     [org.clojure/data.fressian "0.2.1"]]}})

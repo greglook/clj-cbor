@@ -36,7 +36,7 @@ diretly with the data:
 ; 0x8600D827683A666F6F2F626172F5A1D827623A78D8276179CD81D81E820103D82363666F6F
 
 => (cbor/decode *1)
-([0 :foo/bar true {:x y} #{1/3} #"foo"])
+[0 :foo/bar true {:x y} #{1/3} #"foo"]
 ```
 
 With no extra arguments, `encode` and `decode` will make use of the
@@ -52,15 +52,12 @@ should different behavior be desired.
 ; 0xA2D827643A666F6F63626172D827643A62617A187B
 
 => (cbor/decode codec *1)
-({:foo "bar", :baz 123})
+{:foo "bar", :baz 123}
 ```
 
-There is also an asymmetry between the functions - `encode` returns the encoded
-data as a byte array, while `decode` returns a _sequence_ of values read from
-the input. This behavior becomes more useful in streaming contexts, where
-multiple items may present in the input stream. The full form of `encode` takes
-three arguments - the codec, the output stream to write to, and the value to
-encode.
+So far we haven't specified any outputs when encoding, so we've gotten a byte
+array back. The full form of `encode` takes three arguments: the codec, the
+output stream, and the value to encode.
 
 ```clojure
 => (def out (java.io.ByteArrayOutputStream.))
@@ -81,24 +78,25 @@ encode.
 ; 0xD827623A61187BF563666F6F
 
 => (with-open [input (java.io.ByteArrayInputStream. *1)]
-     (doall (cbor/decode codec input)))
+     (doall (cbor/decode-seq codec input)))
 (:a 123 true "foo")
 ```
 
 In this mode, `encode` returns the number of bytes written instead of a byte
-array. The sequence returned by `decode` is lazy, so if the input is a file you
-must realize the values before closing the input. As a convenience, the library
-provides the `spit`, `slurp`, and `slurp-all` functions:
+array. We can read multiple items from an input stream using `decode-seq`, which
+returns a lazy sequence. If the input is a file you must realize the values
+before closing the input. Similarly, `encode-seq` will write a sequence of
+multiple values to an output stream.
+
+As a convenience, the library also provides the `spit`, `spit-all`, `slurp`, and
+`slurp-all` functions, which operate on files:
 
 ```clojure
 => (cbor/spit "data.cbor" {:abc 123, :foo "qux", :bar true})
 29
 
-=> (cbor/spit "data.cbor" [0.0 'x] :append true)
-8
-
-=> (cbor/spit "data.cbor" #{-42} :append true)
-4
+=> (cbor/spit-all "data.cbor" [[0.0 'x] #{-42}] :append true)
+12
 
 => (.length (io/file "data.cbor"))
 41
@@ -135,13 +133,13 @@ support for the following types:
 |     2 | Byte string    | `BigInt` | Positive bignum |
 |     3 | Byte string    | `BigInt` | Negative bignum |
 |     4 | Array(2)       | `BigDecimal` | Decimal fraction |
-|    13 | Array          | `Set` | Sets of unique entries |
 |    27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
 |    30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
 |    32 | Text string    | `URI` | Uniform Resource Identifier strings |
 |    35 | Text string    | `Pattern` | Regular expression strings |
 |    37 | Byte string    | `UUID` | Binary-encoded UUID values |
 |    39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+|   258 | Array          | `Set` | Sets of unique entries |
 | 55799 | Varies         | N/A | Self-describe CBOR |
 
 For further information about registered tag semantics, consult the
@@ -206,8 +204,6 @@ A few things to keep in mind while using the library:
   `NaN`, which are always written as two bytes for efficiency.
 - CBOR does not have a type for bare characters, so they will be converted to
   single-character strings when written.
-- Sets are currently represented using tag 13, which is not a part of the IANA
-  registry.
 - Regular expressions are supported using tag 35, but beware that Java
   `Pattern` objects do not compare equal or have the same hash code for
   otherwise identical regexes. Using them in sets or as map keys is discouraged.

@@ -4,18 +4,11 @@
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.error :as error]
-    (clj-cbor.tags
-      [clojure :refer [clojure-read-handlers
-                       clojure-write-handlers]]
-      [content :refer [content-write-handlers
-                       content-read-handlers
-                       format-self-described]]
-      [numbers :refer [number-read-handlers
-                       number-write-handlers]]
-      [time :refer [instant-read-handlers
-                    epoch-time-write-handlers]]
-      [text :refer [text-read-handlers
-                    text-write-handlers]])
+    [clj-cbor.tags.clojure :as tags.clj]
+    [clj-cbor.tags.content :as tags.content]
+    [clj-cbor.tags.numbers :as tags.num]
+    [clj-cbor.tags.text :as tags.text]
+    [clj-cbor.tags.time :as tags.time]
     [clojure.java.io :as io])
   (:import
     (java.io
@@ -30,7 +23,7 @@
 ;; ## Codec Construction
 
 (defn cbor-codec
-  "Constructs a new CBOR codec with no configuration. Note that this does not
+  "Construct a new CBOR codec with no configuration. Note that this does not
   include **any** read and write handlers. See the `default-codec` and the
   `default-read-handlers` and `default-write-handlers` vars.
 
@@ -56,11 +49,11 @@
 
   The default choice of encoding for instants in time is the numeric epoch
   representation (tag 1)."
-  (merge clojure-write-handlers
-         content-write-handlers
-         number-write-handlers
-         epoch-time-write-handlers
-         text-write-handlers))
+  (merge tags.clj/clojure-write-handlers
+         tags.content/content-write-handlers
+         tags.num/number-write-handlers
+         tags.time/epoch-time-write-handlers
+         tags.text/text-write-handlers))
 
 
 (def default-read-handlers
@@ -68,11 +61,11 @@
 
   The default choice of representation for instants in time is
   `java.time.Instant`."
-  (merge clojure-read-handlers
-         content-read-handlers
-         number-read-handlers
-         instant-read-handlers
-         text-read-handlers))
+  (merge tags.clj/clojure-read-handlers
+         tags.content/content-read-handlers
+         tags.num/number-read-handlers
+         tags.time/instant-read-handlers
+         tags.text/text-read-handlers))
 
 
 (def default-codec
@@ -85,8 +78,16 @@
 
 ;; ## Encoding Functions
 
+(defn- data-output-stream
+  "Coerce the argument to a `DataOutputStream`."
+  [input]
+  (if (instance? DataOutputStream input)
+    input
+    (DataOutputStream. (io/output-stream input))))
+
+
 (defn encode
-  "Encodes a value as CBOR data.
+  "Encode a single value as CBOR data.
 
   In the full argument form, this writes a value to an output stream and
   returns the number of bytes written. If output is omitted, the function
@@ -95,15 +96,43 @@
    (encode default-codec value))
   ([encoder value]
    (let [buffer (ByteArrayOutputStream.)]
-     (encode encoder buffer value)
+     (with-open [output (data-output-stream buffer)]
+       (encode encoder output value))
      (.toByteArray buffer)))
   ([encoder ^OutputStream output value]
-   (let [data-output (DataOutputStream. output)]
+   (let [data-output (data-output-stream output)]
      (codec/write-value encoder data-output value))))
+
+
+(defn encode-seq
+  "Encode a sequence of values as CBOR data. This eagerly consumes the
+  input sequence.
+
+  In the full argument form, this writes a value to an output stream and
+  returns the number of bytes written. If output is omitted, the function
+  returns a byte array instead. Uses the `default-codec` if none is provided."
+  ([values]
+   (encode-seq default-codec values))
+  ([encoder values]
+   (let [buffer (ByteArrayOutputStream.)]
+     (with-open [output (data-output-stream buffer)]
+       (encode-seq encoder output values))
+     (.toByteArray buffer)))
+  ([encoder ^OutputStream output values]
+   (let [data-output (data-output-stream output)]
+     (transduce (map (partial encode encoder data-output)) + 0 values))))
 
 
 
 ;; ## Decoding Functions
+
+(defn- data-input-stream
+  "Coerce the argument to a `DataInputStream`."
+  [input]
+  (if (instance? DataInputStream input)
+    input
+    (DataInputStream. (io/input-stream input))))
+
 
 (defn- maybe-read-header
   "Attempts to read a header byte from the input stream. If there is no more
@@ -128,28 +157,36 @@
         {:header header}))))
 
 
-(defn- read-input-value
-  "Reads a CBOR value from the input stream, or returns the `guard` value if
-  the input is already exhausted."
-  [decoder input guard]
-  (let [header (maybe-read-header input guard)]
-    (if (identical? header guard)
-      guard
-      (try-read-value decoder input header))))
-
-
 (defn decode
-  "Decodes a sequence of CBOR values from the input.
+  "Decode a single CBOR value from the input.
+
+  The input may be a byte array or coercible to an `input-stream`. Uses the
+  `default-codec` if none is provided. If at the end of the input, returns nil
+  or `eof-guard` if provided."
+  ([input]
+   (decode default-codec input))
+  ([decoder input]
+   (decode decoder input nil))
+  ([decoder input eof-guard]
+   (let [input (data-input-stream input)
+         header (maybe-read-header input eof-guard)]
+     (if (identical? header eof-guard)
+       eof-guard
+       (try-read-value decoder input header)))))
+
+
+(defn decode-seq
+  "Decode a sequence of CBOR values from the input.
 
   The input may be a byte array or coercible to an `input-stream`. Uses the
   `default-codec` if none is provided. This returns a lazy sequence, so take
   care that the input stream is not closed before the entries are realized."
   ([input]
-   (decode default-codec input))
+   (decode-seq default-codec input))
   ([decoder input]
    (let [eof-guard (Object.)
-         data-input (DataInputStream. (io/input-stream input))
-         read-data! #(read-input-value decoder data-input eof-guard)]
+         data-input (data-input-stream input)
+         read-data! #(decode decoder data-input eof-guard)]
      (take-while
        #(not (identical? eof-guard %))
        (repeatedly read-data!)))))
@@ -168,12 +205,23 @@
     (encode default-codec out value)))
 
 
+(defn spit-all
+  "Opens an output stream to `f`, writes each element in `values` to it, then
+  closes the stream.
+
+  Options may include `:append` to write to the end of the file instead of
+  truncating."
+  [f values & opts]
+  (with-open [out ^OutputStream (apply io/output-stream f opts)]
+    (encode-seq default-codec out values)))
+
+
 (defn slurp
   "Opens an input stream from `f`, reads the first value from it, then closes
   the stream."
   [f & opts]
   (with-open [in ^InputStream (apply io/input-stream f opts)]
-    (first (decode default-codec in))))
+    (decode default-codec in)))
 
 
 (defn slurp-all
@@ -181,7 +229,7 @@
   stream."
   [f & opts]
   (with-open [in ^InputStream (apply io/input-stream f opts)]
-    (doall (decode default-codec in))))
+    (doall (decode-seq default-codec in))))
 
 
 (defn self-describe
@@ -189,4 +237,4 @@
   bytes of the data to be `D9D9F7`, which serves as a distinguishing header for
   format detection."
   [value]
-  (format-self-described value))
+  (tags.content/format-self-described value))

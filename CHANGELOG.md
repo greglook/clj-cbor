@@ -9,6 +9,49 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ...
 
+## [0.5.0] - 2017-11-08
+
+This release fixes two of the longer-standing quirks with the library, which
+were unfortunately breaking changes. The fixes should be straightforward:
+
+- Replace any `(cbor/decode ...)` with `(cbor/decode-seq ...)`.
+- Replace any `(first (cbor/decode-seq ...))` with `(cbor/decode ...)`.
+
+If you have existing encoded data containing sets, you can use the following
+function to rewrite it:
+
+```clojure
+(defn rewrite-cbor-sets
+  [codec source dest]
+  (with-open [input (io/input-stream source)
+              output (io/output-stream dest)]
+    (->>
+      input
+      (cbor/decode-seq (assoc codec :set-tag 13))
+      (cbor/encode-seq codec output))))
+```
+
+If rewriting isn't an option, you can support reading sets via tag 13 by
+using a custom read handler:
+
+```clojure
+(def compatible-codec
+  (assoc-in cbor/default-codec [:read-handlers 13] set))
+```
+
+### Changed
+- **Breaking:** the default set tag is now 258, matching the IANA registry.
+  [#6](//github.com/greglook/clj-cbor/issues/6)
+- **Breaking:** `clj-cbor.core/decode` now only decodes a single value; previous
+  behavior moved to `decode-seq`.
+  [#7](//github.com/greglook/clj-cbor/issues/7)
+
+### Added
+- `clj-cbor.core/encode-seq` writes a sequence of values to a byte array or
+  output stream.
+- `clj-cbor.core/spit-all` similarly writes a sequence of values to an output
+  file like repeated calls to `spit` with `:append true`.
+
 ## [0.4.1] - 2017-05-17
 
 ### Fixed
@@ -71,7 +114,9 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/greglook/clj-cbor/compare/0.4.1...0.5.0
+[0.4.1]: https://github.com/greglook/clj-cbor/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/greglook/clj-cbor/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/greglook/clj-cbor/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/greglook/clj-cbor/compare/0.1.0...0.2.0
