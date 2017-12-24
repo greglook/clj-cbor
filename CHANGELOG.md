@@ -9,6 +9,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ...
 
+## [0.6.0] - 2017-12-23
+
+### Changed
+- Upgrade to Clojure 1.9.0.
+
 ## [0.5.0] - 2017-11-08
 
 This release fixes two of the longer-standing quirks with the library, which
@@ -114,7 +119,8 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/greglook/clj-cbor/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/greglook/clj-cbor/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/greglook/clj-cbor/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/greglook/clj-cbor/compare/0.3.0...0.4.0

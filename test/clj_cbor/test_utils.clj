@@ -2,8 +2,7 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
-    [clj-cbor.error :as error]
-    [clj-cbor.data.core :refer [bytes?]])
+    [clj-cbor.error :as error])
   (:import
     (java.util
       Collection

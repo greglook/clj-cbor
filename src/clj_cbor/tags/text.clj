@@ -75,7 +75,7 @@
 
 (defn parse-uuid
   [value]
-  (when-not (data/bytes? value)
+  (when-not (bytes? value)
     (throw (ex-info (str "UUIDs must be tagged byte strings, got: "
                          (class value))
                     {:value value})))
