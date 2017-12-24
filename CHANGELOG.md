@@ -7,7 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Changed
+- Upgrade to Clojure 1.9.0.
 
 ## [0.5.0] - 2017-11-08
 

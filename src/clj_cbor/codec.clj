@@ -553,12 +553,6 @@
 ;; Like the major types for integers, items of this major type do not carry
 ;; content data; all the information is in the initial bytes.
 
-(defn- boolean?
-  "Predicate which returns true if `x` is a boolean value."
-  [x]
-  (or (true? x) (false? x)))
-
-
 (defn- write-boolean
   "Writes a boolean simple value to the output."
   [encoder ^DataOutputStream out x]
@@ -685,7 +679,7 @@
     ; Byte and text strings
     (char? x) (write-text-string codec out (str x))
     (string? x) (write-text-string codec out x)
-    (data/bytes? x) (write-byte-string codec out x)
+    (bytes? x) (write-byte-string codec out x)
 
     ; Tag extensions
     (data/tagged-value? x) (write-tagged codec out x)

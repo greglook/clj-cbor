@@ -80,6 +80,7 @@
 
 (defn- data-output-stream
   "Coerce the argument to a `DataOutputStream`."
+  ^DataOutputStream
   [input]
   (if (instance? DataOutputStream input)
     input

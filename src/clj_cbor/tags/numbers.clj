@@ -45,7 +45,7 @@
 
 (defn parse-positive-bignum
   [value]
-  (when-not (data/bytes? value)
+  (when-not (bytes? value)
     (throw (ex-info (str "Bignums must be represented as a tagged byte string, got: "
                          (class value))
                     {:value value})))
@@ -54,7 +54,7 @@
 
 (defn parse-negative-bignum
   [value]
-  (when-not (data/bytes? value)
+  (when-not (bytes? value)
     (throw (ex-info (str "Bignums must be represented as a tagged byte string, got: "
                          (class value))
                     {:value value})))
