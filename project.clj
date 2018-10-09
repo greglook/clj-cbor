@@ -41,8 +41,8 @@
    :bench
    {:source-paths ["dev"]
     :dependencies
-    [[com.cognitect/transit-clj "0.8.300"]
+    [[com.cognitect/transit-clj "0.8.313"]
      [com.taoensso/nippy "2.14.0"]
      [criterium "0.4.4"]
-     [mvxcvi/blocks "1.0.0"]
+     [mvxcvi/blocks "1.1.0"]
      [org.clojure/data.fressian "0.2.1"]]}})
