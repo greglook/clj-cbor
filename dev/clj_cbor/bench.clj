@@ -153,19 +153,20 @@
 (defn bench-codec
   "Benchmark a codec defined in `codecs` against the given `data` value."
   [codec-type data]
-  (let [start (System/nanoTime)]
+  (let [start (System/nanoTime)
+        {:keys [version encoder decoder]} (get codecs codec-type)]
     (printf "Benchmarking codec %s...\n" (name codec-type))
     (flush)
     (try
-      (let [{:keys [version encoder decoder]} (get codecs codec-type)
-            encoded (encoder data)
+      (let [encoded (encoder data)
             decoded (decoder encoded)
             encode-stats (crit/quick-benchmark (encoder data) {})
             encode-mean (-> encode-stats :mean first (* 1000))
             decode-stats (crit/quick-benchmark (decoder encoded) {})
             decode-mean (-> decode-stats :mean first (* 1000))
             elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-        (printf "Finished %s in %.3f ms\n" (name codec-type) elapsed)
+        (printf "Finished %s in %.3f ms (mean encode: %.3fµs, decode: %.3fµs)\n"
+                (name codec-type) elapsed (* 1000 encode-mean) (* 1000 decode-mean))
         (flush)
         {:codec codec-type
          :version version
@@ -177,7 +178,9 @@
           (printf "Benchmark data doesn't round-trip: %s\n"
                   (.getMessage ex))
           (flush)
-          {:error (.getMessage ex)})))))
+          {:error (.getMessage ex)
+           :codec codec-type
+           :version version})))))
 
 
 
@@ -315,7 +318,11 @@
 
 (defn -main
   [& args]
-  (let [store (file-block-store "bench/samples")]
+  (let [store (file-block-store "bench/samples")
+        data-file (io/file "bench/data.tsv")]
+    (when-not (.exists data-file)
+      (io/make-parents data-file)
+      (spit data-file (str (tsv-header) "\n")))
     (case (first args)
       "stats"
       (report-sample-store store)
@@ -323,10 +330,8 @@
       "gen" ; n min-size max-size
       (let [n (Integer/parseInt (nth args 1 "100"))
             min-size (Integer/parseInt (nth args 2 "0"))
-            max-size (if (< 3 (count args))
-                       (Integer/parseInt (nth args 3 "200"))
-                       min-size)]
-        (generate-sample-data store min-size max-size))
+            max-size (Integer/parseInt (nth args 3 "200"))]
+        (generate-sample-data store n min-size max-size))
 
       "run" ; codec...
       (let [data-file (io/file "bench/data.tsv")
@@ -337,15 +342,13 @@
                          (map #(vector % (get-in codecs [% :version])))
                          (map (juxt first (benched-blocks data-file)))
                          (into {}))
+            already-benched? (or (apply set/intersection (vals benched)) #{})
             blocks (->> (block/list store)
-                        (remove (comp (apply set/intersection (vals benched)) :id))
+                        (remove (comp already-benched? :id))
                         (shuffle)
                         (vec))]
         (printf "Benchmarking codecs %s against %d blocks\n"
                 (str/join ", " targets) (count blocks))
-        (when-not (.exists data-file)
-          (io/make-parents data-file)
-          (spit data-file (str (tsv-header) "\n")))
         (doseq [[i block] (map-indexed vector blocks)]
           (printf "Testing block %d/%d (%.1f%%) %s (%d bytes)\n"
                   (inc i) (count blocks) (* 100.0 (/ i (count blocks)))
