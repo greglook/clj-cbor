@@ -100,7 +100,7 @@
    (bit-and header 0x1F)])
 
 
-(defn- read-unsigned-long
+(defn read-unsigned-long
   "Reads an unsigned long value from the input stream. If the value overflows
   into the negative, it is promoted to a bigint."
   [^DataInputStream input]

@@ -4,6 +4,7 @@
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.error :as error]
+    [clj-cbor.jump :as jump]
     [clj-cbor.tags.clojure :as tags.clj]
     [clj-cbor.tags.content :as tags.content]
     [clj-cbor.tags.numbers :as tags.num]
@@ -37,11 +38,13 @@
   - `:read-handlers` lookup function from integer tags to handlers which take
     the embedded item and return the parsed data value."
   [& opts]
-  (merge
-    (codec/blank-codec)
-    (if (and (= 1 (count opts)) (map? (first opts)))
-      (first opts)
-      (apply hash-map opts))))
+  (let [opts (if (and (= 1 (count opts)) (map? (first opts)))
+               (first opts)
+               (apply hash-map opts))
+        codec (merge (codec/blank-codec) opts)]
+    (if (:jump-table? opts)
+      (jump/with-jump-table codec)
+      codec)))
 
 
 (def default-write-handlers

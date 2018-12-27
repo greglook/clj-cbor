@@ -67,7 +67,7 @@
   (short 0xFF))
 
 
-(defn- read-bytes
+(defn read-bytes
   "Reads `length` bytes from the input stream and returns them as a byte
   array."
   ^bytes

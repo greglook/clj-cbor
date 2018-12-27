@@ -31,8 +31,7 @@
         (inc' Long/MAX_VALUE)
         18446744073709551615N))))
 
-
-(deftest unsigned-integers
+(defn -unsigned-integers []
   (testing "direct values"
     (check-roundtrip 0 "00")
     (check-roundtrip 1 "01")
@@ -60,8 +59,13 @@
     (is (cbor-error? :clj-cbor.codec/illegal-stream
           (decode-hex "1F00")))))
 
+(deftest unsigned-integers
+  (with-codec {}
+    (-unsigned-integers))
+  (with-codec {:jump-table? true}
+    (-unsigned-integers)))
 
-(deftest negative-integers
+(defn -negative-integers []
   (testing "direct values"
     (check-roundtrip -1 "20")
     (check-roundtrip -10 "29")
@@ -86,8 +90,15 @@
     (is (cbor-error? :clj-cbor.codec/illegal-stream
           (decode-hex "3F00")))))
 
+(deftest negative-integers
+  (with-codec {}
+    (-negative-integers))
+  (testing "jump decoder"
+    (with-codec {:jump-table? true}
+      (-negative-integers))))
 
-(deftest byte-strings
+
+(defn -byte-strings []
   (testing "direct bytes"
     (is (= "40" (encoded-hex (byte-array 0))))
     (is (bytes= [] (decode-hex "40")))
@@ -104,7 +115,14 @@
           (decode-hex "5F4201025F4100FFFF")))))
 
 
-(deftest text-strings
+(deftest byte-strings
+  (with-codec {}
+    (-byte-strings))
+  (with-codec {:jump-table? true}
+    (-byte-strings)))
+
+
+(defn -text-strings []
   (testing "direct strings"
     (check-roundtrip "" "60")
     (check-roundtrip "a" "6161")
@@ -123,8 +141,14 @@
                       :data {:stream-type :text-string}}
           (decode-hex "7F6265737F6161FFFF")))))
 
+(deftest text-strings
+  (with-codec {}
+    (-text-strings))
+  (with-codec {:jump-table? true}
+    (-text-strings)))
 
-(deftest data-arrays
+
+(defn -data-arrays []
   (testing "encoded size"
     (check-roundtrip [] "80")
     (check-roundtrip [1 2 3] "83010203")
@@ -139,8 +163,14 @@
     (is (= [1 [2 3] [4 5]] (decode-hex "83019F0203FF820405")))
     (is (= (range 1 26) (decode-hex "9F0102030405060708090A0B0C0D0E0F101112131415161718181819FF")))))
 
+(deftest data-arrays
+  (with-codec {}
+    (-data-arrays))
+  (with-codec {:jump-table? true}
+    (-data-arrays)))
 
-(deftest data-maps
+
+(defn -data-maps []
   (testing "encoded size"
     (check-roundtrip {} "A0")
     (check-roundtrip {1 2, 3 4} "A201020304")
@@ -166,8 +196,13 @@
                       :data {:map {"Fun" true}, :key "Fun"}}
           (decode-hex "A26346756EF56346756EF4FF")))))
 
+(deftest data-maps
+  (with-codec {}
+    (-data-maps))
+  (with-codec {:jump-table? true}
+    (-data-maps)))
 
-(deftest set-collections
+(defn -set-collections []
   (with-codec {:set-tag 258}
     (check-roundtrip #{} "D9010280")
     (check-roundtrip #{1 2 3} "D9010283010302"))
@@ -183,8 +218,14 @@
       (is (= "D90102840018406161820304"
              (encoded-hex codec #{[3 4] 0 64 "a"}))))))
 
+(deftest set-collections
+  (with-codec {}
+    (-set-collections))
+  (with-codec {:jump-table? true}
+    (-set-collections)))
 
-(deftest floating-point-numbers
+
+(defn -floating-point-numbers []
   (testing "special value encoding"
     (is (= "F90000" (encoded-hex  0.0)))
     (is (= "F90000" (encoded-hex -0.0)))
@@ -221,8 +262,14 @@
     (is (= Double/POSITIVE_INFINITY (decode-hex "FB7FF0000000000000")))
     (is (= Double/NEGATIVE_INFINITY (decode-hex "FBFFF0000000000000")))))
 
+(deftest floating-point-numbers
+  (with-codec {}
+    (-floating-point-numbers))
+  (with-codec {:jump-table? true}
+    (-floating-point-numbers)))
 
-(deftest simple-values
+
+(defn -simple-values []
   (testing "special primitives"
     (check-roundtrip false "F4")
     (check-roundtrip true "F5")
@@ -250,8 +297,13 @@
     (is (cbor-error? :clj-cbor.codec/unknown-simple-value
           (decode-hex (cbor/cbor-codec :strict true) "EF")))))
 
+(deftest simple-values []
+  (with-codec {}
+    (-simple-values))
+  (with-codec {:jump-table? true}
+    (-simple-values)))
 
-(deftest tagged-values
+(defn -tagged-values []
   (testing "non-strict mode"
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
   (testing "strict mode"
@@ -266,3 +318,9 @@
   (testing "unknown types"
     (is (cbor-error? :clj-cbor.codec/unsupported-type
           (encoded-hex (java.util.Currency/getInstance "USD"))))))
+
+(deftest tagged-values
+  (with-codec {}
+    (-tagged-values))
+  (with-codec {:jump-table? true}
+    (-tagged-values)))

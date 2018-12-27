@@ -122,6 +122,14 @@
     :encoder cbor/encode
     :decoder (comp first cbor/decode)}
 
+   :cbor-jump
+   (let [decoder (cbor/cbor-codec :jump-table? true)]
+     {:dependency 'mvxcvi/clj-cbor
+      :version "0.3.0"
+      :encoder cbor/encode
+      :decoder (comp first (partial cbor/decode decoder))})
+
+
    :nippy
    {:dependency 'com.taoensso/nippy
     :version "2.12.2"
@@ -282,7 +290,7 @@
 (defn- tsv-report-line
   [block-id block-size result]
   (->>
-    (if (:error result)
+    (if (contains? result :error)
       ["!" "!" "!"]
       [(:size result)
        (format "%.3f" (* 1000 (:encode result)))
