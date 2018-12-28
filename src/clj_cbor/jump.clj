@@ -11,10 +11,6 @@
    [clj-cbor.codec :as codec])
   (:import java.io.DataInputStream))
 
-(defprotocol JumpTableEntry
-  (decode-entry [this decoder ^DataInputStream input]
-    "Decode value from input data, closing over
-     decoding context from header byte"))
 
 (defn- uint-expr
   "return expression that corresponds to decoding a jump entry value. Jump entries
@@ -37,79 +33,61 @@
    and that value along with potentially further decoding yields value "
   [int-type decoder-symb input-symb val-symb & result-expr]
   (let [val-expr (uint-expr int-type input-symb)]
-    `(reify JumpTableEntry
-       (decode-entry [_ ~decoder-symb ~input-symb]
-         (let [~val-symb ~val-expr]
-           ~@result-expr)))))
+    `(fn [~decoder-symb ~input-symb]
+       (let [~val-symb ~val-expr]
+         ~@result-expr))))
 
 (def int-widths [:byte :short :int :long])
 
 (defmacro gen-int-type-entries
   "generate entry implementations for all possible initial values
   (direct, or reading from input"
-  [decoder-symb input-symb val-symb result-expr]
+  [start-offset decoder-symb input-symb val-symb result-expr]
   `(list
-    ~@(for [x (concat (range 0 24) int-widths)]
-        `(gen-entry ~x ~decoder-symb ~input-symb ~val-symb ~result-expr))))
+    ~@(map-indexed
+       (fn [idx int-type]
+         [(+ idx start-offset)
+          `(gen-entry ~int-type ~decoder-symb ~input-symb ~val-symb ~result-expr)])
+       (concat (range 0 24) int-widths))))
 
-(defrecord DirectValue [val]
-  JumpTableEntry
-  (decode-entry [_ _ _] val))
 
 (defn- build-jump-entries []
   (concat
 
    ;; 0x00 through 0x17: direct value [0, 24)
    ;; 0x18 through 0x1b: read int from input
-   (map-indexed
-    (fn [idx entry] [idx entry])
-    (gen-int-type-entries decoder input v v))
+   (gen-int-type-entries 0 decoder input v v)
 
    ;; 0x20 through 0x37: Negative number
    ;; 0x38 through 0x3c: Read uint then negate
-   (map-indexed
-    (fn [idx entry]
-      [(+ idx 0x20) entry])
-    (gen-int-type-entries decoder input v (unchecked-dec (- v))))
+   (gen-int-type-entries 0x20 decoder input v (unchecked-dec (- v)))
 
    ;; 0x40 through 0x57: fixed-length byte strings
    ;; 0x58 through 0x5b: read length for byte strings
-   (map-indexed
-    (fn [idx entry]
-      [(+ idx 0x40) entry])
-    (gen-int-type-entries decoder input n (codec/read-bytes input n)))
-
+   (gen-int-type-entries 0x40 decoder input n (codec/read-bytes input n))
 
    ;; 0x60 through 0x77: fixed width utf8 string
    ;; 0x78 through 0x7b: read utf8 string length
-   (map-indexed
-    (fn [idx entry]
-      [(+ idx 0x60) entry])
-    (gen-int-type-entries decoder input n (String. (codec/read-bytes input n) "UTF8")))
+   (gen-int-type-entries 0x60 decoder input n
+                         (String. (codec/read-bytes input n) "UTF8"))
 
    ;; 0x80 through 0x97: fixed length array
    ;; 0x98 through 0x9b: read array length
-   (map-indexed
-    (fn [idx entry]
-      [(+ idx 0x80) entry])
-    (gen-int-type-entries decoder input n
-                          (vec (repeatedly n #(codec/read-value decoder input)))))
+   (gen-int-type-entries 0x80 decoder input n
+                         (vec (repeatedly n #(codec/read-value decoder input))))
 
    ;; 0xa0 through 0xb7: fixed length map
    ;; 0xb8 through 0xbb: read map length
-   (map-indexed
-    (fn [idx entry]
-      [(+ idx 0xa0) entry])
-    (gen-int-type-entries decoder input n
-                          (->> #(codec/read-value decoder input)
-                           (repeatedly (* 2 n))
-                           (transduce identity codec/build-map))))
+   (gen-int-type-entries 0xa0 decoder input n
+                         (->> #(codec/read-value decoder input)
+                              (repeatedly (* 2 n))
+                              (apply hash-map)))
 
 
    ;; simple values: starting at 0xf4
-   [[0xf4 (->DirectValue false)]
-    [0xf5 (->DirectValue true)]
-    [0xf6 (->DirectValue nil)]]))
+   [[0xf4 (fn [_ _] false)]
+    [0xf5 (fn [_ _] true)]
+    [0xf6 (fn [_ _] nil)]]))
 
 (defrecord JumpTableDecoder
   [^objects jump-table base-decoder]
@@ -120,8 +98,8 @@
 
   codec/Decoder
   (read-value* [this input header]
-    (if-let [entry (aget jump-table (int header))]
-      (decode-entry entry this input)
+    (if-let [entry-fn (aget jump-table (int header))]
+      (entry-fn this input)
       (codec/read-value* base-decoder input header))))
 
 
