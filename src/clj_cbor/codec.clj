@@ -390,7 +390,7 @@
     (write-map-seq encoder out xm)))
 
 
-(defn- build-map
+(defn build-map
   "Reducing function which builds a map from a sequence of alternating key and
   value elements."
   ([]
