@@ -7,7 +7,6 @@
 
   https://tools.ietf.org/html/rfc7049#appendix-B"
   (:require
-   [alphabase.bytes :as b]
    [clj-cbor.header :as header]
    [clj-cbor.codec :as codec])
   (:import java.io.DataInputStream))
