@@ -1,11 +1,13 @@
 (ns clj-cbor.codec
   "Main CBOR codec implementation."
   (:require
+    [clj-cbor.decoder :as decoder]
     [clj-cbor.error :as error]
     [clj-cbor.header :as header]
     [clj-cbor.data.core :as data]
     [clj-cbor.data.float16 :as float16]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [clj-cbor.bytes :as bytes])
   (:import
     clj_cbor.data.simple.SimpleValue
     clj_cbor.data.tagged.TaggedValue
@@ -24,26 +26,6 @@
   (write-value
     [encoder out x]
     "Writes the given value `x` to the `DataOutputStream` `out`."))
-
-
-(defprotocol Decoder
-  "A _decoder_ is a process that reads a CBOR data item and makes it available
-  to an application.
-
-  Formally speaking, a decoder contains a parser to break up the input using
-  the syntax rules of CBOR, as well as a semantic processor to prepare the data
-  in a form suitable to the application."
-
-  (read-value*
-    [decoder input header]
-    "Reads a single value from the `DataInputStream`, given the just-read
-    initial byte."))
-
-
-(defn read-value
-  "Reads a single value from the `DataInputStream`."
-  [decoder ^DataInputStream input]
-  (read-value* decoder input (.readUnsignedByte input)))
 
 
 (defn- write-bytes
@@ -65,16 +47,6 @@
 (def ^:private ^:const break
   "Encoded byte representing the _break_ simple value."
   (short 0xFF))
-
-
-(defn read-bytes
-  "Reads `length` bytes from the input stream and returns them as a byte
-  array."
-  ^bytes
-  [^DataInputStream input length]
-  (let [buffer (byte-array length)]
-    (.readFully input buffer)
-    buffer))
 
 
 (defn- read-chunks
@@ -108,7 +80,7 @@
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (read-value* decoder input header)))))))))
+              (recur (reducer state (decoder/read-value* decoder input header)))))))))
 
 
 (defn- read-value-stream
@@ -121,7 +93,7 @@
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (recur (reducer state (read-value* decoder input header)))))))
+        (recur (reducer state (decoder/read-value* decoder input header)))))))
 
 
 
@@ -210,27 +182,15 @@
     (+ hlen (count bs))))
 
 
-(defn- concat-bytes
-  "Reducing function which builds a contiguous byte-array from a sequence of
-  byte-array chunks."
-  ([]
-   (ByteArrayOutputStream.))
-  ([buffer]
-   (.toByteArray ^ByteArrayOutputStream buffer))
-  ([buffer v]
-   (.write ^ByteArrayOutputStream buffer ^bytes v)
-   buffer))
-
-
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
   (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
-      (read-chunks decoder input :byte-string concat-bytes)
+      (read-chunks decoder input :byte-string bytes/concat-bytes)
       ; Read definite-length byte string.
-      (read-bytes input length))))
+      (bytes/read-bytes input length))))
 
 
 
@@ -279,7 +239,7 @@
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
       ; Read definite-length text string.
-      (String. (read-bytes input length) "UTF-8"))))
+      (String. (bytes/read-bytes input length) "UTF-8"))))
 
 
 
@@ -322,10 +282,7 @@
         (read-value-stream decoder input build-array)
         (vary-meta assoc :cbor/streaming true))
       ; Read `length` elements.
-      (->>
-        (repeatedly #(read-value decoder input))
-        (take length)
-        (vec)))))
+      (decoder/read-fixed-array length decoder input))))
 
 
 
@@ -372,7 +329,7 @@
       (map (fn encode-key
              [[k v]]
              [(write-bytes encoder k) v]))
-      (sort-by first data/compare-bytes)
+      (sort-by first bytes/compare-bytes)
       (reduce
         (fn encode-entry
           [sum [k v]]
@@ -429,11 +386,7 @@
         (read-value-stream decoder input build-map)
         (vary-meta assoc :cbor/streaming true))
       ; Read `length` entry pairs.
-      (->>
-        (repeatedly #(read-value decoder input))
-        (take (* 2 length))
-        (transduce identity build-map)))))
-
+      (decoder/read-fixed-map length decoder input))))
 
 
 ;; ### Sets
@@ -471,7 +424,7 @@
     (->>
       xs
       (map (partial write-bytes encoder))
-      (sort data/compare-bytes)
+      (sort bytes/compare-bytes)
       (reduce
         (fn encode-entry
           [sum v]
@@ -523,7 +476,7 @@
 (defn- read-tagged
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
-        value (read-value decoder input)]
+        value (decoder/read-value decoder input)]
     (if (= tag (:set-tag decoder))
       (read-set decoder value)
       (try
@@ -711,7 +664,7 @@
 
 
 (defrecord CBORCodec
-  [dispatch write-handlers read-handlers set-tag]
+  [dispatch write-handlers read-handlers set-tag ^objects jump-table]
 
   Encoder
 
@@ -726,20 +679,22 @@
           {:value x})))
 
 
-  Decoder
+  decoder/Decoder
 
   (read-value*
     [this input header]
-    (let [[mtype info] (header/decode header)]
-      (case mtype
-        :unsigned-integer (read-positive-integer this input info)
-        :negative-integer (read-negative-integer this input info)
-        :byte-string      (read-byte-string this input info)
-        :text-string      (read-text-string this input info)
-        :data-array       (read-array this input info)
-        :data-map         (read-map this input info)
-        :tagged-value     (read-tagged this input info)
-        :simple-value     (read-simple this input info)))))
+    (if-let [entry-fn (and jump-table (aget jump-table header))]
+      (entry-fn this input)
+      (let [[mtype info] (header/decode header)]
+        (case mtype
+          :unsigned-integer (read-positive-integer this input info)
+          :negative-integer (read-negative-integer this input info)
+          :byte-string      (read-byte-string this input info)
+          :text-string      (read-text-string this input info)
+          :data-array       (read-array this input info)
+          :data-map         (read-map this input info)
+          :tagged-value     (read-tagged this input info)
+          :simple-value     (read-simple this input info))))))
 
 
 (defn blank-codec

@@ -4,6 +4,8 @@
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error])
   (:import
+    (java.io ByteArrayInputStream
+             DataInputStream)
     (java.util
       Collection
       List
@@ -11,6 +13,9 @@
       Set)
     java.util.regex.Pattern
     javax.xml.bind.DatatypeConverter))
+
+(defn ->data-input [bs]
+  (-> bs byte-array ByteArrayInputStream. DataInputStream.))
 
 
 (defn bytes=
@@ -66,8 +71,6 @@
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
    (cbor/decode decoder (hex->bin string))))
-
-
 (defn decode-hex-all
   ([string]
    (decode-hex-all (cbor/cbor-codec) string))

@@ -3,6 +3,7 @@
   (:refer-clojure :exclude [spit slurp])
   (:require
     [clj-cbor.codec :as codec]
+    [clj-cbor.decoder :as decoder]
     [clj-cbor.error :as error]
     [clj-cbor.jump :as jump]
     [clj-cbor.tags.clojure :as tags.clj]
@@ -43,7 +44,9 @@
                (apply hash-map opts))
         codec (merge (codec/blank-codec) opts)]
     (if (:jump-table? opts)
-      (jump/with-jump-table codec)
+      (-> codec
+          (assoc :jump-table jump/jump-decoder-table)
+          (dissoc :jump-table?))
       codec)))
 
 
@@ -154,7 +157,7 @@
   `end-of-input` error."
   [decoder input header]
   (try
-    (codec/read-value* decoder input header)
+    (decoder/read-value* decoder input header)
     (catch EOFException _
       (error/*handler* :clj-cbor.codec/end-of-input
         "Input data ended while parsing a CBOR value."

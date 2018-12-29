@@ -2,7 +2,8 @@
   "Functions for reading and writing CBOR headers."
   (:require
     [clj-cbor.error :as error]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [clj-cbor.bytes :as bytes])
   (:import
     (java.io
       DataInputStream
@@ -100,29 +101,6 @@
    (bit-and header 0x1F)])
 
 
-(defn read-unsigned-long
-  "Reads an unsigned long value from the input stream. If the value overflows
-  into the negative, it is promoted to a bigint."
-  [^DataInputStream input]
-  (let [value (.readLong input)]
-    (if (neg? value)
-      ; Overflow, promote to BigInt.
-      (->>
-        [(bit-and 0xFF (bit-shift-right value  0))
-         (bit-and 0xFF (bit-shift-right value  8))
-         (bit-and 0xFF (bit-shift-right value 16))
-         (bit-and 0xFF (bit-shift-right value 24))
-         (bit-and 0xFF (bit-shift-right value 32))
-         (bit-and 0xFF (bit-shift-right value 40))
-         (bit-and 0xFF (bit-shift-right value 48))
-         (bit-and 0xFF (bit-shift-right value 56))]
-        (byte-array)
-        (java.math.BigInteger. 1)
-        (bigint))
-      ; Value fits in a long, return directly.
-      value)))
-
-
 (defn read-code
   "Reads a size value from the initial bytes of the input stream. Returns
   either a number, the keyword `:indefinite`, or calls the error handler on
@@ -136,7 +114,7 @@
       24 (long (.readUnsignedByte input))
       25 (long (.readUnsignedShort input))
       26 (long (bit-and (.readInt input) 0xFFFFFFFF))
-      27 (read-unsigned-long input)
+      27 (bytes/to-unsigned-long (.readLong input))
       (28 29 30)
         (error/*handler*
           ::reserved-info-code
