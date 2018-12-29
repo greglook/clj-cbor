@@ -16,7 +16,7 @@
     buffer))
 
 
-(defn- concat-bytes
+(defn concat-bytes
   "Reducing function which builds a contiguous byte-array from a sequence of
   byte-array chunks."
   ([]
