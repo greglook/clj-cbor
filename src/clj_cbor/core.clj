@@ -45,7 +45,7 @@
         codec (merge (codec/blank-codec) opts)]
     (if (:jump-table? opts)
       (-> codec
-          (assoc :jump-table jump/jump-decoder-table)
+          (assoc :jump-table (jump/jump-decoder-table))
           (dissoc :jump-table?))
       codec)))
 

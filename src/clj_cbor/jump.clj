@@ -91,7 +91,7 @@
     [0xf6 (fn [_ _] nil)]
     [0xf7 (fn [_ _] data/undefined)]]))
 
-(def jump-decoder-table
+(defn jump-decoder-table []
   (let [entries (object-array 256)]
     (doseq [[idx e] jump-entries]
       (aset entries idx e))

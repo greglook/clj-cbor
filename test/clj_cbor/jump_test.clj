@@ -25,7 +25,7 @@
 
 (defn test-map-entry [tbl-idx num-byte-padding map-len]
   ;; create enough input to represent map
-  (let [tbl jump/jump-decoder-table
+  (let [tbl (jump/jump-decoder-table)
         bs (concat (repeat num-byte-padding 0)
                    [map-len]
                    (repeat (* 2 map-len) 0))
@@ -48,12 +48,13 @@
         decoder (reify decoder/Decoder
                   (read-value* [_ _ _]
                     (.next iter)))
-        entry-fn (aget jump/jump-decoder-table tbl-idx)]
+        tbl (jump/jump-decoder-table)
+        entry-fn (aget tbl tbl-idx)]
     (is (= coll (entry-fn decoder dis)))))
 
 (deftest jump-table
   (testing "negative integers"
-    (let [tbl jump/jump-decoder-table]
+    (let [tbl (jump/jump-decoder-table)]
       (doseq [idx (range 0x20 0x38)]
         (is (= ((aget tbl idx) nil nil) (dec (- (- idx 0x20))))))
       (are [idx bs target]
@@ -64,7 +65,7 @@
         0x3a [1 1 1 1] -16843010
         0x3b (repeat 8 1) -72340172838076674)))
   (testing "byte strings"
-    (let [tbl jump/jump-decoder-table]
+    (let [tbl (jump/jump-decoder-table)]
       (doseq [idx (range 0x40 0x58)
               :let [bs (repeat (- idx 0x40) 1)
                     dis (->data-input bs)
@@ -80,7 +81,7 @@
         0x5a (concat [0 0 0 100] (repeat 100 1)) (repeat 100 1)
         0x5b (concat (repeat 7 0) [100] (repeat 100 1)) (repeat 100 1))))
   (testing "utf8 string"
-    (let [tbl jump/jump-decoder-table]
+    (let [tbl (jump/jump-decoder-table)]
       (doseq [idx (range 0x60 0x78)
               :let [bs (repeat (- idx 0x60) (int \a))
                     dis (->data-input bs)
@@ -112,7 +113,7 @@
       0x83 ["a" "b" "c"]
       0x80 []))
   (testing "dictionary/map"
-    (let [tbl jump/jump-decoder-table]
+    (let [tbl (jump/jump-decoder-table)]
       (doseq [n (range 0 24)]
         (test-map-entry (+ n 0xa0) 0 n))
       (are [idx pad]
