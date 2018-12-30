@@ -1,6 +1,7 @@
 (ns clj-cbor.bytes
   "Functions for reading, manipulating, and comparing bytes "
   (:import
+   (clojure.lang BigInt)
    (java.io
     ByteArrayOutputStream
     DataInputStream
@@ -56,23 +57,21 @@
       (if (< x' y') -1 1)
       0)))
 
+
+(def ^:private TWO_64
+  (.shiftLeft (BigInteger/ONE) 64))
+
+
 (defn to-unsigned-long
   "Coerce a signed long to an unsigned long. If the value overflows
-  into the negative, it is promoted to a bigint."
+   into the negative, it is promoted to a bigint (in big endian byte order
+   according to CBOR spec).
+
+  https://tools.ietf.org/html/rfc7049#section-1.2"
   [^long value]
   (if (neg? value)
-    ;; Overflow, promote to BigInt.
-    (->>
-     [(bit-and 0xFF (bit-shift-right value  0))
-      (bit-and 0xFF (bit-shift-right value  8))
-      (bit-and 0xFF (bit-shift-right value 16))
-      (bit-and 0xFF (bit-shift-right value 24))
-      (bit-and 0xFF (bit-shift-right value 32))
-      (bit-and 0xFF (bit-shift-right value 40))
-      (bit-and 0xFF (bit-shift-right value 48))
-      (bit-and 0xFF (bit-shift-right value 56))]
-     (byte-array)
-     (java.math.BigInteger. 1)
-     (bigint))
-    ;; Value fits in a long, return directly.
+    (-> value
+        BigInteger/valueOf
+        (.add TWO_64)
+        BigInt/fromBigInteger)
     value))

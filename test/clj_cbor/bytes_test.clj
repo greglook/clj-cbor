@@ -41,5 +41,5 @@
     Long/MAX_VALUE Long/MAX_VALUE
     0 0
     -1 (BigInteger. "18446744073709551615")
-    -100 (BigInteger. "11313042263954685951")
-    -24  (BigInteger. "16789419410837209087")))
+    -100 (BigInteger. "18446744073709551516")
+    -24  (BigInteger. "18446744073709551592")))
