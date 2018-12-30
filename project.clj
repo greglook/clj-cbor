@@ -43,7 +43,6 @@
     :dependencies
     [[com.cognitect/transit-clj "0.8.313"]
      [com.taoensso/nippy "2.14.0"]
-     [org.clojure/data.generators "0.1.2"]
      [criterium "0.4.4"]
      [mvxcvi/blocks "1.1.0"]
      [org.clojure/data.fressian "0.2.1"]]}})
