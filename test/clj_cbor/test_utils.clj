@@ -151,7 +151,7 @@
 
 (defmacro with-codec
   [opts & body]
-  `(binding [*test-codec* (cbor/cbor-codec ~@(flatten (seq opts)))]
+  `(binding [*test-codec* (apply cbor/cbor-codec (flatten (seq ~opts)))]
      ~@body))
 
 

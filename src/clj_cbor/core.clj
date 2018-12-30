@@ -41,13 +41,8 @@
   [& opts]
   (let [opts (if (and (= 1 (count opts)) (map? (first opts)))
                (first opts)
-               (apply hash-map opts))
-        codec (merge (codec/blank-codec) opts)]
-    (if (:jump-table? opts)
-      (-> codec
-          (assoc :jump-table (jump/jump-decoder-table))
-          (dissoc :jump-table?))
-      codec)))
+               (apply hash-map opts))]
+    (merge (codec/blank-codec) opts)))
 
 
 (def default-write-handlers
@@ -80,6 +75,11 @@
     :write-handlers default-write-handlers
     :read-handlers default-read-handlers))
 
+
+(defn with-jump-table
+  "Add jump table decoding "
+  [codec]
+  (assoc codec :jump-table (jump/jump-decoder-table)))
 
 
 ;; ## Encoding Functions

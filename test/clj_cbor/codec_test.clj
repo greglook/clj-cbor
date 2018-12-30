@@ -1,10 +1,11 @@
 (ns clj-cbor.codec-test
   "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
-    [clojure.test :refer :all]
-    [clj-cbor.core :as cbor]
-    [clj-cbor.data.core :as data]
-    [clj-cbor.test-utils :refer :all]))
+   [clojure.test :refer :all]
+   [clj-cbor.core :as cbor]
+   [clj-cbor.data.core :as data]
+   [clj-cbor.test-utils :refer :all]
+   [clj-cbor.jump :as jump]))
 
 
 (deftest integer-typing
@@ -62,7 +63,7 @@
 (deftest unsigned-integers
   (with-codec {}
     (-unsigned-integers))
-  (with-codec {:jump-table? true}
+  (with-codec {:jump-table (jump/jump-decoder-table)}
     (-unsigned-integers)))
 
 (defn -negative-integers []
@@ -90,11 +91,15 @@
     (is (cbor-error? :clj-cbor.codec/illegal-stream
           (decode-hex "3F00")))))
 
+
+(def jump-table-opts
+  {:jump-table (jump/jump-decoder-table)})
+
 (deftest negative-integers
   (with-codec {}
     (-negative-integers))
   (testing "jump decoder"
-    (with-codec {:jump-table? true}
+    (with-codec jump-table-opts
       (-negative-integers))))
 
 
@@ -118,7 +123,7 @@
 (deftest byte-strings
   (with-codec {}
     (-byte-strings))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-byte-strings)))
 
 
@@ -144,7 +149,7 @@
 (deftest text-strings
   (with-codec {}
     (-text-strings))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-text-strings)))
 
 
@@ -166,7 +171,7 @@
 (deftest data-arrays
   (with-codec {}
     (-data-arrays))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-data-arrays)))
 
 
@@ -199,7 +204,7 @@
 (deftest data-maps
   (with-codec {}
     (-data-maps))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-data-maps)))
 
 (defn -set-collections []
@@ -221,7 +226,7 @@
 (deftest set-collections
   (with-codec {}
     (-set-collections))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-set-collections)))
 
 
@@ -265,7 +270,7 @@
 (deftest floating-point-numbers
   (with-codec {}
     (-floating-point-numbers))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-floating-point-numbers)))
 
 
@@ -300,7 +305,7 @@
 (deftest simple-values []
   (with-codec {}
     (-simple-values))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-simple-values)))
 
 (defn -tagged-values []
@@ -322,5 +327,5 @@
 (deftest tagged-values
   (with-codec {}
     (-tagged-values))
-  (with-codec {:jump-table? true}
+  (with-codec jump-table-opts
     (-tagged-values)))

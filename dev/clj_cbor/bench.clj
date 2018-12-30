@@ -123,7 +123,7 @@
     :decoder (comp first cbor/decode)}
 
    :cbor-jump
-   (let [decoder (cbor/cbor-codec :jump-table? true)]
+   (let [decoder (cbor/with-jump-table (cbor/cbor-codec))]
      {:dependency 'mvxcvi/clj-cbor
       :version "0.3.0"
       :encoder cbor/encode
