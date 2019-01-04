@@ -1,7 +1,6 @@
 (ns clj-cbor.codec
   "Main CBOR codec implementation."
   (:require
-    [clj-cbor.decoder :as decoder]
     [clj-cbor.error :as error]
     [clj-cbor.header :as header]
     [clj-cbor.data.core :as data]
@@ -26,6 +25,26 @@
   (write-value
     [encoder out x]
     "Writes the given value `x` to the `DataOutputStream` `out`."))
+
+
+(defprotocol Decoder
+  "A _decoder_ is a process that reads a CBOR data item and makes it available
+  to an application.
+
+  Formally speaking, a decoder contains a parser to break up the input using
+  the syntax rules of CBOR, as well as a semantic processor to prepare the data
+  in a form suitable to the application."
+
+  (read-value*
+    [decoder input header]
+    "Reads a single value from the `DataInputStream`, given the just-read
+    initial byte."))
+
+
+(defn read-value
+  "Reads a single value from the `DataInputStream`."
+  [decoder ^DataInputStream input]
+  (read-value* decoder input (.readUnsignedByte input)))
 
 
 (defn- write-bytes
@@ -80,7 +99,7 @@
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (decoder/read-value* decoder input header)))))))))
+              (recur (reducer state (read-value* decoder input header)))))))))
 
 
 (defn- read-value-stream
@@ -93,7 +112,69 @@
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
-        (recur (reducer state (decoder/read-value* decoder input header)))))))
+        (recur (reducer state (read-value* decoder input header)))))))
+
+
+
+;; ## Jump Table Decoding Utilities
+
+;; For decoding efficiency, we can directly represent decoding operations
+;; based on the first full byte of an encoded value. This can short circuit
+;;  conditional logic in many cases.
+
+;; These "jump entries" will be defined for some unsigned byte values
+;; and be represented by a single lambda function taking the decoder
+;; and input returning the decoded value
+
+;; See https://tools.ietf.org/html/rfc7049#appendix-B for details
+
+
+(def ^:private int-widths [:byte :short :int :long])
+(def ^:private int-entry-types (concat (range 0 24) int-widths))
+
+
+(defn- uint-expr
+  "Return expression that corresponds to decoding a jump entry value.
+   Jump entries either directly encode some numbers [0, 24), or specify
+   an int-type (byte, short, int, long) to read from the input.
+   Returned expression will be inlined into the jump entry."
+  [int-type input-symb]
+  (let [input-symb (vary-meta input-symb assoc :tag 'java.io.DataInputStream)]
+    (cond
+      (and (int? int-type) (<= 0 int-type 23)) int-type
+      (= int-type :byte)  `(.readUnsignedByte ~input-symb)
+      (= int-type :short) `(.readUnsignedShort ~input-symb)
+      (= int-type :int)   `(bit-and (.readInt ~input-symb) 0xFFFFFFFF)
+      (= int-type :long) `(bytes/to-unsigned-long (.readLong ~input-symb))
+      :else (throw (ex-info (str "Int type must be [0,24) or " int-widths)
+                            {:int-type int-type})))))
+
+
+(defmacro ^:private gen-entry
+  "generate code for jump table entry, all non-atom entries, share similar
+   structure of needing to read a uint value (with a fixed number of bytes)
+   and that value along with potentially further decoding yields value "
+  [entry-id int-type decoder-symb input-symb val-symb & result-expr]
+  (let [val-expr (uint-expr int-type input-symb)]
+    `(fn ~(symbol (str "jump-" entry-id)) [~decoder-symb ~input-symb]
+       (let [~val-symb ~val-expr]
+         ~@result-expr))))
+
+
+(defmacro ^:private gen-int-type-entries
+  "generate entry implementations for all possible initial values
+  (direct, or reading from input along with the byte values for each
+  entry beggining with `start-offset` index (a int literal)."
+  [start-offset decoder-symb input-symb val-symb result-expr]
+  (when-not (<= 0 start-offset (- 256 (count int-entry-types)))
+    (throw (ex-info "Invalid start offset for byte value"
+                    {:start-offset start-offset})))
+  `(vector
+     ~@(map-indexed
+         (fn [inner-idx int-type]
+           (let [idx (+ start-offset inner-idx)]
+             [idx `(gen-entry ~idx ~int-type ~decoder-symb ~input-symb ~val-symb ~result-expr)]))
+         (concat (range 0 24) int-widths))))
 
 
 
@@ -163,6 +244,15 @@
       (- -1 value))))
 
 
+(def ^:private int-jump-entries
+  (into
+    ;; 0x00 through 0x17: direct value [0, 24)
+    ;; 0x18 through 0x1b: read int from input
+    (gen-int-type-entries 0 decoder input v v)
+
+    ;; 0x20 through 0x37: Negative number
+    ;; 0x38 through 0x3c: Read uint then negate
+    (gen-int-type-entries 0x20 decoder input v (unchecked-dec (- v)))))
 
 ;; ### Byte Strings
 
@@ -191,6 +281,12 @@
       (read-chunks decoder input :byte-string bytes/concat-bytes)
       ; Read definite-length byte string.
       (bytes/read-bytes input length))))
+
+
+(def ^:private byte-string-jump-entries
+  ;; 0x40 through 0x57: fixed-length byte strings
+  ;; 0x58 through 0x5b: read length for byte strings
+  (gen-int-type-entries 0x40 decoder input n (bytes/read-bytes input n)))
 
 
 
@@ -242,6 +338,13 @@
       (String. (bytes/read-bytes input length) "UTF-8"))))
 
 
+(def ^:private text-string-jump-entries
+  ;; 0x60 through 0x77: fixed width utf8 string
+  ;; 0x78 through 0x7b: read utf8 string length
+  (gen-int-type-entries 0x60 decoder input n
+                        (String. (bytes/read-bytes input n) "UTF8")))
+
+
 
 ;; ### Data Arrays
 
@@ -272,6 +375,16 @@
   ([xs v] (conj xs v)))
 
 
+(defn- read-fixed-length-array [^long n decoder input]
+  (if (zero? n)
+    []
+    (loop [result (transient []) idx 0]
+      (if (= idx n)
+        (persistent! result)
+        (recur (conj! result (read-value decoder input))
+               (unchecked-inc idx))))))
+
+
 (defn- read-array
   "Reads an array of items from the input stream."
   [decoder ^DataInputStream input info]
@@ -282,7 +395,14 @@
         (read-value-stream decoder input build-array)
         (vary-meta assoc :cbor/streaming true))
       ; Read `length` elements.
-      (decoder/read-fixed-array length decoder input))))
+      (read-fixed-length-array length decoder input))))
+
+
+(def ^:private data-array-jump-entries
+  ;; 0x80 through 0x97: fixed length array
+  ;; 0x98 through 0x9b: read array length
+  (gen-int-type-entries 0x80 decoder input n
+                        (read-fixed-length-array n decoder input)))
 
 
 
@@ -347,7 +467,7 @@
     (write-map-seq encoder out xm)))
 
 
-(defn build-map
+(defn- build-map
   "Reducing function which builds a map from a sequence of alternating key and
   value elements."
   ([]
@@ -375,6 +495,21 @@
      [(assoc m k e)])))
 
 
+(defn read-fixed-length-map [^long n decoder input]
+  (if (zero? n)
+    {}
+    (loop [result (transient {}) idx 0]
+      (if (= idx n)
+        (persistent! result)
+        (let [k (read-value decoder input)]
+          (if (contains? result k)
+            (error/*handler* ::duplicate-map-key
+                             (str "Encoded map contains duplicate key: " (pr-str k))
+                             {:map (persistent! result), :key k})
+            (recur (assoc! result k (read-value decoder input))
+                   (unchecked-inc idx))))))))
+
+
 (defn- read-map
   "Reads a CBOR map from the input stream, returning the constructed map
   value."
@@ -386,7 +521,15 @@
         (read-value-stream decoder input build-map)
         (vary-meta assoc :cbor/streaming true))
       ; Read `length` entry pairs.
-      (decoder/read-fixed-map length decoder input))))
+      (read-fixed-length-map length decoder input))))
+
+
+(def ^:private map-jump-entries
+  ;; 0xa0 through 0xb7: fixed length map
+  ;; 0xb8 through 0xbb: read map length
+  (gen-int-type-entries 0xa0 decoder input n
+                        (read-fixed-length-map n decoder input)))
+
 
 
 ;; ### Sets
@@ -476,7 +619,7 @@
 (defn- read-tagged
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
-        value (decoder/read-value decoder input)]
+        value (read-value decoder input)]
     (if (= tag (:set-tag decoder))
       (read-set decoder value)
       (try
@@ -611,6 +754,16 @@
     (unknown-simple decoder info)))
 
 
+(def ^:private simple-value-jump-entries
+  ;; simple values: starting at 0xf4
+  ;; constantly is slower since uses `applyTo`,
+  ;; whereas we need only fixed 2-arity
+  [[0xf4 (fn [_ _] false)]
+   [0xf5 (fn [_ _] true)]
+   [0xf6 (fn [_ _] nil)]
+   [0xf7 (fn [_ _] data/undefined)]])
+
+
 
 ;; ## Codec Implementation
 
@@ -663,6 +816,26 @@
     :else       nil))
 
 
+(def ^:private jump-table-entries
+  (vec
+    (concat
+      int-jump-entries
+      byte-string-jump-entries
+      text-string-jump-entries
+      data-array-jump-entries
+      map-jump-entries
+      simple-value-jump-entries)))
+
+
+(defn jump-decoder-table
+  ([] (jump-decoder-table []))
+  ([extra-entries]
+   (let [entries (object-array 256)]
+     (doseq [[idx e] jump-table-entries]
+       (aset entries idx e))
+     entries)))
+
+
 (defrecord CBORCodec
   [dispatch write-handlers read-handlers set-tag ^objects jump-table]
 
@@ -679,7 +852,7 @@
           {:value x})))
 
 
-  decoder/Decoder
+  Decoder
 
   (read-value*
     [this input header]

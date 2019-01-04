@@ -3,9 +3,7 @@
   (:refer-clojure :exclude [spit slurp])
   (:require
     [clj-cbor.codec :as codec]
-    [clj-cbor.decoder :as decoder]
     [clj-cbor.error :as error]
-    [clj-cbor.jump :as jump]
     [clj-cbor.tags.clojure :as tags.clj]
     [clj-cbor.tags.content :as tags.content]
     [clj-cbor.tags.numbers :as tags.num]
@@ -39,10 +37,11 @@
   - `:read-handlers` lookup function from integer tags to handlers which take
     the embedded item and return the parsed data value."
   [& opts]
-  (let [opts (if (and (= 1 (count opts)) (map? (first opts)))
-               (first opts)
-               (apply hash-map opts))]
-    (merge (codec/blank-codec) opts)))
+  (merge
+    (codec/blank-codec)
+    (if (and (= 1 (count opts)) (map? (first opts)))
+      (first opts)
+      (apply hash-map opts))))
 
 
 (def default-write-handlers
@@ -77,9 +76,9 @@
 
 
 (defn with-jump-table
-  "Add jump table decoding "
+  "Add jump table decoding to a codec"
   [codec]
-  (assoc codec :jump-table (jump/jump-decoder-table)))
+  (assoc codec :jump-table (codec/jump-decoder-table)))
 
 
 ;; ## Encoding Functions
@@ -115,7 +114,7 @@
   "Encode a sequence of values as CBOR data. This eagerly consumes the
   input sequence.
 
-  In the full argument form, this writes a value to an output stream and
+  In the full argument form, this writes a value to an output streuam and
   returns the number of bytes written. If output is omitted, the function
   returns a byte array instead. Uses the `default-codec` if none is provided."
   ([values]
@@ -157,7 +156,7 @@
   `end-of-input` error."
   [decoder input header]
   (try
-    (decoder/read-value* decoder input header)
+    (codec/read-value* decoder input header)
     (catch EOFException _
       (error/*handler* :clj-cbor.codec/end-of-input
         "Input data ended while parsing a CBOR value."

@@ -32,7 +32,7 @@
     (throw (ex-info (str "Symbols must be tagged strings, got: "
                          (class value))
                     {:value value})))
-  (if (= \: (first value))
+  (if (= \: (.charAt ^String value 0))
     (keyword (subs value 1))
     (symbol value)))
 

@@ -123,12 +123,11 @@
     :decoder (comp first cbor/decode)}
 
    :cbor-jump
-   (let [decoder (cbor/with-jump-table (cbor/cbor-codec))]
+   (let [decoder (cbor/with-jump-table cbor/default-codec)]
      {:dependency 'mvxcvi/clj-cbor
       :version "0.3.0"
       :encoder cbor/encode
       :decoder (comp first (partial cbor/decode decoder))})
-
 
    :nippy
    {:dependency 'com.taoensso/nippy

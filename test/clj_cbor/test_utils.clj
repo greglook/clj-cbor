@@ -71,6 +71,8 @@
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
    (cbor/decode decoder (hex->bin string))))
+
+
 (defn decode-hex-all
   ([string]
    (decode-hex-all (cbor/cbor-codec) string))
@@ -151,7 +153,7 @@
 
 (defmacro with-codec
   [opts & body]
-  `(binding [*test-codec* (apply cbor/cbor-codec (flatten (seq ~opts)))]
+  `(binding [*test-codec* (cbor/cbor-codec ~opts)]
      ~@body))
 
 
