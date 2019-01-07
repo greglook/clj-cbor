@@ -3,6 +3,7 @@
   (:require
     [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
+    [clj-cbor.codec :as codec]
     [clj-cbor.data.core :as data]
     [clj-cbor.test-utils :refer :all]))
 
@@ -31,8 +32,7 @@
         (inc' Long/MAX_VALUE)
         18446744073709551615N))))
 
-
-(deftest unsigned-integers
+(defn -unsigned-integers []
   (testing "direct values"
     (check-roundtrip 0 "00")
     (check-roundtrip 1 "01")
@@ -61,7 +61,17 @@
           (decode-hex "1F00")))))
 
 
-(deftest negative-integers
+(def jump-table-opts
+  {:jump-table (codec/jump-decoder-table)})
+
+
+(deftest unsigned-integers
+  (with-codec {}
+    (-unsigned-integers))
+  (with-codec jump-table-opts
+    (-unsigned-integers)))
+
+(defn -negative-integers []
   (testing "direct values"
     (check-roundtrip -1 "20")
     (check-roundtrip -10 "29")
@@ -87,7 +97,15 @@
           (decode-hex "3F00")))))
 
 
-(deftest byte-strings
+(deftest negative-integers
+  (with-codec {}
+    (-negative-integers))
+  (testing "jump decoder"
+    (with-codec jump-table-opts
+      (-negative-integers))))
+
+
+(defn -byte-strings []
   (testing "direct bytes"
     (is (= "40" (encoded-hex (byte-array 0))))
     (is (bytes= [] (decode-hex "40")))
@@ -104,7 +122,14 @@
           (decode-hex "5F4201025F4100FFFF")))))
 
 
-(deftest text-strings
+(deftest byte-strings
+  (with-codec {}
+    (-byte-strings))
+  (with-codec jump-table-opts
+    (-byte-strings)))
+
+
+(defn -text-strings []
   (testing "direct strings"
     (check-roundtrip "" "60")
     (check-roundtrip "a" "6161")
@@ -123,8 +148,14 @@
                       :data {:stream-type :text-string}}
           (decode-hex "7F6265737F6161FFFF")))))
 
+(deftest text-strings
+  (with-codec {}
+    (-text-strings))
+  (with-codec jump-table-opts
+    (-text-strings)))
 
-(deftest data-arrays
+
+(defn -data-arrays []
   (testing "encoded size"
     (check-roundtrip [] "80")
     (check-roundtrip [1 2 3] "83010203")
@@ -139,8 +170,14 @@
     (is (= [1 [2 3] [4 5]] (decode-hex "83019F0203FF820405")))
     (is (= (range 1 26) (decode-hex "9F0102030405060708090A0B0C0D0E0F101112131415161718181819FF")))))
 
+(deftest data-arrays
+  (with-codec {}
+    (-data-arrays))
+  (with-codec jump-table-opts
+    (-data-arrays)))
 
-(deftest data-maps
+
+(defn -data-maps []
   (testing "encoded size"
     (check-roundtrip {} "A0")
     (check-roundtrip {1 2, 3 4} "A201020304")
@@ -166,8 +203,13 @@
                       :data {:map {"Fun" true}, :key "Fun"}}
           (decode-hex "A26346756EF56346756EF4FF")))))
 
+(deftest data-maps
+  (with-codec {}
+    (-data-maps))
+  (with-codec jump-table-opts
+    (-data-maps)))
 
-(deftest set-collections
+(defn -set-collections []
   (with-codec {:set-tag 258}
     (check-roundtrip #{} "D9010280")
     (check-roundtrip #{1 2 3} "D9010283010302"))
@@ -183,8 +225,14 @@
       (is (= "D90102840018406161820304"
              (encoded-hex codec #{[3 4] 0 64 "a"}))))))
 
+(deftest set-collections
+  (with-codec {}
+    (-set-collections))
+  (with-codec jump-table-opts
+    (-set-collections)))
 
-(deftest floating-point-numbers
+
+(defn -floating-point-numbers []
   (testing "special value encoding"
     (is (= "F90000" (encoded-hex  0.0)))
     (is (= "F90000" (encoded-hex -0.0)))
@@ -221,8 +269,14 @@
     (is (= Double/POSITIVE_INFINITY (decode-hex "FB7FF0000000000000")))
     (is (= Double/NEGATIVE_INFINITY (decode-hex "FBFFF0000000000000")))))
 
+(deftest floating-point-numbers
+  (with-codec {}
+    (-floating-point-numbers))
+  (with-codec jump-table-opts
+    (-floating-point-numbers)))
 
-(deftest simple-values
+
+(defn -simple-values []
   (testing "special primitives"
     (check-roundtrip false "F4")
     (check-roundtrip true "F5")
@@ -250,8 +304,13 @@
     (is (cbor-error? :clj-cbor.codec/unknown-simple-value
           (decode-hex (cbor/cbor-codec :strict true) "EF")))))
 
+(deftest simple-values []
+  (with-codec {}
+    (-simple-values))
+  (with-codec jump-table-opts
+    (-simple-values)))
 
-(deftest tagged-values
+(defn -tagged-values []
   (testing "non-strict mode"
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
   (testing "strict mode"
@@ -266,3 +325,112 @@
   (testing "unknown types"
     (is (cbor-error? :clj-cbor.codec/unsupported-type
           (encoded-hex (java.util.Currency/getInstance "USD"))))))
+
+(deftest tagged-values
+  (with-codec {}
+    (-tagged-values))
+  (with-codec jump-table-opts
+    (-tagged-values)))
+
+
+(defn test-map-entry [tbl-idx num-byte-padding map-len]
+  ;; create enough input to represent map
+  (let [tbl (codec/jump-decoder-table)
+        bs (concat (repeat num-byte-padding 0)
+                   [map-len]
+                   (repeat (* 2 map-len) 0))
+        m (into {} (for [i (range map-len)] [i i]))
+        coll (flatten (seq m))
+        iter (.iterator coll)
+        dis (->data-input bs)
+        decoder (reify codec/Decoder
+                  (read-value* [_ _ _]
+                    (.next iter)))
+        entry-fn (aget tbl tbl-idx)]
+    (is (= (entry-fn decoder dis) m))))
+
+(defn test-array-entry [tbl-idx num-pad coll]
+  (let [iter (.iterator coll)
+        ;; this exists so bytes can be read
+        bs (concat (repeat num-pad 0) [(count coll)] (repeat (count coll) 0))
+        dis (->data-input bs)
+        ;; this will 'mock' the array entry values
+        decoder (reify codec/Decoder
+                  (read-value* [_ _ _]
+                    (.next iter)))
+        tbl (codec/jump-decoder-table)
+        entry-fn (aget tbl tbl-idx)]
+    (is (= coll (entry-fn decoder dis)))))
+
+(deftest jump-table
+  (testing "negative integers"
+    (let [tbl (codec/jump-decoder-table)]
+      (doseq [idx (range 0x20 0x38)]
+        (is (= ((aget tbl idx) nil nil) (dec (- (- idx 0x20))))))
+      (are [idx bs target]
+          (let [dis (->data-input bs)]
+            (is (= ((aget tbl idx) nil dis) target)))
+        0x38 [100] -101
+        0x39 [1 1] -258
+        0x3a [1 1 1 1] -16843010
+        0x3b (repeat 8 1) -72340172838076674)))
+  (testing "byte strings"
+    (let [tbl (codec/jump-decoder-table)]
+      (doseq [idx (range 0x40 0x58)
+              :let [bs (repeat (- idx 0x40) 1)
+                    dis (->data-input bs)
+                    entry-fn (aget tbl idx)]]
+        (is (= (seq (entry-fn nil dis)) (seq bs))))
+      (are [idx bs target]
+        (let [dis (->data-input bs)
+              entry-fn (aget tbl idx)]
+          (is (= (seq (entry-fn nil dis)) (seq target))))
+        ;; byte, short, int, long
+        0x58 (concat [100] (repeat 100 1)) (repeat 100 1)
+        0x59 (concat [0 100] (repeat 100 1)) (repeat 100 1)
+        0x5a (concat [0 0 0 100] (repeat 100 1)) (repeat 100 1)
+        0x5b (concat (repeat 7 0) [100] (repeat 100 1)) (repeat 100 1))))
+  (testing "utf8 string"
+    (let [tbl (codec/jump-decoder-table)]
+      (doseq [idx (range 0x60 0x78)
+              :let [bs (repeat (- idx 0x60) (int \a))
+                    dis (->data-input bs)
+                    entry-fn (aget tbl idx)]]
+        (is (= (entry-fn nil dis) (apply str (repeat (count bs)\a)))))
+      (are [idx pad len]
+          (let [bs (concat (repeat pad 0) [len] (repeat len (int \a)))
+                dis (->data-input bs)
+                entry-fn (aget tbl idx)]
+            (is (= (entry-fn nil dis) (apply str (repeat len \a)))))
+        ;; byte [no padding]
+        0x78 0 25
+        ;; short [1 byte padding]
+        0x79 1 25
+        0x7a 3 25
+        0x7b 7 25)))
+  (testing "arrays"
+    (doseq [idx (range 24)]
+      (test-array-entry (+ 0x80 idx) 0 (range idx)))
+    (are [idx pad]
+        (test-array-entry idx pad (range 100))
+      ;; byte, short, int, long
+      0x98 0
+      0x99 1
+      0x9a 3
+      0x9b 7)
+    (are [idx coll]
+      (test-array-entry idx 0 coll)
+      0x83 ["a" "b" "c"]
+      0x80 []))
+  (testing "dictionary/map"
+    (let [tbl (codec/jump-decoder-table)]
+      (doseq [n (range 0 24)]
+        (test-map-entry (+ n 0xa0) 0 n))
+      (are [idx pad]
+        (do (test-map-entry idx pad 100)
+            (test-map-entry idx pad 50))
+        ;; byte, short, int, long
+        0xb8 0
+        0xb9 1
+        0xba 3
+        0xbb 7))))

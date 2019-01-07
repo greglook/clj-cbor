@@ -4,6 +4,8 @@
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error])
   (:import
+    (java.io ByteArrayInputStream
+             DataInputStream)
     (java.util
       Collection
       List
@@ -11,6 +13,9 @@
       Set)
     java.util.regex.Pattern
     javax.xml.bind.DatatypeConverter))
+
+(defn ->data-input [bs]
+  (-> bs byte-array ByteArrayInputStream. DataInputStream.))
 
 
 (defn bytes=
@@ -148,7 +153,7 @@
 
 (defmacro with-codec
   [opts & body]
-  `(binding [*test-codec* (cbor/cbor-codec ~@(flatten (seq opts)))]
+  `(binding [*test-codec* (cbor/cbor-codec ~opts)]
      ~@body))
 
 

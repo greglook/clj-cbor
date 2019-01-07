@@ -75,6 +75,11 @@
     :read-handlers default-read-handlers))
 
 
+(defn with-jump-table
+  "Add jump table decoding to a codec"
+  [codec]
+  (assoc codec :jump-table (codec/jump-decoder-table)))
+
 
 ;; ## Encoding Functions
 
@@ -109,7 +114,7 @@
   "Encode a sequence of values as CBOR data. This eagerly consumes the
   input sequence.
 
-  In the full argument form, this writes a value to an output stream and
+  In the full argument form, this writes a value to an output streuam and
   returns the number of bytes written. If output is omitted, the function
   returns a byte array instead. Uses the `default-codec` if none is provided."
   ([values]
