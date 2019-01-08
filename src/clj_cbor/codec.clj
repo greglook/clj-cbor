@@ -120,18 +120,13 @@
 
 ;; For decoding efficiency, we can directly represent decoding operations
 ;; based on the first full byte of an encoded value. This can short circuit
-;;  conditional logic in many cases.
-
+;; conditional logic in many cases.
+;;
 ;; These "jump entries" will be defined for some unsigned byte values
 ;; and be represented by a single lambda function taking the decoder
 ;; and input returning the decoded value
-
+;;
 ;; See https://tools.ietf.org/html/rfc7049#appendix-B for details
-
-
-(def ^:private int-widths [:byte :short :int :long])
-(def ^:private int-entry-types (concat (range 0 24) int-widths))
-
 
 (defn- uint-expr
   "Return expression that corresponds to decoding a jump entry value.
@@ -142,11 +137,11 @@
   (let [input-symb (vary-meta input-symb assoc :tag 'java.io.DataInputStream)]
     (cond
       (and (int? int-type) (<= 0 int-type 23)) int-type
-      (= int-type :byte)  `(.readUnsignedByte ~input-symb)
-      (= int-type :short) `(.readUnsignedShort ~input-symb)
-      (= int-type :int)   `(bit-and (.readInt ~input-symb) 0xFFFFFFFF)
-      (= int-type :long) `(bytes/to-unsigned-long (.readLong ~input-symb))
-      :else (throw (ex-info (str "Int type must be [0,24) or " int-widths)
+      (= int-type :byte)  `(header/read-byte ~input-symb)
+      (= int-type :short) `(header/read-short ~input-symb)
+      (= int-type :int)   `(header/read-int ~input-symb)
+      (= int-type :long)  `(header/read-long ~input-symb)
+      :else (throw (ex-info (str "Int type must be in " header/info-codes)
                             {:int-type int-type})))))
 
 
@@ -166,7 +161,7 @@
   (direct, or reading from input along with the byte values for each
   entry beggining with `start-offset` index (a int literal)."
   [start-offset decoder-symb input-symb val-symb result-expr]
-  (when-not (<= 0 start-offset (- 256 (count int-entry-types)))
+  (when-not (<= 0 start-offset (- 256 (count header/info-codes)))
     (throw (ex-info "Invalid start offset for byte value"
                     {:start-offset start-offset})))
   `(vector
@@ -174,7 +169,7 @@
          (fn [inner-idx int-type]
            (let [idx (+ start-offset inner-idx)]
              [idx `(gen-entry ~idx ~int-type ~decoder-symb ~input-symb ~val-symb ~result-expr)]))
-         (concat (range 0 24) int-widths))))
+         header/info-codes)))
 
 
 
@@ -707,7 +702,8 @@
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
-        (header/write-leader out :simple-value n)
+        (do (header/write-leader out :simple-value n)
+            1)
       (<= 32 n 255)
         (do (header/write-leader out :simple-value 24)
             (.writeByte out n)
