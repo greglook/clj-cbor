@@ -133,36 +133,54 @@
   entries either directly encode some numbers [0, 24), or specify an int-type
   (byte, short, int, long) to read from the input. Returned expression will be
   inlined into the jump entry."
-  [int-type input-sym]
+  [input-sym int-type]
   (let [input-sym (vary-meta input-sym assoc :tag 'java.io.DataInputStream)]
     (cond
       (and (nat-int? int-type) (< int-type 24)) int-type
       (= int-type :byte)  `(header/read-byte ~input-sym)
       (= int-type :short) `(header/read-short ~input-sym)
       (= int-type :int)   `(header/read-int ~input-sym)
-      (= int-type :long)  `(header/read-long ~input-sym)
-      :else (throw (ex-info (str "Int type must be in " header/info-codes)
-                            {:int-type int-type})))))
+      (= int-type :long)  `(header/read-long ~input-sym))))
 
 
-(defmacro ^:private jump-entries
-  "Generate jump entry functions for all possible initial values for a given
-  major type. The jump values begin from `start-offset` and read the
-  appropriate bytes from the input to determine the additional info."
-  [start-offset [decoder-sym input-sym val-sym] result-expr]
-  (when-not (<= 0 start-offset (- 256 (count header/info-codes)))
-    (throw (ex-info "Invalid start offset for byte value"
-                    {:start-offset start-offset})))
-  `(vector
-     ~@(map-indexed
-         (fn gen-jump-entry
-           [inner-idx int-type]
-           (let [idx (+ start-offset inner-idx)]
-             [idx `(fn ~(symbol (str "jump-" idx))
-                     [~decoder-sym ~input-sym]
-                     (let [~val-sym ~(read-uint-expr int-type input-sym)]
-                       ~result-expr))]))
-         header/info-codes)))
+(defn- read-jump-entries
+  "Generate jump entry code for the possible initial int values for a given
+  major type. The jump values begin 24 from `offset` and read the appropriate
+  bytes from the input to determine the additional info."
+  [[offset input-sym val-sym] result-expr]
+  (->>
+    [:byte :short :int :long]
+    (map-indexed
+      (fn gen-jump-entry
+        [idx int-type]
+        [(+ offset 24 idx)
+         `(let [~val-sym ~(read-uint-expr input-sym int-type)]
+            ~result-expr)]))
+    (apply concat)
+    (vec)))
+
+
+(defn- jump-entries
+  "Generate jump entry code for all possible initial values for a given major
+  type. The jump values begin from `offset` and read the appropriate bytes from
+  the input to determine the additional info."
+  [[offset input-sym val-sym]
+   empty-expr
+   read-expr
+   stream-expr]
+  (vec
+    (concat
+      [offset empty-expr]
+      (->>
+        (rest header/info-codes)
+        (map-indexed
+          (fn gen-jump-entry
+            [idx int-type]
+            [(+ offset idx 1)
+             `(let [~val-sym ~(read-uint-expr input-sym int-type)]
+                ~read-expr)]))
+        (apply concat))
+      [(+ offset 0x1F) stream-expr])))
 
 
 
@@ -232,19 +250,37 @@
       (- -1 value))))
 
 
-(def ^:private int-jump-entries
-  (into
-    ;; 0x00 through 0x17: direct value [0, 24)
-    ;; 0x18 through 0x1b: read int from input
-    (jump-entries 0x00
-      [decoder input v]
-      v)
+(defn- int-jump-entries
+  "Generate jump-table entries for integer values."
+  [input]
+  (concat
+    ; Positive integers: 0x00 - 0x1F
+    (mapcat
+      (fn pos-int-entry
+        [idx]
+        [idx idx])
+      (range 24))
+    (read-jump-entries
+      [0x00 input 'n]
+      'n)
+    `[0x1F (error/*handler*
+             ::illegal-stream
+             "Encoded integers cannot have indefinite length."
+             {:code 0x1F})]
 
-    ;; 0x20 through 0x37: Negative number
-    ;; 0x38 through 0x3c: Read uint then negate
-    (jump-entries 0x20
-      [decoder input v]
-      (unchecked-dec (- v)))))
+    ; Negative integers: 0x20 - 0x2F
+    (mapcat
+      (fn neg-int-entry
+        [idx]
+        [(+ 0x20 idx) (dec (- idx))])
+      (range 24))
+    (read-jump-entries
+      [0x20 input 'n]
+      `(dec (- ~'n)))
+    `[0x3F (error/*handler*
+             ::illegal-stream
+             "Encoded integers cannot have indefinite length."
+             {:code 0x1F})]))
 
 
 
@@ -277,12 +313,13 @@
       (bytes/read-bytes input length))))
 
 
-(def ^:private byte-string-jump-entries
-  ;; 0x40 through 0x57: fixed-length byte strings
-  ;; 0x58 through 0x5b: read length for byte strings
-  (jump-entries 0x40
-    [decoder input n]
-    (bytes/read-bytes input n)))
+(defn- byte-string-jump-entries
+  [decoder input]
+  (jump-entries
+    [0x40 input 'n]
+    `(byte-array 0)
+    `(bytes/read-bytes ~input ~'n)
+    `(read-chunks ~decoder ~input :byte-string bytes/concat-bytes)))
 
 
 
@@ -334,12 +371,13 @@
       (String. (bytes/read-bytes input length) "UTF-8"))))
 
 
-(def ^:private text-string-jump-entries
-  ;; 0x60 through 0x77: fixed width utf8 string
-  ;; 0x78 through 0x7b: read utf8 string length
-  (jump-entries 0x60
-    [decoder input n]
-    (String. (bytes/read-bytes input n) "UTF-8")))
+(defn- text-string-jump-entries
+  [decoder input]
+  (jump-entries
+    [0x60 input 'n]
+    ""
+    `(String. (bytes/read-bytes ~input ~'n) "UTF-8")
+    `(read-chunks ~decoder ~input :text-string concat-text)))
 
 
 
@@ -397,12 +435,14 @@
       (read-fixed-array decoder input length))))
 
 
-(def ^:private data-array-jump-entries
-  ;; 0x80 through 0x97: fixed length array
-  ;; 0x98 through 0x9b: read array length
-  (jump-entries 0x80
-    [decoder input n]
-    (read-fixed-array decoder input n)))
+(defn- data-array-jump-entries
+  [decoder input]
+  (jump-entries
+    [0x80 input 'n]
+    []
+    `(read-fixed-array ~decoder ~input ~'n)
+    `(-> (read-value-stream ~decoder ~input build-array)
+         (vary-meta assoc :cbor/streaming true))))
 
 
 
@@ -495,7 +535,7 @@
      [(assoc m k e)])))
 
 
-(defn read-fixed-map
+(defn- read-fixed-map
   "Read a fixed length map from the input as a sequence of entries."
   [decoder input ^long n]
   (if (zero? n)
@@ -528,12 +568,14 @@
       (read-fixed-map decoder input length))))
 
 
-(def ^:private map-jump-entries
-  ;; 0xa0 through 0xb7: fixed length map
-  ;; 0xb8 through 0xbb: read map length
-  (jump-entries 0xa0
-    [decoder input n]
-    (read-fixed-map decoder input n)))
+(defn- map-jump-entries
+  [decoder input]
+  (jump-entries
+    [0xA0 input 'n]
+    {}
+    `(read-fixed-map ~decoder ~input ~'n)
+    `(-> (read-value-stream ~decoder ~input build-map)
+         (vary-meta assoc :cbor/streaming true))))
 
 
 
@@ -629,6 +671,7 @@
       (read-set decoder value)
       (try
         (if-let [handler ((:read-handlers decoder) tag)]
+          ; TODO: better error reporting
           (handler value)
           (if (:strict decoder)
             (error/*handler*
@@ -641,6 +684,12 @@
             ::tag-handling-error
             (.getMessage ex)
             (assoc (ex-data ex) ::error ex)))))))
+
+
+(defn- tagged-value-jump-entries
+  [decoder input info]
+  [(range 0xC0 0xE0)
+   `(read-tagged ~decoder ~input ~info)])
 
 
 
@@ -760,14 +809,22 @@
     (unknown-simple decoder info)))
 
 
-(def ^:private simple-value-jump-entries
-  ;; simple values: starting at 0xf4
-  ;; constantly is slower since uses `applyTo`,
-  ;; whereas we need only fixed 2-arity
-  [[0xf4 (fn jump-false [_ _] false)]
-   [0xf5 (fn jump-true [_ _] true)]
-   [0xf6 (fn jump-nil [_ _] nil)]
-   [0xf7 (fn jump-undef [_ _] data/undefined)]])
+(defn- simple-value-jump-entries
+  [decoder input info]
+  (let [input (vary-meta input assoc :tag 'java.io.DataInputStream)]
+    `[~(range 0xE0 0xF4) (unknown-simple ~decoder ~info)
+      0xF4 false
+      0xF5 true
+      0xF6 nil
+      0xF7 data/undefined
+      0xF8 (unknown-simple ~decoder (.readUnsignedByte ~input))
+      0xF9 (float16/decode (.readUnsignedShort ~input))
+      0xFA (.readFloat ~input)
+      0xFB (.readDouble ~input)
+      0xFF (error/*handler*
+             ::unexpected-break
+             "Break encountered outside streaming context."
+             {})]))
 
 
 
@@ -807,6 +864,7 @@
   (let [dispatch (:dispatch codec)
         write-handlers (:write-handlers codec)]
     (when-let [formatter (write-handlers (dispatch x))]
+      ; TODO: better error reporting
       (write-value codec out (formatter x)))))
 
 
@@ -822,29 +880,54 @@
     :else       nil))
 
 
-(def ^:private jump-table-entries
-  "Vector of jump table entries, tuples of the jump code and the function for
-  handling it."
-  (vec
-    (concat
-      int-jump-entries
-      byte-string-jump-entries
-      text-string-jump-entries
-      data-array-jump-entries
-      map-jump-entries
-      simple-value-jump-entries)))
+(defmacro ^:private jump-table
+  "Generate code for a case-based decoder jump table."
+  [decoder input header]
+  `(let [header# ~header
+         info# (bit-and 0x1F header#)
+         ~'info info#]
+     #_
+     (printf "jump-table: 0x%02X (%s:%d)\n"
+             header#
+             (name (first (header/decode header#)))
+             info#)
+     (case (int header#)
+       ~@(int-jump-entries input)
+       ~@(byte-string-jump-entries decoder input)
+       ~@(text-string-jump-entries decoder input)
+       ~@(data-array-jump-entries decoder input)
+       ~@(map-jump-entries decoder input)
+       ~@(tagged-value-jump-entries decoder input 'info)
+       ~@(simple-value-jump-entries decoder input 'info)
+       (cond
+         ; Check for illegal simple types.
+         (<= 0xFC header# 0xFE)
+         (error/*handler*
+           ::illegal-simple-type
+           (format "Additional information simple-value code %d is reserved."
+                   info#)
+           {:code info#})
 
+         ; Check for reserved information codes.
+         (<= 28 info# 30)
+         (error/*handler*
+           ::header/reserved-info-code
+           (format "Additional information int code %d is reserved."
+                   info#)
+           {:info info#})
 
-(defn jump-decoder-table
-  "Construct a new array of jump table entries."
-  []
-  (let [table (object-array 256)]
-    (run! (fn [[i f]] (aset table i f)) jump-table-entries)
-    table))
+         ; This should never happen
+         :else
+         (error/*handler*
+           ::unreachable-case
+           (format "Unhandled jump-table case: 0x%02X (%d)"
+                   header# info#)
+           {:header header#
+            :info info#})))))
 
 
 (defrecord CBORCodec
-  [dispatch write-handlers read-handlers set-tag ^objects jump-table]
+  [dispatch write-handlers read-handlers set-tag]
 
   Encoder
 
@@ -863,6 +946,9 @@
 
   (read-value*
     [this input header]
+    ; OPTIMIZE: try a macro-generated case statement instead
+    (jump-table this input header)
+    #_
     (if-let [entry-fn (and jump-table (aget jump-table header))]
       (entry-fn this input)
       (let [[mtype info] (header/decode header)]
@@ -874,7 +960,264 @@
           :data-array       (read-array this input info)
           :data-map         (read-map this input info)
           :tagged-value     (read-tagged this input info)
-          :simple-value     (read-simple this input info))))))
+          :simple-value     (read-simple this input info))))
+    #_
+    (let [info (bit-and 0x1F header)]
+      (case (int header)
+        ; Positive Integers
+        0x00 0
+        0x01 1
+        0x02 2
+        0x03 3
+        0x04 4
+        0x05 5
+        0x06 6
+        0x07 7
+        0x08 8
+        0x09 9
+        0x0A 10
+        0x0B 11
+        0x0C 12
+        0x0D 13
+        0x0E 14
+        0x0F 15
+        0x10 16
+        0x11 17
+        0x12 18
+        0x13 19
+        0x14 20
+        0x15 21
+        0x16 22
+        0x17 23
+        0x18 (header/read-byte input)
+        0x19 (header/read-short input)
+        0x1A (header/read-int input)
+        0x1B (header/read-long input)
+        (0x1C 0x1D 0x1E) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0x1F (error/*handler*
+               ::illegal-stream
+               "Encoded integers cannot have indefinite length."
+               {:code info})
+
+        ; Negative Integers
+        0x20 -1
+        0x21 -2
+        0x22 -3
+        0x23 -4
+        0x24 -5
+        0x25 -6
+        0x26 -7
+        0x27 -8
+        0x28 -9
+        0x29 -10
+        0x2A -11
+        0x2B -12
+        0x2C -13
+        0x2D -14
+        0x2E -15
+        0x2F -16
+        0x30 -17
+        0x31 -18
+        0x32 -19
+        0x33 -20
+        0x34 -21
+        0x35 -22
+        0x36 -23
+        0x37 -24
+        0x38 (dec (- (header/read-byte input)))
+        0x39 (dec (- (header/read-short input)))
+        0x3A (dec (- (header/read-int input)))
+        0x3B (dec (- (header/read-long input)))
+        (0x3C 0x3D 0x3E) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0x3F (error/*handler*
+               ::illegal-stream
+               "Encoded integers cannot have indefinite length."
+               {:code info})
+
+        ; Byte Strings
+        0x40 (byte-array 0)
+        0x41 (bytes/read-bytes input 1)
+        0x42 (bytes/read-bytes input 2)
+        0x43 (bytes/read-bytes input 3)
+        0x44 (bytes/read-bytes input 4)
+        0x45 (bytes/read-bytes input 5)
+        0x46 (bytes/read-bytes input 6)
+        0x47 (bytes/read-bytes input 7)
+        0x48 (bytes/read-bytes input 8)
+        0x49 (bytes/read-bytes input 9)
+        0x4A (bytes/read-bytes input 10)
+        0x4B (bytes/read-bytes input 11)
+        0x4C (bytes/read-bytes input 12)
+        0x4D (bytes/read-bytes input 13)
+        0x4E (bytes/read-bytes input 14)
+        0x4F (bytes/read-bytes input 15)
+        0x50 (bytes/read-bytes input 16)
+        0x51 (bytes/read-bytes input 17)
+        0x52 (bytes/read-bytes input 18)
+        0x53 (bytes/read-bytes input 19)
+        0x54 (bytes/read-bytes input 20)
+        0x55 (bytes/read-bytes input 21)
+        0x56 (bytes/read-bytes input 22)
+        0x57 (bytes/read-bytes input 23)
+        0x58 (bytes/read-bytes input (header/read-byte input))
+        0x59 (bytes/read-bytes input (header/read-short input))
+        0x5A (bytes/read-bytes input (header/read-int input))
+        0x5B (bytes/read-bytes input (header/read-long input))
+        (0x5C 0x5D 0x5E) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0x5F (read-chunks this input :byte-string bytes/concat-bytes)
+
+        ; Text Strings
+        0x60 ""
+        0x61 (String. (bytes/read-bytes input 1) "UTF-8")
+        0x62 (String. (bytes/read-bytes input 2) "UTF-8")
+        0x63 (String. (bytes/read-bytes input 3) "UTF-8")
+        0x64 (String. (bytes/read-bytes input 4) "UTF-8")
+        0x65 (String. (bytes/read-bytes input 5) "UTF-8")
+        0x66 (String. (bytes/read-bytes input 6) "UTF-8")
+        0x67 (String. (bytes/read-bytes input 7) "UTF-8")
+        0x68 (String. (bytes/read-bytes input 8) "UTF-8")
+        0x69 (String. (bytes/read-bytes input 9) "UTF-8")
+        0x6A (String. (bytes/read-bytes input 10) "UTF-8")
+        0x6B (String. (bytes/read-bytes input 11) "UTF-8")
+        0x6C (String. (bytes/read-bytes input 12) "UTF-8")
+        0x6D (String. (bytes/read-bytes input 13) "UTF-8")
+        0x6E (String. (bytes/read-bytes input 14) "UTF-8")
+        0x6F (String. (bytes/read-bytes input 15) "UTF-8")
+        0x70 (String. (bytes/read-bytes input 16) "UTF-8")
+        0x71 (String. (bytes/read-bytes input 17) "UTF-8")
+        0x72 (String. (bytes/read-bytes input 18) "UTF-8")
+        0x73 (String. (bytes/read-bytes input 19) "UTF-8")
+        0x74 (String. (bytes/read-bytes input 20) "UTF-8")
+        0x75 (String. (bytes/read-bytes input 21) "UTF-8")
+        0x76 (String. (bytes/read-bytes input 22) "UTF-8")
+        0x77 (String. (bytes/read-bytes input 23) "UTF-8")
+        0x78 (String. (bytes/read-bytes input (header/read-byte input)) "UTF-8")
+        0x79 (String. (bytes/read-bytes input (header/read-short input)) "UTF-8")
+        0x7A (String. (bytes/read-bytes input (header/read-int input)) "UTF-8")
+        0x7B (String. (bytes/read-bytes input (header/read-long input)) "UTF-8")
+        (0x7C 0x7D 0x7E) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0x7F (read-chunks this input :text-string concat-text)
+
+        ; Arrays
+        0x80 []
+        0x81 (read-fixed-array this input 1)
+        0x82 (read-fixed-array this input 2)
+        0x83 (read-fixed-array this input 3)
+        0x84 (read-fixed-array this input 4)
+        0x85 (read-fixed-array this input 5)
+        0x86 (read-fixed-array this input 6)
+        0x87 (read-fixed-array this input 7)
+        0x88 (read-fixed-array this input 8)
+        0x89 (read-fixed-array this input 9)
+        0x8A (read-fixed-array this input 10)
+        0x8B (read-fixed-array this input 11)
+        0x8C (read-fixed-array this input 12)
+        0x8D (read-fixed-array this input 13)
+        0x8E (read-fixed-array this input 14)
+        0x8F (read-fixed-array this input 15)
+        0x90 (read-fixed-array this input 16)
+        0x91 (read-fixed-array this input 17)
+        0x92 (read-fixed-array this input 18)
+        0x93 (read-fixed-array this input 19)
+        0x94 (read-fixed-array this input 20)
+        0x95 (read-fixed-array this input 21)
+        0x96 (read-fixed-array this input 22)
+        0x97 (read-fixed-array this input 23)
+        0x98 (read-fixed-array this input (header/read-byte input))
+        0x99 (read-fixed-array this input (header/read-short input))
+        0x9A (read-fixed-array this input (header/read-int input))
+        0x9B (read-fixed-array this input (header/read-long input))
+        (0x9C 0x9D 0x9E) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0x9F (-> (read-value-stream this input build-array)
+                 (vary-meta assoc :cbor/streaming true))
+
+        ; Maps
+        0xA0 {}
+        0xA1 (read-fixed-map this input 1)
+        0xA2 (read-fixed-map this input 2)
+        0xA3 (read-fixed-map this input 3)
+        0xA4 (read-fixed-map this input 4)
+        0xA5 (read-fixed-map this input 5)
+        0xA6 (read-fixed-map this input 6)
+        0xA7 (read-fixed-map this input 7)
+        0xA8 (read-fixed-map this input 8)
+        0xA9 (read-fixed-map this input 9)
+        0xAA (read-fixed-map this input 10)
+        0xAB (read-fixed-map this input 11)
+        0xAC (read-fixed-map this input 12)
+        0xAD (read-fixed-map this input 13)
+        0xAE (read-fixed-map this input 14)
+        0xAF (read-fixed-map this input 15)
+        0xB0 (read-fixed-map this input 16)
+        0xB1 (read-fixed-map this input 17)
+        0xB2 (read-fixed-map this input 18)
+        0xB3 (read-fixed-map this input 19)
+        0xB4 (read-fixed-map this input 20)
+        0xB5 (read-fixed-map this input 21)
+        0xB6 (read-fixed-map this input 22)
+        0xB7 (read-fixed-map this input 23)
+        0xB8 (read-fixed-map this input (header/read-byte input))
+        0xB9 (read-fixed-map this input (header/read-short input))
+        0xBA (read-fixed-map this input (header/read-int input))
+        0xBB (read-fixed-map this input (header/read-long input))
+        (0xBC 0xBD 0xBE) (error/*handler*
+                           ::header/reserved-info-code
+                           (format "Additional information int code %d is reserved."
+                                   info)
+                           {:info info})
+        0xBF (-> (read-value-stream this input build-map)
+                 (vary-meta assoc :cbor/streaming true))
+
+        ; Tagged Values
+        (0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7
+         0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF
+         0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7
+         0xD8 0xD9 0xDA 0xDB 0xDC 0xDD 0xDE 0xDF)
+        (read-tagged this input info)
+
+        ; Simple Values
+        (0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7
+         0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF
+         0xF0 0xF1 0xF2 0xF3)
+        (unknown-simple this info)
+        0xF4 false
+        0xF5 true
+        0xF6 nil
+        0xF7 data/undefined
+        0xF8 (unknown-simple this (.readUnsignedByte input))
+        0xF9 (float16/decode (.readUnsignedShort input))
+        0xFA (.readFloat input)
+        0xFB (.readDouble input)
+        (0xFC 0xFD 0xFE)
+        (error/*handler*
+          ::illegal-simple-type
+          (format "Additional information simple-value code %d is reserved."
+                  info)
+          {:code info})
+        0xFF (error/*handler*
+               ::unexpected-break
+               "Break encountered outside streaming context."
+               {})))))
 
 
 (defn blank-codec
