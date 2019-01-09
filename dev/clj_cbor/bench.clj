@@ -3,7 +3,6 @@
   (:require
     [blocks.core :as block]
     [blocks.store.file :refer [file-block-store]]
-    [cognitect.transit :as transit]
     [clj-cbor.core :as cbor]
     [clj-cbor.test-utils :as util]
     [clojure.data.fressian :as fressian]
@@ -12,6 +11,7 @@
     [clojure.java.io :as io]
     [clojure.string :as str]
     [clojure.test.check.generators :as gen]
+    [cognitect.transit :as transit]
     [criterium.core :as crit]
     [multihash.core :as multihash]
     [taoensso.nippy :as nippy])

@@ -12,7 +12,7 @@
    "bench-repl" ["with-profile" "+bench" "repl"]}
 
   :dependencies
-  [[org.clojure/clojure "1.9.0"]]
+  [[org.clojure/clojure "1.10.0"]]
 
   :test-selectors
   {:default (complement :generative)
@@ -36,7 +36,9 @@
     [[org.clojure/test.check "0.9.0"]]}
 
    :repl
-   {:source-paths ["dev"]}
+   {:source-paths ["dev"]
+    :dependencies
+    [[org.clojure/tools.namespace "0.2.11"]]}
 
    :bench
    {:source-paths ["dev"]
