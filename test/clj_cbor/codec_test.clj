@@ -8,6 +8,21 @@
     [clj-cbor.test-utils :refer :all]))
 
 
+(deftest byte-utils
+  (testing "byte comparison"
+    (is (zero? (#'codec/compare-bytes (byte-array []) (byte-array [])))
+        "empty bytes are equal")
+    (is (neg? (#'codec/compare-bytes (byte-array []) (byte-array [0])))
+        "empty bytes sort before zero byte")
+    (is (pos? (#'codec/compare-bytes (byte-array [1]) (byte-array [])))
+        "one byte sorts after empty bytes")
+    (is (zero? (#'codec/compare-bytes (byte-array [0 1 2 3]) (byte-array [0 1 2 3]))))
+    (is (neg? (#'codec/compare-bytes (byte-array [0 1 2]) (byte-array [0 1 2 3]))))
+    (is (pos? (#'codec/compare-bytes (byte-array [0 1 3]) (byte-array [0 1 2]))))
+    (is (neg? (#'codec/compare-bytes (byte-array [0 0 3]) (byte-array [0 1 2]))))
+    (is (neg? (#'codec/compare-bytes (byte-array [0 0 3]) (byte-array [0 -8 2]))))))
+
+
 (deftest integer-typing
   (let [roundtrip (comp cbor/decode cbor/encode)]
     (testing "direct values"

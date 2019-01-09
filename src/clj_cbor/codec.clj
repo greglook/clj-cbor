@@ -5,8 +5,7 @@
     [clj-cbor.header :as header]
     [clj-cbor.data.core :as data]
     [clj-cbor.data.float16 :as float16]
-    [clojure.string :as str]
-    [clj-cbor.bytes :as bytes])
+    [clojure.string :as str])
   (:import
     clj_cbor.data.simple.SimpleValue
     clj_cbor.data.tagged.TaggedValue
@@ -47,6 +46,18 @@
   (read-value* decoder input (.readUnsignedByte input)))
 
 
+
+;; ## Byte Utilities
+
+(defn- read-bytes
+  "Read `length` bytes from the input stream. Returns a byte array."
+  ^bytes
+  [^DataInputStream input length]
+  (let [buffer (byte-array length)]
+    (.readFully input buffer)
+    buffer))
+
+
 (defn- write-bytes
   "Writes the given value `x` to a byte array."
   [encoder x]
@@ -54,6 +65,40 @@
     (with-open [data (DataOutputStream. out)]
       (write-value encoder data x))
     (.toByteArray out)))
+
+
+(defn- compare-bytes
+  "Returns a negative number, zero, or a positive number when `x` is 'less
+  than', 'equal to', or 'greater than' `y`.
+
+  Sorting is performed on the bytes of the representation of the key data
+  items without paying attention to the 3/5 bit splitting for major types.
+  The sorting rules are:
+
+  - If two keys have different lengths, the shorter one sorts earlier;
+  - If two keys have the same length, the one with the lower value in
+    (byte-wise) lexical order sorts earlier."
+  [^bytes x ^bytes y]
+  (let [xlen (alength x)
+        ylen (alength y)
+        get-byte (fn get-byte
+                   [^bytes bs i]
+                   (let [b (aget bs i)]
+                     (if (neg? b)
+                       (+ b 256)
+                       b)))]
+    (if (= xlen ylen)
+      ; Same length - compare content.
+      (loop [i 0]
+        (if (< i xlen)
+          (let [xi (get-byte x i)
+                yi (get-byte y i)]
+            (if (= xi yi)
+              (recur (inc i))
+              (compare xi yi)))
+          0))
+      ; Compare lengths.
+      (compare xlen ylen))))
 
 
 
@@ -302,15 +347,27 @@
     (+ hlen (count bs))))
 
 
+(defn- concat-bytes
+  "Reducing function which builds a contiguous byte-array from a sequence of
+  byte-array chunks."
+  ([]
+   (ByteArrayOutputStream.))
+  ([buffer]
+   (.toByteArray ^ByteArrayOutputStream buffer))
+  ([buffer v]
+   (.write ^ByteArrayOutputStream buffer ^bytes v)
+   buffer))
+
+
 (defn- read-byte-string
   "Reads a sequence of bytes from the input stream."
   [decoder ^DataInputStream input info]
   (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read sequence of definite-length byte strings.
-      (read-chunks decoder input :byte-string bytes/concat-bytes)
+      (read-chunks decoder input :byte-string concat-bytes)
       ; Read definite-length byte string.
-      (bytes/read-bytes input length))))
+      (read-bytes input length))))
 
 
 (defn- byte-string-jump-entries
@@ -318,8 +375,8 @@
   (jump-entries
     [0x40 input 'n]
     `(byte-array 0)
-    `(bytes/read-bytes ~input ~'n)
-    `(read-chunks ~decoder ~input :byte-string bytes/concat-bytes)))
+    `(read-bytes ~input ~'n)
+    `(read-chunks ~decoder ~input :byte-string concat-bytes)))
 
 
 
@@ -368,7 +425,7 @@
       ; Read sequence of definite-length text strings.
       (read-chunks decoder input :text-string concat-text)
       ; Read definite-length text string.
-      (String. (bytes/read-bytes input length) "UTF-8"))))
+      (String. (read-bytes input length) "UTF-8"))))
 
 
 (defn- text-string-jump-entries
@@ -376,7 +433,7 @@
   (jump-entries
     [0x60 input 'n]
     ""
-    `(String. (bytes/read-bytes ~input ~'n) "UTF-8")
+    `(String. (read-bytes ~input ~'n) "UTF-8")
     `(read-chunks ~decoder ~input :text-string concat-text)))
 
 
@@ -489,7 +546,7 @@
       (map (fn encode-key
              [[k v]]
              [(write-bytes encoder k) v]))
-      (sort-by first bytes/compare-bytes)
+      (sort-by first compare-bytes)
       (reduce
         (fn encode-entry
           [sum [k v]]
@@ -614,7 +671,7 @@
     (->>
       xs
       (map (partial write-bytes encoder))
-      (sort bytes/compare-bytes)
+      (sort compare-bytes)
       (reduce
         (fn encode-entry
           [sum v]
