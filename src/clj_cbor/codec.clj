@@ -145,17 +145,6 @@
                             {:int-type int-type})))))
 
 
-(defmacro ^:private jump-entry-fn
-  "Generate a function expression for a jump table entry. This generates a
-  common structure for non-atom entries, which need to use the additional info
-  plus the fixed following bytes to determine what needs to be decoded."
-  [entry-id int-type [decoder-sym input-sym val-sym] & body]
-  `(fn ~(symbol (str "jump-" entry-id))
-     [~decoder-sym ~input-sym]
-     (let [~val-sym ~(read-uint-expr int-type input-sym)]
-       ~@body)))
-
-
 (defmacro ^:private jump-entries
   "Generate jump entry functions for all possible initial values for a given
   major type. The jump values begin from `start-offset` and read the
