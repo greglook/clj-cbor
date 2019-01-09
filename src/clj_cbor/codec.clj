@@ -126,49 +126,53 @@
 ;; and be represented by a single lambda function taking the decoder
 ;; and input returning the decoded value
 ;;
-;; See https://tools.ietf.org/html/rfc7049#appendix-B for details
+;; See https://tools.ietf.org/html/rfc7049#appendix-B for details.
 
-(defn- uint-expr
-  "Return expression that corresponds to decoding a jump entry value.
-   Jump entries either directly encode some numbers [0, 24), or specify
-   an int-type (byte, short, int, long) to read from the input.
-   Returned expression will be inlined into the jump entry."
-  [int-type input-symb]
-  (let [input-symb (vary-meta input-symb assoc :tag 'java.io.DataInputStream)]
+(defn- read-uint-expr
+  "Return expression that corresponds to decoding a jump entry value. Jump
+  entries either directly encode some numbers [0, 24), or specify an int-type
+  (byte, short, int, long) to read from the input. Returned expression will be
+  inlined into the jump entry."
+  [int-type input-sym]
+  (let [input-sym (vary-meta input-sym assoc :tag 'java.io.DataInputStream)]
     (cond
-      (and (int? int-type) (<= 0 int-type 23)) int-type
-      (= int-type :byte)  `(header/read-byte ~input-symb)
-      (= int-type :short) `(header/read-short ~input-symb)
-      (= int-type :int)   `(header/read-int ~input-symb)
-      (= int-type :long)  `(header/read-long ~input-symb)
+      (and (nat-int? int-type) (< int-type 24)) int-type
+      (= int-type :byte)  `(header/read-byte ~input-sym)
+      (= int-type :short) `(header/read-short ~input-sym)
+      (= int-type :int)   `(header/read-int ~input-sym)
+      (= int-type :long)  `(header/read-long ~input-sym)
       :else (throw (ex-info (str "Int type must be in " header/info-codes)
                             {:int-type int-type})))))
 
 
-(defmacro ^:private gen-entry
-  "generate code for jump table entry, all non-atom entries, share similar
-   structure of needing to read a uint value (with a fixed number of bytes)
-   and that value along with potentially further decoding yields value "
-  [entry-id int-type decoder-symb input-symb val-symb & result-expr]
-  (let [val-expr (uint-expr int-type input-symb)]
-    `(fn ~(symbol (str "jump-" entry-id)) [~decoder-symb ~input-symb]
-       (let [~val-symb ~val-expr]
-         ~@result-expr))))
+(defmacro ^:private jump-entry-fn
+  "Generate a function expression for a jump table entry. This generates a
+  common structure for non-atom entries, which need to use the additional info
+  plus the fixed following bytes to determine what needs to be decoded."
+  [entry-id int-type [decoder-sym input-sym val-sym] & body]
+  `(fn ~(symbol (str "jump-" entry-id))
+     [~decoder-sym ~input-sym]
+     (let [~val-sym ~(read-uint-expr int-type input-sym)]
+       ~@body)))
 
 
-(defmacro ^:private gen-int-type-entries
-  "generate entry implementations for all possible initial values
-  (direct, or reading from input along with the byte values for each
-  entry beggining with `start-offset` index (a int literal)."
-  [start-offset decoder-symb input-symb val-symb result-expr]
+(defmacro ^:private jump-entries
+  "Generate jump entry functions for all possible initial values for a given
+  major type. The jump values begin from `start-offset` and read the
+  appropriate bytes from the input to determine the additional info."
+  [start-offset [decoder-sym input-sym val-sym] result-expr]
   (when-not (<= 0 start-offset (- 256 (count header/info-codes)))
     (throw (ex-info "Invalid start offset for byte value"
                     {:start-offset start-offset})))
   `(vector
      ~@(map-indexed
-         (fn [inner-idx int-type]
+         (fn gen-jump-entry
+           [inner-idx int-type]
            (let [idx (+ start-offset inner-idx)]
-             [idx `(gen-entry ~idx ~int-type ~decoder-symb ~input-symb ~val-symb ~result-expr)]))
+             [idx `(fn ~(symbol (str "jump-" idx))
+                     [~decoder-sym ~input-sym]
+                     (let [~val-sym ~(read-uint-expr int-type input-sym)]
+                       ~result-expr))]))
          header/info-codes)))
 
 
@@ -243,11 +247,17 @@
   (into
     ;; 0x00 through 0x17: direct value [0, 24)
     ;; 0x18 through 0x1b: read int from input
-    (gen-int-type-entries 0 decoder input v v)
+    (jump-entries 0x00
+      [decoder input v]
+      v)
 
     ;; 0x20 through 0x37: Negative number
     ;; 0x38 through 0x3c: Read uint then negate
-    (gen-int-type-entries 0x20 decoder input v (unchecked-dec (- v)))))
+    (jump-entries 0x20
+      [decoder input v]
+      (unchecked-dec (- v)))))
+
+
 
 ;; ### Byte Strings
 
@@ -281,14 +291,16 @@
 (def ^:private byte-string-jump-entries
   ;; 0x40 through 0x57: fixed-length byte strings
   ;; 0x58 through 0x5b: read length for byte strings
-  (gen-int-type-entries 0x40 decoder input n (bytes/read-bytes input n)))
+  (jump-entries 0x40
+    [decoder input n]
+    (bytes/read-bytes input n)))
 
 
 
 ;; ### Text Strings
 
 ;; Major type 3 encodes a text string, specifically a string of Unicode
-;; characters that is encoded as UTF-8 [RFC3629]. 
+;; characters that is encoded as UTF-8 [RFC3629].
 ;;
 ;; The format of this type is identical to that of byte strings (major type 2),
 ;; that is, as with major type 2, the length gives the number of bytes. This
@@ -336,8 +348,9 @@
 (def ^:private text-string-jump-entries
   ;; 0x60 through 0x77: fixed width utf8 string
   ;; 0x78 through 0x7b: read utf8 string length
-  (gen-int-type-entries 0x60 decoder input n
-                        (String. (bytes/read-bytes input n) "UTF8")))
+  (jump-entries 0x60
+    [decoder input n]
+    (String. (bytes/read-bytes input n) "UTF-8")))
 
 
 
@@ -370,10 +383,13 @@
   ([xs v] (conj xs v)))
 
 
-(defn- read-fixed-length-array [^long n decoder input]
+(defn- read-fixed-array
+  "Read a fixed length array from the input as a vector of elements."
+  [decoder input ^long n]
   (if (zero? n)
     []
-    (loop [result (transient []) idx 0]
+    (loop [result (transient [])
+           idx 0]
       (if (= idx n)
         (persistent! result)
         (recur (conj! result (read-value decoder input))
@@ -386,18 +402,18 @@
   (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of elements.
-      (->
-        (read-value-stream decoder input build-array)
-        (vary-meta assoc :cbor/streaming true))
+      (-> (read-value-stream decoder input build-array)
+          (vary-meta assoc :cbor/streaming true))
       ; Read `length` elements.
-      (read-fixed-length-array length decoder input))))
+      (read-fixed-array decoder input length))))
 
 
 (def ^:private data-array-jump-entries
   ;; 0x80 through 0x97: fixed length array
   ;; 0x98 through 0x9b: read array length
-  (gen-int-type-entries 0x80 decoder input n
-                        (read-fixed-length-array n decoder input)))
+  (jump-entries 0x80
+    [decoder input n]
+    (read-fixed-array decoder input n)))
 
 
 
@@ -490,17 +506,22 @@
      [(assoc m k e)])))
 
 
-(defn read-fixed-length-map [^long n decoder input]
+(defn read-fixed-map
+  "Read a fixed length map from the input as a sequence of entries."
+  [decoder input ^long n]
   (if (zero? n)
     {}
-    (loop [result (transient {}) idx 0]
+    (loop [result (transient {})
+           idx 0]
       (if (= idx n)
         (persistent! result)
         (let [k (read-value decoder input)]
           (if (contains? result k)
-            (error/*handler* ::duplicate-map-key
-                             (str "Encoded map contains duplicate key: " (pr-str k))
-                             {:map (persistent! result), :key k})
+            (error/*handler*
+              ::duplicate-map-key
+              (str "Encoded map contains duplicate key: " (pr-str k))
+              {:map (persistent! result)
+               :key k})
             (recur (assoc! result k (read-value decoder input))
                    (unchecked-inc idx))))))))
 
@@ -512,18 +533,18 @@
   (let [length (header/read-code input info)]
     (if (= length :indefinite)
       ; Read streaming sequence of key/value entries.
-      (->
-        (read-value-stream decoder input build-map)
-        (vary-meta assoc :cbor/streaming true))
+      (-> (read-value-stream decoder input build-map)
+          (vary-meta assoc :cbor/streaming true))
       ; Read `length` entry pairs.
-      (read-fixed-length-map length decoder input))))
+      (read-fixed-map decoder input length))))
 
 
 (def ^:private map-jump-entries
   ;; 0xa0 through 0xb7: fixed length map
   ;; 0xb8 through 0xbb: read map length
-  (gen-int-type-entries 0xa0 decoder input n
-                        (read-fixed-length-map n decoder input)))
+  (jump-entries 0xa0
+    [decoder input n]
+    (read-fixed-map decoder input n)))
 
 
 
@@ -754,10 +775,10 @@
   ;; simple values: starting at 0xf4
   ;; constantly is slower since uses `applyTo`,
   ;; whereas we need only fixed 2-arity
-  [[0xf4 (fn [_ _] false)]
-   [0xf5 (fn [_ _] true)]
-   [0xf6 (fn [_ _] nil)]
-   [0xf7 (fn [_ _] data/undefined)]])
+  [[0xf4 (fn jump-false [_ _] false)]
+   [0xf5 (fn jump-true [_ _] true)]
+   [0xf6 (fn jump-nil [_ _] nil)]
+   [0xf7 (fn jump-undef [_ _] data/undefined)]])
 
 
 
@@ -813,6 +834,8 @@
 
 
 (def ^:private jump-table-entries
+  "Vector of jump table entries, tuples of the jump code and the function for
+  handling it."
   (vec
     (concat
       int-jump-entries
@@ -824,12 +847,11 @@
 
 
 (defn jump-decoder-table
-  ([] (jump-decoder-table []))
-  ([extra-entries]
-   (let [entries (object-array 256)]
-     (doseq [[idx e] jump-table-entries]
-       (aset entries idx e))
-     entries)))
+  "Construct a new array of jump table entries."
+  []
+  (let [table (object-array 256)]
+    (run! (fn [[i f]] (aset table i f)) jump-table-entries)
+    table))
 
 
 (defrecord CBORCodec
