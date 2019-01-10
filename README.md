@@ -168,27 +168,30 @@ Continuing the example, the library comes with read handlers for both `Date` and
 
 ## Performance
 
-As of `0.3.0`, this library is roughly on par with many other comparable
+As of `0.7.0`, this library is competitive with many other comparable
 serialization formats. Some benchmarking results can be found in
 [this spreadsheet](https://docs.google.com/spreadsheets/d/142LhWX5aCnOoF6v0T46RASULQDuG7JIckKiCohDPgq8/edit?usp=sharing).
 
-For small data sizes, CBOR is more compact, while at larger sizes (above 512
-bytes) all formats are fairly close in size (within 3%, generally). Other than
-Nippy, which was by far the fastest codec, clj-cbor was one of the fastest
-encoders and is mid-to-bottom of the pack in decoding times.
+For small and medium data sizes CBOR is more compact than most formats, while at
+larger sizes (above 512 bytes) all formats are fairly close in size (within 10%,
+generally). Other than Nippy, which was by far the fastest codec, clj-cbor
+was one of the fastest encoders and is in the middle of the pack in decoding
+times.
 
-This is still pretty fast, however - here's a few samples from the dataset:
+To give some concrete performance numbers, here are a few samples from the
+dataset:
 
-| Size | Encode | Decode |
-|------|--------|--------|
-|    3 | 2.7 ms | 4.8 ms |
-|   45 | 5.7 ms | 4.7 ms |
-|  173 |  11 ms | 9.5 ms |
-|  408 |  15 ms |  14 ms |
-|  922 |  15 ms |  17 ms |
-| 1817 |  28 ms |  27 ms |
-| 3036 |  70 ms |  76 ms |
-| 7328 | 102 ms | 118 ms |
+| Size |    Encode |    Decode |
+|------|-----------|-----------|
+|    4 |   6.09 µs |   2.31 µs |
+|   55 |  20.87 µs |   7.58 µs |
+|  173 |  12.64 µs |   5.74 µs |
+|  388 |  15.38 µs |  11.60 µs |
+|  882 |  31.55 µs |  14.24 µs |
+| 1632 |  54.82 µs |  33.52 µs |
+| 3127 |  92.14 µs |  64.66 µs |
+| 4918 | 104.92 µs |  59.67 µs |
+| 7328 | 108.37 µs |  82.16 µs |
 
 
 ## Notes

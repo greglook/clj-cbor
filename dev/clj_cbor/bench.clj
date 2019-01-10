@@ -315,6 +315,39 @@
       {})))
 
 
+(defn- parse-data-file
+  "Reads the written TSV and returns a sequence of maps for individual
+  codec/block tests."
+  [file]
+  (let [raw-text (slurp file)
+        lines (map #(str/split % #"\t") (str/split raw-text #"\n"))
+        header (mapv keyword (first lines))
+        rows (next lines)]
+    (map #(zipmap header %) rows)))
+
+
+(defn- print-spreadsheet-rows
+  "Print information suitable for uploading to the Google benchmark
+  spreadsheet. The `info` should be a map of block ids to collections of result
+  maps as output by `parse-data-file`."
+  [info targets]
+  (->>
+    targets
+    (mapcat (comp #(vector (str % "/size") (str % "/encode") (str % "/decode")) name))
+    (list* "block/id" "block/size")
+    (str/join "\t")
+    (println))
+  (doseq [[block-id results] info]
+    (let [codec-results (into {} (map (juxt (comp keyword :codec) identity)) results)]
+      (when (every? codec-results targets)
+        (->>
+          targets
+          (mapcat (comp (juxt :size :encode :decode) codec-results))
+          (list* block-id (:block-size (first results)))
+          (str/join "\t")
+          (println))))))
+
+
 
 ;; ## Entry Point
 
@@ -336,8 +369,7 @@
         (generate-sample-data store n min-size max-size))
 
       "run" ; codec...
-      (let [data-file (io/file "bench/data.tsv")
-            targets (if-let [names (next args)]
+      (let [targets (if-let [names (next args)]
                       (map keyword names)
                       (keys codecs))
             benched (->> targets
@@ -378,12 +410,20 @@
                       out-line (tsv-report-line (:id block) (:size block) result)]
                   (spit data-file (str out-line "\n") :append true)))))))
 
+      "sheet" ; codec...
+      (let [targets (if-let [names (next args)]
+                      (map keyword names)
+                      (keys codecs))
+            results (group-by :block-id (parse-data-file data-file))]
+        (print-spreadsheet-rows results targets))
+
       ; No args
       nil
       (binding [*out* *err*]
         (println "Usage: lein bench stats")
         (println "       lein bench gen [n] [min-size] [max-size]")
         (println "       lein bench run [codec ...]")
+        (println "       lein bench sheet [codec ...]")
         (System/exit 1))
 
       ; Unknown command.
