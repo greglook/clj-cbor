@@ -108,23 +108,24 @@
     (transit/read reader)))
 
 
+; TODO: pull versions directly from project.clj to keep them up to date
 (def codecs
   "Map of codec definitions for the benchmarking harness."
   {:reader
    {:dependency 'org.clojure/clojure
-    :version "1.8.0"
+    :version "1.10.0"
     :encoder #(.getBytes (pr-str %) "UTF-8")
     :decoder #(read-string (String. ^bytes % "UTF-8"))}
 
    :cbor
    {:dependency 'mvxcvi/clj-cbor
-    :version "0.3.0"
+    :version "0.7.0"
     :encoder cbor/encode
     :decoder cbor/decode}
 
    :nippy
    {:dependency 'com.taoensso/nippy
-    :version "2.12.2"
+    :version "2.14.0"
     :encoder nippy/freeze
     :decoder nippy/thaw}
 
@@ -136,13 +137,13 @@
 
    :transit+json
    {:dependency 'com.cognitect/transit-clj
-    :version "0.8.297"
+    :version "0.8.313"
     :encoder (partial transit-encode :json)
     :decoder (partial transit-decode :json)}
 
    :transit+msgpack
    {:dependency 'com.cognitect/transit-clj
-    :version "0.8.297"
+    :version "0.8.313"
     :encoder (partial transit-encode :msgpack)
     :decoder (partial transit-decode :msgpack)}})
 
