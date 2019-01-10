@@ -774,9 +774,9 @@
       0x35 -22
       0x36 -23
       0x37 -24
-      0x38 (dec (- (long (header/read-byte input))))
-      0x39 (dec (- (long (header/read-short input))))
-      0x3A (dec (- (long (header/read-int input))))
+      0x38 (unchecked-dec (unchecked-negate (long (header/read-byte input))))
+      0x39 (unchecked-dec (unchecked-negate (long (header/read-short input))))
+      0x3A (unchecked-dec (unchecked-negate (long (header/read-int input))))
       0x3B (dec (- (header/read-long input)))
       0x3F (error/*handler*
              ::illegal-stream
