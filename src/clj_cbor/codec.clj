@@ -5,8 +5,7 @@
     [clj-cbor.header :as header]
     [clj-cbor.data.core :as data]
     [clj-cbor.data.float16 :as float16]
-    [clojure.string :as str]
-    [clj-cbor.bytes :as bytes])
+    [clojure.string :as str])
   (:import
     clj_cbor.data.simple.SimpleValue
     clj_cbor.data.tagged.TaggedValue
@@ -47,6 +46,18 @@
   (read-value* decoder input (.readUnsignedByte input)))
 
 
+
+;; ## Byte Utilities
+
+(defn- read-bytes
+  "Read `length` bytes from the input stream. Returns a byte array."
+  ^bytes
+  [^DataInputStream input length]
+  (let [buffer (byte-array length)]
+    (.readFully input buffer)
+    buffer))
+
+
 (defn- write-bytes
   "Writes the given value `x` to a byte array."
   [encoder x]
@@ -56,17 +67,46 @@
     (.toByteArray out)))
 
 
+(defn- compare-bytes
+  "Returns a negative number, zero, or a positive number when `x` is 'less
+  than', 'equal to', or 'greater than' `y`.
+
+  Sorting is performed on the bytes of the representation of the key data
+  items without paying attention to the 3/5 bit splitting for major types.
+  The sorting rules are:
+
+  - If two keys have different lengths, the shorter one sorts earlier;
+  - If two keys have the same length, the one with the lower value in
+    (byte-wise) lexical order sorts earlier."
+  [^bytes x ^bytes y]
+  (let [xlen (alength x)
+        ylen (alength y)
+        get-byte (fn get-byte
+                   [^bytes bs i]
+                   (let [b (aget bs i)]
+                     (if (neg? b)
+                       (+ b 256)
+                       b)))]
+    (if (= xlen ylen)
+      ; Same length - compare content.
+      (loop [i 0]
+        (if (< i xlen)
+          (let [xi (get-byte x i)
+                yi (get-byte y i)]
+            (if (= xi yi)
+              (recur (inc i))
+              (compare xi yi)))
+          0))
+      ; Compare lengths.
+      (compare xlen ylen))))
+
+
 
 ;; ## Reader Functions
 
 ;; These functions provide some data-reading capabilities which later
 ;; major-type readers are built on. In particular, these help deal with the
 ;; four data types which can be _streamed_ with indefinite lengths.
-
-(def ^:private ^:const break
-  "Encoded byte representing the _break_ simple value."
-  (short 0xFF))
-
 
 (defn- read-chunks
   "Reads chunks from the input in a streaming fashion, combining them with the
@@ -75,7 +115,7 @@
   [decoder ^DataInputStream input stream-type reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header break)
+      (if (== header 0xFF)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -83,23 +123,23 @@
           (cond
             ; Illegal element type.
             (not= stream-type chunk-type)
-              (error/*handler*
-                ::illegal-chunk-type
-                (str stream-type " stream may not contain chunks of type "
-                     chunk-type)
-                {:stream-type stream-type
-                 :chunk-type chunk-type})
+            (error/*handler*
+              ::illegal-chunk-type
+              (str stream-type " stream may not contain chunks of type "
+                   chunk-type)
+              {:stream-type stream-type
+               :chunk-type chunk-type})
 
             ; Illegal indefinite-length chunk.
             (= info 31)
-              (error/*handler*
-                ::illegal-stream
-                (str stream-type " stream chunks must have a definite length")
-                {:stream-type stream-type})
+            (error/*handler*
+              ::illegal-stream
+              (str stream-type " stream chunks must have a definite length")
+              {:stream-type stream-type})
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (read-value* decoder input header)))))))))
+            (recur (reducer state (read-value* decoder input header)))))))))
 
 
 (defn- read-value-stream
@@ -108,73 +148,11 @@
   [decoder ^DataInputStream input reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header break)
+      (if (== header 0xFF)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
         (recur (reducer state (read-value* decoder input header)))))))
-
-
-
-;; ## Jump Table Decoding Utilities
-
-;; For decoding efficiency, we can directly represent decoding operations
-;; based on the first full byte of an encoded value. This can short circuit
-;;  conditional logic in many cases.
-
-;; These "jump entries" will be defined for some unsigned byte values
-;; and be represented by a single lambda function taking the decoder
-;; and input returning the decoded value
-
-;; See https://tools.ietf.org/html/rfc7049#appendix-B for details
-
-
-(def ^:private int-widths [:byte :short :int :long])
-(def ^:private int-entry-types (concat (range 0 24) int-widths))
-
-
-(defn- uint-expr
-  "Return expression that corresponds to decoding a jump entry value.
-   Jump entries either directly encode some numbers [0, 24), or specify
-   an int-type (byte, short, int, long) to read from the input.
-   Returned expression will be inlined into the jump entry."
-  [int-type input-symb]
-  (let [input-symb (vary-meta input-symb assoc :tag 'java.io.DataInputStream)]
-    (cond
-      (and (int? int-type) (<= 0 int-type 23)) int-type
-      (= int-type :byte)  `(.readUnsignedByte ~input-symb)
-      (= int-type :short) `(.readUnsignedShort ~input-symb)
-      (= int-type :int)   `(bit-and (.readInt ~input-symb) 0xFFFFFFFF)
-      (= int-type :long) `(bytes/to-unsigned-long (.readLong ~input-symb))
-      :else (throw (ex-info (str "Int type must be [0,24) or " int-widths)
-                            {:int-type int-type})))))
-
-
-(defmacro ^:private gen-entry
-  "generate code for jump table entry, all non-atom entries, share similar
-   structure of needing to read a uint value (with a fixed number of bytes)
-   and that value along with potentially further decoding yields value "
-  [entry-id int-type decoder-symb input-symb val-symb & result-expr]
-  (let [val-expr (uint-expr int-type input-symb)]
-    `(fn ~(symbol (str "jump-" entry-id)) [~decoder-symb ~input-symb]
-       (let [~val-symb ~val-expr]
-         ~@result-expr))))
-
-
-(defmacro ^:private gen-int-type-entries
-  "generate entry implementations for all possible initial values
-  (direct, or reading from input along with the byte values for each
-  entry beggining with `start-offset` index (a int literal)."
-  [start-offset decoder-symb input-symb val-symb result-expr]
-  (when-not (<= 0 start-offset (- 256 (count int-entry-types)))
-    (throw (ex-info "Invalid start offset for byte value"
-                    {:start-offset start-offset})))
-  `(vector
-     ~@(map-indexed
-         (fn [inner-idx int-type]
-           (let [idx (+ start-offset inner-idx)]
-             [idx `(gen-entry ~idx ~int-type ~decoder-symb ~input-symb ~val-symb ~result-expr)]))
-         (concat (range 0 24) int-widths))))
 
 
 
@@ -184,6 +162,7 @@
 ;; bits to encode the _major type_ of the value. The remaining five bits
 ;; contain an additional information code, which often gives the size of the
 ;; resulting value.
+
 
 ;; ### Integers
 
@@ -199,17 +178,29 @@
 ;; Additional information 24 means the value is represented in an additional
 ;; `uint8`, 25 means a `uint16`, 26 means a `uint32`, and 27 means a `uint64`.
 
+(def ^:private min-integer
+  "The minimum integer value representable as a native type."
+  (-> BigInteger/ONE
+      (.shiftLeft 64)
+      (.negate)))
+
+
+(def ^:private max-integer
+  "The maximum integer value representable as a native type."
+  (-> BigInteger/ONE
+      (.shiftLeft 64)
+      (.subtract BigInteger/ONE)))
+
+
 (defn- representable-integer?
-  "Determines whether the given value is small enough to represent using
-  the normal integer major-type.
+  "True if the value is small enough to represent using the normal integer
+  major-type.
 
   This is made slightly trickier at the high end of the representable range by
   the JVM's lack of unsigned types, so some values that are represented in CBOR
   as 8-byte integers must be represented by `BigInt` in memory."
   [value]
-  (and (integer? value)
-       (<= (*  2N Long/MIN_VALUE) value)
-       (>  (* -2N Long/MIN_VALUE) value)))
+  (and (integer? value) (<= min-integer value max-integer)))
 
 
 (defn- write-integer
@@ -220,39 +211,6 @@
     (header/write out :unsigned-integer n)))
 
 
-(defn- read-positive-integer
-  "Reads an unsigned integer from the input stream."
-  [decoder ^DataInputStream input info]
-  (let [value (header/read-code input info)]
-    (if (= :indefinite value)
-      (error/*handler*
-        ::illegal-stream
-        "Encoded integers cannot have indefinite length."
-        {:code info})
-      value)))
-
-
-(defn- read-negative-integer
-  "Reads a negative integer from the input stream."
-  [decoder input info]
-  (let [value (header/read-code input info)]
-    (if (= :indefinite value)
-      (error/*handler*
-        ::illegal-stream
-        "Encoded integers cannot have indefinite length."
-        {:code info})
-      (- -1 value))))
-
-
-(def ^:private int-jump-entries
-  (into
-    ;; 0x00 through 0x17: direct value [0, 24)
-    ;; 0x18 through 0x1b: read int from input
-    (gen-int-type-entries 0 decoder input v v)
-
-    ;; 0x20 through 0x37: Negative number
-    ;; 0x38 through 0x3c: Read uint then negate
-    (gen-int-type-entries 0x20 decoder input v (unchecked-dec (- v)))))
 
 ;; ### Byte Strings
 
@@ -272,28 +230,23 @@
     (+ hlen (count bs))))
 
 
-(defn- read-byte-string
-  "Reads a sequence of bytes from the input stream."
-  [decoder ^DataInputStream input info]
-  (let [length (header/read-code input info)]
-    (if (= length :indefinite)
-      ; Read sequence of definite-length byte strings.
-      (read-chunks decoder input :byte-string bytes/concat-bytes)
-      ; Read definite-length byte string.
-      (bytes/read-bytes input length))))
-
-
-(def ^:private byte-string-jump-entries
-  ;; 0x40 through 0x57: fixed-length byte strings
-  ;; 0x58 through 0x5b: read length for byte strings
-  (gen-int-type-entries 0x40 decoder input n (bytes/read-bytes input n)))
+(defn- concat-bytes
+  "Reducing function which builds a contiguous byte-array from a sequence of
+  byte-array chunks."
+  ([]
+   (ByteArrayOutputStream.))
+  ([buffer]
+   (.toByteArray ^ByteArrayOutputStream buffer))
+  ([buffer v]
+   (.write ^ByteArrayOutputStream buffer ^bytes v)
+   buffer))
 
 
 
 ;; ### Text Strings
 
 ;; Major type 3 encodes a text string, specifically a string of Unicode
-;; characters that is encoded as UTF-8 [RFC3629]. 
+;; characters that is encoded as UTF-8 [RFC3629].
 ;;
 ;; The format of this type is identical to that of byte strings (major type 2),
 ;; that is, as with major type 2, the length gives the number of bytes. This
@@ -315,6 +268,12 @@
     (+ hlen (count text))))
 
 
+(defn- read-text
+  "Reads a fixed-length text string from the input."
+  [^DataInputStream input n]
+  (String. (read-bytes input n) "UTF-8"))
+
+
 (defn- concat-text
   "Reducing function which builds a contiguous string from a sequence of string
   chunks."
@@ -325,24 +284,6 @@
   ([buffer v]
    (.append ^StringBuilder buffer ^String v)
    buffer))
-
-
-(defn- read-text-string
-  "Reads a sequence of bytes from the input stream."
-  [decoder ^DataInputStream input info]
-  (let [length (header/read-code input info)]
-    (if (= length :indefinite)
-      ; Read sequence of definite-length text strings.
-      (read-chunks decoder input :text-string concat-text)
-      ; Read definite-length text string.
-      (String. (bytes/read-bytes input length) "UTF-8"))))
-
-
-(def ^:private text-string-jump-entries
-  ;; 0x60 through 0x77: fixed width utf8 string
-  ;; 0x78 through 0x7b: read utf8 string length
-  (gen-int-type-entries 0x60 decoder input n
-                        (String. (bytes/read-bytes input n) "UTF8")))
 
 
 
@@ -375,34 +316,16 @@
   ([xs v] (conj xs v)))
 
 
-(defn- read-fixed-length-array [^long n decoder input]
-  (if (zero? n)
-    []
-    (loop [result (transient []) idx 0]
-      (if (= idx n)
-        (persistent! result)
-        (recur (conj! result (read-value decoder input))
-               (unchecked-inc idx))))))
-
-
 (defn- read-array
-  "Reads an array of items from the input stream."
-  [decoder ^DataInputStream input info]
-  (let [length (header/read-code input info)]
-    (if (= length :indefinite)
-      ; Read streaming sequence of elements.
-      (->
-        (read-value-stream decoder input build-array)
-        (vary-meta assoc :cbor/streaming true))
-      ; Read `length` elements.
-      (read-fixed-length-array length decoder input))))
-
-
-(def ^:private data-array-jump-entries
-  ;; 0x80 through 0x97: fixed length array
-  ;; 0x98 through 0x9b: read array length
-  (gen-int-type-entries 0x80 decoder input n
-                        (read-fixed-length-array n decoder input)))
+  "Read a fixed length array from the input as a vector of elements."
+  [decoder input ^long n]
+  {:pre [(pos? n)]}
+  (loop [result (transient [])
+         idx 0]
+    (if (= idx n)
+      (persistent! result)
+      (recur (conj! result (read-value decoder input))
+             (unchecked-inc idx)))))
 
 
 
@@ -431,9 +354,9 @@
   (let [hlen (header/write out :data-map (count xm))]
     (reduce
       (fn encode-entry
-        [sum [k v]]
-        (let [klen (write-value encoder out k)
-              vlen (write-value encoder out v)]
+        [^long sum [k v]]
+        (let [^long klen (write-value encoder out k)
+              ^long vlen (write-value encoder out v)]
           (+ sum klen vlen)))
       hlen
       xm)))
@@ -449,12 +372,14 @@
       (map (fn encode-key
              [[k v]]
              [(write-bytes encoder k) v]))
-      (sort-by first bytes/compare-bytes)
+      (sort-by first compare-bytes)
       (reduce
         (fn encode-entry
-          [sum [k v]]
-          (.write out ^bytes k)
-          (+ sum (count k) (write-value encoder out v)))
+          [^long sum [^bytes k v]]
+          (.write out k)
+          (let [klen (alength k)
+                ^long vlen (write-value encoder out v)]
+            (+ sum klen vlen)))
         hlen))))
 
 
@@ -495,40 +420,23 @@
      [(assoc m k e)])))
 
 
-(defn read-fixed-length-map [^long n decoder input]
-  (if (zero? n)
-    {}
-    (loop [result (transient {}) idx 0]
-      (if (= idx n)
-        (persistent! result)
-        (let [k (read-value decoder input)]
-          (if (contains? result k)
-            (error/*handler* ::duplicate-map-key
-                             (str "Encoded map contains duplicate key: " (pr-str k))
-                             {:map (persistent! result), :key k})
-            (recur (assoc! result k (read-value decoder input))
-                   (unchecked-inc idx))))))))
-
-
 (defn- read-map
-  "Reads a CBOR map from the input stream, returning the constructed map
-  value."
-  [decoder ^DataInputStream input info]
-  (let [length (header/read-code input info)]
-    (if (= length :indefinite)
-      ; Read streaming sequence of key/value entries.
-      (->
-        (read-value-stream decoder input build-map)
-        (vary-meta assoc :cbor/streaming true))
-      ; Read `length` entry pairs.
-      (read-fixed-length-map length decoder input))))
-
-
-(def ^:private map-jump-entries
-  ;; 0xa0 through 0xb7: fixed length map
-  ;; 0xb8 through 0xbb: read map length
-  (gen-int-type-entries 0xa0 decoder input n
-                        (read-fixed-length-map n decoder input)))
+  "Read a fixed length map from the input as a sequence of entries."
+  [decoder input ^long n]
+  {:pre [(pos? n)]}
+  (loop [result (transient {})
+         idx 0]
+    (if (= idx n)
+      (persistent! result)
+      (let [k (read-value decoder input)]
+        (if (contains? result k)
+          (error/*handler*
+            ::duplicate-map-key
+            (str "Encoded map contains duplicate key: " (pr-str k))
+            {:map (persistent! result)
+             :key k})
+          (recur (assoc! result k (read-value decoder input))
+                 (unchecked-inc idx)))))))
 
 
 
@@ -567,12 +475,12 @@
     (->>
       xs
       (map (partial write-bytes encoder))
-      (sort bytes/compare-bytes)
+      (sort compare-bytes)
       (reduce
         (fn encode-entry
-          [sum v]
-          (.write out ^bytes v)
-          (+ sum (count v)))
+          [^long sum ^bytes v]
+          (.write out v)
+          (+ sum (alength v)))
         (+ tag-hlen array-hlen)))))
 
 
@@ -613,10 +521,11 @@
   ([encoder ^DataOutputStream out tag value]
    (let [hlen (header/write out :tagged-value tag)
          vlen (write-value encoder out value)]
-     (+ hlen vlen))))
+     (+ hlen ^long vlen))))
 
 
 (defn- read-tagged
+  "Read a tagged value from the input stream."
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
@@ -624,6 +533,7 @@
       (read-set decoder value)
       (try
         (if-let [handler ((:read-handlers decoder) tag)]
+          ; TODO: better error reporting
           (handler value)
           (if (:strict decoder)
             (error/*handler*
@@ -676,28 +586,32 @@
   determined by class."
   [encoder ^DataOutputStream out n]
   (cond
-    (zero? n)
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out float16/zero)
-          3)
+    (zero? (double n))
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out float16/zero)
+        3)
+
     (Double/isNaN n)
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out float16/not-a-number)
-          3)
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out float16/not-a-number)
+        3)
+
     (Double/isInfinite n)
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out (if (pos? n)
-                             float16/positive-infinity
-                             float16/negative-infinity))
-          3)
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out (if (pos? (double n))
+                           float16/positive-infinity
+                           float16/negative-infinity))
+        3)
+
     (instance? Float n)
-      (do (header/write-leader out :simple-value 26)
-          (.writeFloat out (float n))
-          5)
+    (do (header/write-leader out :simple-value 26)
+        (.writeFloat out (float n))
+        5)
+
     :else
-      (do (header/write-leader out :simple-value 27)
-          (.writeDouble out (double n))
-          9)))
+    (do (header/write-leader out :simple-value 27)
+        (.writeDouble out (double n))
+        9)))
 
 
 (defn- write-simple
@@ -707,19 +621,23 @@
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
-        (header/write-leader out :simple-value n)
+      (do (header/write-leader out :simple-value n)
+          1)
+
       (<= 32 n 255)
-        (do (header/write-leader out :simple-value 24)
-            (.writeByte out n)
-            2)
+      (do (header/write-leader out :simple-value 24)
+          (.writeByte out n)
+          2)
+
       :else
-        (error/*handler*
-          ::illegal-simple-type
-          (str "Illegal or reserved simple value: " n)
-          {:code n}))))
+      (error/*handler*
+        ::illegal-simple-type
+        (str "Illegal or reserved simple value: " n)
+        {:code n}))))
 
 
 (defn- unknown-simple
+  "Helper function to construct an unknown simple value from the given code."
   [decoder value]
   (if (:strict decoder)
     (error/*handler*
@@ -729,43 +647,10 @@
     (data/simple-value value)))
 
 
-(defn- read-simple
-  "Reads a simple value from the input."
-  [decoder ^DataInputStream input ^long info]
-  (case info
-    20 false
-    21 true
-    22 nil
-    23 data/undefined
-    24 (unknown-simple decoder (.readUnsignedByte input))
-    25 (float16/decode (.readUnsignedShort input))
-    26 (.readFloat input)
-    27 (.readDouble input)
-    (28 29 30)
-      (error/*handler*
-        ::illegal-simple-type
-        (format "Additional information simple-value code %d is reserved."
-                info)
-        {:code info})
-    31 (error/*handler*
-         ::unexpected-break
-         "Break encountered outside streaming context."
-         {})
-    (unknown-simple decoder info)))
-
-
-(def ^:private simple-value-jump-entries
-  ;; simple values: starting at 0xf4
-  ;; constantly is slower since uses `applyTo`,
-  ;; whereas we need only fixed 2-arity
-  [[0xf4 (fn [_ _] false)]
-   [0xf5 (fn [_ _] true)]
-   [0xf6 (fn [_ _] nil)]
-   [0xf7 (fn [_ _] data/undefined)]])
-
-
 
 ;; ## Codec Implementation
+
+;; ### Encoding Functions
 
 (defn- write-native
   "Writes the value `x` as one of the native CBOR values and return the number
@@ -801,6 +686,7 @@
   (let [dispatch (:dispatch codec)
         write-handlers (:write-handlers codec)]
     (when-let [formatter (write-handlers (dispatch x))]
+      ; TODO: better error reporting
       (write-value codec out (formatter x)))))
 
 
@@ -816,28 +702,199 @@
     :else       nil))
 
 
-(def ^:private jump-table-entries
-  (vec
-    (concat
-      int-jump-entries
-      byte-string-jump-entries
-      text-string-jump-entries
-      data-array-jump-entries
-      map-jump-entries
-      simple-value-jump-entries)))
+;; ### Decoding Functions
+
+(defn- jump-decode
+  "Use a jump-table to decode the next value from the input.
+
+  For decoding efficiency, we can directly represent decoding operations based
+  on the first full byte of an encoded value. This can short circuit
+  conditional logic in many cases.
+
+  See https://tools.ietf.org/html/rfc7049#appendix-B for details."
+  [decoder input ^long header]
+  (let [info (bit-and 0x1F header)]
+    (case (int header)
+      ; Positive Integers
+      0x00  0
+      0x01  1
+      0x02  2
+      0x03  3
+      0x04  4
+      0x05  5
+      0x06  6
+      0x07  7
+      0x08  8
+      0x09  9
+      0x0A 10
+      0x0B 11
+      0x0C 12
+      0x0D 13
+      0x0E 14
+      0x0F 15
+      0x10 16
+      0x11 17
+      0x12 18
+      0x13 19
+      0x14 20
+      0x15 21
+      0x16 22
+      0x17 23
+      0x18 (header/read-byte input)
+      0x19 (header/read-short input)
+      0x1A (header/read-int input)
+      0x1B (header/read-long input)
+      0x1F (error/*handler*
+             ::illegal-stream
+             "Encoded integers cannot have indefinite length."
+             {:code info})
+
+      ; Negative Integers
+      0x20  -1
+      0x21  -2
+      0x22  -3
+      0x23  -4
+      0x24  -5
+      0x25  -6
+      0x26  -7
+      0x27  -8
+      0x28  -9
+      0x29 -10
+      0x2A -11
+      0x2B -12
+      0x2C -13
+      0x2D -14
+      0x2E -15
+      0x2F -16
+      0x30 -17
+      0x31 -18
+      0x32 -19
+      0x33 -20
+      0x34 -21
+      0x35 -22
+      0x36 -23
+      0x37 -24
+      0x38 (unchecked-dec (unchecked-negate (long (header/read-byte input))))
+      0x39 (unchecked-dec (unchecked-negate (long (header/read-short input))))
+      0x3A (unchecked-dec (unchecked-negate (long (header/read-int input))))
+      0x3B (dec (- (header/read-long input)))
+      0x3F (error/*handler*
+             ::illegal-stream
+             "Encoded integers cannot have indefinite length."
+             {:code info})
+
+      ; Byte Strings
+      0x40 (byte-array 0)
+
+      (0x41 0x42 0x43 0x44 0x45 0x46 0x47
+       0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F
+       0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57)
+      (read-bytes input info)
+
+      0x58 (read-bytes input (header/read-byte input))
+      0x59 (read-bytes input (header/read-short input))
+      0x5A (read-bytes input (header/read-int input))
+      0x5B (read-bytes input (header/read-long input))
+      0x5F (read-chunks decoder input :byte-string concat-bytes)
+
+      ; Text Strings
+      0x60 ""
+
+      (0x61 0x62 0x63 0x64 0x65 0x66 0x67
+       0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F
+       0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77)
+      (read-text input info)
+
+      0x78 (read-text input (header/read-byte input))
+      0x79 (read-text input (header/read-short input))
+      0x7A (read-text input (header/read-int input))
+      0x7B (read-text input (header/read-long input))
+      0x7F (read-chunks decoder input :text-string concat-text)
+
+      ; Arrays
+      0x80 []
+
+      (0x81 0x82 0x83 0x84 0x85 0x86 0x87
+       0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F
+       0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97)
+      (read-array decoder input info)
+
+      0x98 (read-array decoder input (header/read-byte input))
+      0x99 (read-array decoder input (header/read-short input))
+      0x9A (read-array decoder input (header/read-int input))
+      0x9B (read-array decoder input (header/read-long input))
+      0x9F (-> (read-value-stream decoder input build-array)
+               (vary-meta assoc :cbor/streaming true))
+
+      ; Maps
+      0xA0 {}
+
+      (0xA1 0xA2 0xA3 0xA4 0xA5 0xA6 0xA7
+       0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF
+       0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7)
+      (read-map decoder input info)
+
+      0xB8 (read-map decoder input (header/read-byte input))
+      0xB9 (read-map decoder input (header/read-short input))
+      0xBA (read-map decoder input (header/read-int input))
+      0xBB (read-map decoder input (header/read-long input))
+      0xBF (-> (read-value-stream decoder input build-map)
+               (vary-meta assoc :cbor/streaming true))
+
+      ; Tagged Values
+      (0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7
+       0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF
+       0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7
+       0xD8 0xD9 0xDA 0xDB)
+      (read-tagged decoder input info)
+
+      0xDF
+      (error/*handler*
+        ::illegal-stream
+        "Encoded tags cannot have indefinite length."
+        {:code info})
+
+      ; Simple Values
+      (0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7
+       0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF
+       0xF0 0xF1 0xF2 0xF3)
+      (unknown-simple decoder info)
+
+      0xF4 false
+      0xF5 true
+      0xF6 nil
+      0xF7 data/undefined
+      0xF8 (unknown-simple decoder (.readUnsignedByte input))
+      0xF9 (float16/decode (.readUnsignedShort input))
+      0xFA (.readFloat input)
+      0xFB (.readDouble input)
+
+      (0xFC 0xFD 0xFE)
+      (error/*handler*
+        ::illegal-simple-type
+        (format "Additional information simple-value code %d is reserved."
+                info)
+        {:code info})
+
+      0xFF
+      (error/*handler*
+        ::unexpected-break
+        "Break encountered outside streaming context."
+        {})
+
+      ; Otherwise, must be some reserved info code.
+      (error/*handler*
+        ::header/reserved-info-code
+        (format "Additional information int code %d is reserved."
+                info)
+        {:header header
+         :info info}))))
 
 
-(defn jump-decoder-table
-  ([] (jump-decoder-table []))
-  ([extra-entries]
-   (let [entries (object-array 256)]
-     (doseq [[idx e] jump-table-entries]
-       (aset entries idx e))
-     entries)))
-
+;; ## Codec Record
 
 (defrecord CBORCodec
-  [dispatch write-handlers read-handlers set-tag ^objects jump-table]
+  [dispatch write-handlers read-handlers set-tag]
 
   Encoder
 
@@ -856,18 +913,7 @@
 
   (read-value*
     [this input header]
-    (if-let [entry-fn (and jump-table (aget jump-table header))]
-      (entry-fn this input)
-      (let [[mtype info] (header/decode header)]
-        (case mtype
-          :unsigned-integer (read-positive-integer this input info)
-          :negative-integer (read-negative-integer this input info)
-          :byte-string      (read-byte-string this input info)
-          :text-string      (read-text-string this input info)
-          :data-array       (read-array this input info)
-          :data-map         (read-map this input info)
-          :tagged-value     (read-tagged this input info)
-          :simple-value     (read-simple this input info))))))
+    (jump-decode this input header)))
 
 
 (defn blank-codec

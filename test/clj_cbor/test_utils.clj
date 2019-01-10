@@ -4,8 +4,9 @@
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error])
   (:import
-    (java.io ByteArrayInputStream
-             DataInputStream)
+    (java.io
+      ByteArrayInputStream
+      DataInputStream)
     (java.util
       Collection
       List
@@ -14,8 +15,13 @@
     java.util.regex.Pattern
     javax.xml.bind.DatatypeConverter))
 
-(defn ->data-input [bs]
-  (-> bs byte-array ByteArrayInputStream. DataInputStream.))
+
+(defn ->data-input
+  "Convert a sequence of bytes into a `DataInputStream`."
+  [bs]
+  (-> (byte-array bs)
+      (ByteArrayInputStream.)
+      (DataInputStream.)))
 
 
 (defn bytes=
