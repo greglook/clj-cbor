@@ -73,7 +73,7 @@
     (check-roundtrip Long/MAX_VALUE "1B7FFFFFFFFFFFFFFF")
     (check-roundtrip 18446744073709551615N "1BFFFFFFFFFFFFFFFF"))
   (testing "errors"
-    (is (cbor-error? :clj-cbor.codec/illegal-stream
+    (is (cbor-error? ::codec/illegal-stream
           (decode-hex "1F00")))))
 
 
@@ -99,7 +99,7 @@
     (check-roundtrip Long/MIN_VALUE "3B7FFFFFFFFFFFFFFF")
     (check-roundtrip -18446744073709551616 "3BFFFFFFFFFFFFFFFF"))
   (testing "errors"
-    (is (cbor-error? :clj-cbor.codec/illegal-stream
+    (is (cbor-error? ::codec/illegal-stream
           (decode-hex "3F00")))))
 
 
@@ -111,11 +111,11 @@
     (is (bytes= [1 2 3 4] (decode-hex "4401020304"))))
   (testing "streamed chunks"
     (is (bytes= [1 2 3 4 5] (decode-hex "5F42010243030405FF")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-chunk-type
+    (is (cbor-error? {:type ::codec/illegal-chunk-type
                       :data {:stream-type :byte-string
                              :chunk-type :unsigned-integer}}
           (decode-hex "5F42010201FF")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-stream
+    (is (cbor-error? {:type ::codec/illegal-stream
                       :data {:stream-type :byte-string}}
           (decode-hex "5F4201025F4100FFFF")))))
 
@@ -131,11 +131,11 @@
     (check-roundtrip "\ud800\udd51" "64F0908591"))
   (testing "streamed chunks"
     (is (= "streaming" (decode-hex "7F657374726561646D696E67FF")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-chunk-type
+    (is (cbor-error? {:type ::codec/illegal-chunk-type
                       :data {:stream-type :text-string
                              :chunk-type :negative-integer}}
           (decode-hex "7F6265732100FF")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-stream
+    (is (cbor-error? {:type ::codec/illegal-stream
                       :data {:stream-type :text-string}}
           (decode-hex "7F6265737F6161FFFF")))))
 
@@ -176,15 +176,15 @@
              (encoded-hex codec {0 8, "a" 2, (byte-array [0 1 2]) "bc"})))))
   (testing "errors"
     (testing "duplicate key in fixed map"
-      (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
+      (is (cbor-error? {:type ::codec/duplicate-map-key
                         :data {:map {"Fun" true}, :key "Fun"}}
             (decode-hex "A26346756EF56346756EF4"))))
     (testing "duplicate key in streaming map"
-      (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
+      (is (cbor-error? {:type ::codec/duplicate-map-key
                         :data {:map {"Fun" true}, :key "Fun"}}
             (decode-hex "BF6346756EF56346756EF4FF"))))
     (testing "missing value in streaming map"
-      (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
+      (is (cbor-error? {:type ::codec/missing-map-value
                         :data {:map {}, :key "Fun"}}
             (decode-hex "BF6346756EFF"))))))
 
@@ -194,11 +194,11 @@
     (check-roundtrip #{} "D9010280")
     (check-roundtrip #{1 2 3} "D9010283010302"))
   (testing "read handler"
-    (is (cbor-error? :clj-cbor.codec/tag-handling-error
+    (is (cbor-error? ::codec/tag-handling-error
           (decode-hex "D90102A10102"))))
   (testing "strict mode"
     (let [codec (cbor/cbor-codec :strict true)]
-      (is (cbor-error? :clj-cbor.codec/duplicate-set-entry
+      (is (cbor-error? ::codec/duplicate-set-entry
             (decode-hex codec "D90102820101")))))
   (testing "canonical mode"
     (let [codec (cbor/cbor-codec :canonical true)]
@@ -255,21 +255,21 @@
     (check-roundtrip (data/simple-value 32)  "F820")
     (check-roundtrip (data/simple-value 255) "F8FF"))
   (testing "reserved codes"
-    (is (cbor-error? :clj-cbor.codec/illegal-simple-type
+    (is (cbor-error? ::codec/illegal-simple-type
           (encoded-hex (data/simple-value 24))))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+    (is (cbor-error? {:type ::codec/illegal-simple-type
                       :data {:code 28}}
           (decode-hex "FC")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+    (is (cbor-error? {:type ::codec/illegal-simple-type
                       :data {:code 29}}
           (decode-hex "FD")))
-    (is (cbor-error? {:type :clj-cbor.codec/illegal-simple-type
+    (is (cbor-error? {:type ::codec/illegal-simple-type
                       :data {:code 30}}
           (decode-hex "FE")))
-    (is (cbor-error? :clj-cbor.codec/unexpected-break
+    (is (cbor-error? ::codec/unexpected-break
           (decode-hex "FF"))))
   (testing "strict mode"
-    (is (cbor-error? :clj-cbor.codec/unknown-simple-value
+    (is (cbor-error? ::codec/unknown-simple-value
           (decode-hex (cbor/cbor-codec :strict true) "EF")))))
 
 
@@ -278,15 +278,15 @@
     (is (= (data/tagged-value 11 "a") (decode-hex "CB6161"))))
   (testing "strict mode"
     (let [codec (cbor/cbor-codec :strict true)]
-      (is (cbor-error? :clj-cbor.codec/unknown-tag
+      (is (cbor-error? ::codec/unknown-tag
             (decode-hex codec "CC08")))))
   (testing "handler error"
     (let [handler (fn [t v] (throw (Exception. "BOOM")))
           codec (cbor/cbor-codec :read-handlers {0 handler})]
-      (is (cbor-error? :clj-cbor.codec/tag-handling-error
+      (is (cbor-error? ::codec/tag-handling-error
             (decode-hex codec "C00F")))))
   (testing "unknown types"
-    (is (cbor-error? :clj-cbor.codec/unsupported-type
+    (is (cbor-error? ::codec/unsupported-type
           (encoded-hex (java.util.Currency/getInstance "USD"))))))
 
 

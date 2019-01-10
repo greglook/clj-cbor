@@ -123,23 +123,23 @@
           (cond
             ; Illegal element type.
             (not= stream-type chunk-type)
-              (error/*handler*
-                ::illegal-chunk-type
-                (str stream-type " stream may not contain chunks of type "
-                     chunk-type)
-                {:stream-type stream-type
-                 :chunk-type chunk-type})
+            (error/*handler*
+              ::illegal-chunk-type
+              (str stream-type " stream may not contain chunks of type "
+                   chunk-type)
+              {:stream-type stream-type
+               :chunk-type chunk-type})
 
             ; Illegal indefinite-length chunk.
             (= info 31)
-              (error/*handler*
-                ::illegal-stream
-                (str stream-type " stream chunks must have a definite length")
-                {:stream-type stream-type})
+            (error/*handler*
+              ::illegal-stream
+              (str stream-type " stream chunks must have a definite length")
+              {:stream-type stream-type})
 
             ; Reduce state with next value.
             :else
-              (recur (reducer state (read-value* decoder input header)))))))))
+            (recur (reducer state (read-value* decoder input header)))))))))
 
 
 (defn- read-value-stream
@@ -193,8 +193,8 @@
 
 
 (defn- representable-integer?
-  "Determines whether the given value is small enough to represent using
-  the normal integer major-type.
+  "True if the value is small enough to represent using the normal integer
+  major-type.
 
   This is made slightly trickier at the high end of the representable range by
   the JVM's lack of unsigned types, so some values that are represented in CBOR
@@ -525,6 +525,7 @@
 
 
 (defn- read-tagged
+  "Read a tagged value from the input stream."
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
@@ -586,27 +587,31 @@
   [encoder ^DataOutputStream out n]
   (cond
     (zero? (double n))
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out float16/zero)
-          3)
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out float16/zero)
+        3)
+
     (Double/isNaN n)
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out float16/not-a-number)
-          3)
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out float16/not-a-number)
+        3)
+
     (Double/isInfinite n)
-      (do (header/write-leader out :simple-value 25)
-          (.writeShort out (if (pos? (double n))
-                             float16/positive-infinity
-                             float16/negative-infinity))
-          3)
+    (do (header/write-leader out :simple-value 25)
+        (.writeShort out (if (pos? (double n))
+                           float16/positive-infinity
+                           float16/negative-infinity))
+        3)
+
     (instance? Float n)
-      (do (header/write-leader out :simple-value 26)
-          (.writeFloat out (float n))
-          5)
+    (do (header/write-leader out :simple-value 26)
+        (.writeFloat out (float n))
+        5)
+
     :else
-      (do (header/write-leader out :simple-value 27)
-          (.writeDouble out (double n))
-          9)))
+    (do (header/write-leader out :simple-value 27)
+        (.writeDouble out (double n))
+        9)))
 
 
 (defn- write-simple
@@ -616,17 +621,19 @@
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
-        (do (header/write-leader out :simple-value n)
-            1)
+      (do (header/write-leader out :simple-value n)
+          1)
+
       (<= 32 n 255)
-        (do (header/write-leader out :simple-value 24)
-            (.writeByte out n)
-            2)
+      (do (header/write-leader out :simple-value 24)
+          (.writeByte out n)
+          2)
+
       :else
-        (error/*handler*
-          ::illegal-simple-type
-          (str "Illegal or reserved simple value: " n)
-          {:code n}))))
+      (error/*handler*
+        ::illegal-simple-type
+        (str "Illegal or reserved simple value: " n)
+        {:code n}))))
 
 
 (defn- unknown-simple
@@ -779,10 +786,9 @@
       ; Byte Strings
       0x40 (byte-array 0)
 
-      (0x41 0x42 0x43 0x44 0x45 0x46
-       0x47 0x48 0x49 0x4A 0x4B 0x4C
-       0x4D 0x4E 0x4F 0x50 0x51 0x52
-       0x53 0x54 0x55 0x56 0x57)
+      (0x41 0x42 0x43 0x44 0x45 0x46 0x47
+       0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F
+       0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57)
       (read-bytes input info)
 
       0x58 (read-bytes input (header/read-byte input))
@@ -794,10 +800,9 @@
       ; Text Strings
       0x60 ""
 
-      (0x61 0x62 0x63 0x64 0x65 0x66
-       0x67 0x68 0x69 0x6A 0x6B 0x6C
-       0x6D 0x6E 0x6F 0x70 0x71 0x72
-       0x73 0x74 0x75 0x76 0x77)
+      (0x61 0x62 0x63 0x64 0x65 0x66 0x67
+       0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F
+       0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77)
       (read-text input info)
 
       0x78 (read-text input (header/read-byte input))
@@ -809,10 +814,9 @@
       ; Arrays
       0x80 []
 
-      (0x81 0x82 0x83 0x84 0x85 0x86
-       0x87 0x88 0x89 0x8A 0x8B 0x8C
-       0x8D 0x8E 0x8F 0x90 0x91 0x92
-       0x93 0x94 0x95 0x96 0x97)
+      (0x81 0x82 0x83 0x84 0x85 0x86 0x87
+       0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F
+       0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97)
       (read-array decoder input info)
 
       0x98 (read-array decoder input (header/read-byte input))
@@ -825,10 +829,9 @@
       ; Maps
       0xA0 {}
 
-      (0xA1 0xA2 0xA3 0xA4 0xA5 0xA6
-       0xA7 0xA8 0xA9 0xAA 0xAB 0xAC
-       0xAD 0xAE 0xAF 0xB0 0xB1 0xB2
-       0xB3 0xB4 0xB5 0xB6 0xB7)
+      (0xA1 0xA2 0xA3 0xA4 0xA5 0xA6 0xA7
+       0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF
+       0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7)
       (read-map decoder input info)
 
       0xB8 (read-map decoder input (header/read-byte input))
