@@ -185,6 +185,17 @@
            :version version})))))
 
 
+(defn bench-adhoc
+  "Benchmark a set of codecs against some ad-hoc data structure."
+  ([data]
+   (bench-adhoc (keys codecs) data))
+  ([targets data]
+   (printf "  %-17s  %10s  %10s  %12s\n" "Codec" "Encode" "Decode" "Size")
+   (flush)
+   (doseq [codec-type targets]
+     (bench-codec codec-type data))))
+
+
 
 ;; ## Size Histograms
 
