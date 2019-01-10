@@ -13,6 +13,9 @@ for the initial header byte.
 [#9](https://github.com/greglook/clj-cbor/issues/9)
 [#11](https://github.com/greglook/clj-cbor/pull/11)
 
+For a representative data sample of about ~97 KB, this brings the benchmarked
+decoding time from 8.454 ms to 4.089 ms, or about twice as fast!
+
 ### Changed
 - Upgrade to Clojure 1.10.0.
 - Many operations in the codec are type-hinted to use primitive operations where
