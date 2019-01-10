@@ -175,12 +175,18 @@
       (is (= "A3000861610243000102626263"
              (encoded-hex codec {0 8, "a" 2, (byte-array [0 1 2]) "bc"})))))
   (testing "errors"
-    (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
-                      :data {:map {}, :key "Fun"}}
-          (decode-hex "BF6346756EFF")))
-    (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
-                      :data {:map {"Fun" true}, :key "Fun"}}
-          (decode-hex "A26346756EF56346756EF4FF")))))
+    (testing "duplicate key in fixed map"
+      (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
+                        :data {:map {"Fun" true}, :key "Fun"}}
+            (decode-hex "A26346756EF56346756EF4"))))
+    (testing "duplicate key in streaming map"
+      (is (cbor-error? {:type :clj-cbor.codec/duplicate-map-key
+                        :data {:map {"Fun" true}, :key "Fun"}}
+            (decode-hex "BF6346756EF56346756EF4FF"))))
+    (testing "missing value in streaming map"
+      (is (cbor-error? {:type :clj-cbor.codec/missing-map-value
+                        :data {:map {}, :key "Fun"}}
+            (decode-hex "BF6346756EFF"))))))
 
 
 (deftest set-collections
