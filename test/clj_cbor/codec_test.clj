@@ -290,111 +290,95 @@
           (encoded-hex (java.util.Currency/getInstance "USD"))))))
 
 
-#_
-(defn test-map-entry
-  [tbl-idx num-byte-padding map-len]
-  ;; create enough input to represent map
-  (let [tbl (codec/jump-decoder-table)
-        bs (concat (repeat num-byte-padding 0)
-                   [map-len]
-                   (repeat (* 2 map-len) 0))
-        m (into {} (for [i (range map-len)] [i i]))
-        coll (flatten (seq m))
-        iter (.iterator coll)
-        dis (->data-input bs)
-        decoder (reify codec/Decoder
-                  (read-value* [_ _ _]
-                    (.next iter)))
-        entry-fn (aget tbl tbl-idx)]
-    (is (= (entry-fn decoder dis) m))))
-
-
-#_
-(defn test-array-entry
-  [tbl-idx num-pad coll]
-  (let [iter (.iterator coll)
-        ;; this exists so bytes can be read
-        bs (concat (repeat num-pad 0) [(count coll)] (repeat (count coll) 0))
-        dis (->data-input bs)
-        ;; this will 'mock' the array entry values
-        decoder (reify codec/Decoder
-                  (read-value* [_ _ _]
-                    (.next iter)))
-        tbl (codec/jump-decoder-table)
-        entry-fn (aget tbl tbl-idx)]
-    (is (= coll (entry-fn decoder dis)))))
-
-
-#_
 (deftest jump-table
-  (testing "negative integers"
-    (let [tbl (codec/jump-decoder-table)]
-      (doseq [idx (range 0x20 0x38)]
-        (is (= ((aget tbl idx) nil nil) (dec (- (- idx 0x20))))))
-      (are [idx bs target]
-          (let [dis (->data-input bs)]
-            (is (= ((aget tbl idx) nil dis) target)))
-        0x38 [100] -101
-        0x39 [1 1] -258
-        0x3a [1 1 1 1] -16843010
-        0x3b (repeat 8 1) -72340172838076674)))
-  (testing "byte strings"
-    (let [tbl (codec/jump-decoder-table)]
-      (doseq [idx (range 0x40 0x58)
-              :let [bs (repeat (- idx 0x40) 1)
-                    dis (->data-input bs)
-                    entry-fn (aget tbl idx)]]
-        (is (= (seq (entry-fn nil dis)) (seq bs))))
-      (are [idx bs target]
-        (let [dis (->data-input bs)
-              entry-fn (aget tbl idx)]
-          (is (= (seq (entry-fn nil dis)) (seq target))))
-        ;; byte, short, int, long
-        0x58 (concat [100] (repeat 100 1)) (repeat 100 1)
-        0x59 (concat [0 100] (repeat 100 1)) (repeat 100 1)
-        0x5a (concat [0 0 0 100] (repeat 100 1)) (repeat 100 1)
-        0x5b (concat (repeat 7 0) [100] (repeat 100 1)) (repeat 100 1))))
-  (testing "utf8 string"
-    (let [tbl (codec/jump-decoder-table)]
-      (doseq [idx (range 0x60 0x78)
-              :let [bs (repeat (- idx 0x60) (int \a))
-                    dis (->data-input bs)
-                    entry-fn (aget tbl idx)]]
-        (is (= (entry-fn nil dis) (apply str (repeat (count bs)\a)))))
-      (are [idx pad len]
-          (let [bs (concat (repeat pad 0) [len] (repeat len (int \a)))
-                dis (->data-input bs)
-                entry-fn (aget tbl idx)]
-            (is (= (entry-fn nil dis) (apply str (repeat len \a)))))
-        ;; byte [no padding]
-        0x78 0 25
-        ;; short [1 byte padding]
-        0x79 1 25
-        0x7a 3 25
-        0x7b 7 25)))
-  (testing "arrays"
-    (doseq [idx (range 24)]
-      (test-array-entry (+ 0x80 idx) 0 (range idx)))
-    (are [idx pad]
-        (test-array-entry idx pad (range 100))
-      ;; byte, short, int, long
-      0x98 0
-      0x99 1
-      0x9a 3
-      0x9b 7)
-    (are [idx coll]
-      (test-array-entry idx 0 coll)
-      0x83 ["a" "b" "c"]
-      0x80 []))
-  (testing "dictionary/map"
-    (let [tbl (codec/jump-decoder-table)]
-      (doseq [n (range 0 24)]
-        (test-map-entry (+ n 0xa0) 0 n))
-      (are [idx pad]
-        (do (test-map-entry idx pad 100)
-            (test-map-entry idx pad 50))
-        ;; byte, short, int, long
-        0xb8 0
-        0xb9 1
-        0xba 3
-        0xbb 7))))
+  (testing "Positive Integers"
+    (dotimes [i 24]
+      (is (= i (cbor/decode (byte-array [i])))))
+    (is (= 1 (decode-hex "1801")))
+    (is (= 2 (decode-hex "190002")))
+    (is (= 3 (decode-hex "1A00000003")))
+    (is (= 4 (decode-hex "1B0000000000000004")))
+    (is (cbor-error? ::codec/illegal-stream
+          (decode-hex "1F"))))
+  (testing "Negative Integers"
+    (dotimes [i 24]
+      (is (= (dec (- i)) (cbor/decode (byte-array [(+ 0x20 i)])))))
+    (is (= -1 (decode-hex "3800")))
+    (is (= -2 (decode-hex "390001")))
+    (is (= -3 (decode-hex "3A00000002")))
+    (is (= -4 (decode-hex "3B0000000000000003")))
+    (is (cbor-error? ::codec/illegal-stream
+          (decode-hex "3F"))))
+  (testing "Byte Strings"
+    (is (bytes= [] (decode-hex "40")))
+    (dotimes [i 24]
+      (let [bs (vec (range i))
+            hex (->> (cons (+ 0x40 i) bs)
+                     (map #(format "%02X" %))
+                     (apply str))]
+        (is (bytes= bs (decode-hex hex)))))
+    (is (bytes= [42] (decode-hex "58012A")))
+    (is (bytes= [16] (decode-hex "59000110")))
+    (is (bytes= [96] (decode-hex "5A0000000160")))
+    (is (bytes= [27] (decode-hex "5B00000000000000011B"))))
+  (testing "Text Strings"
+    (is (= "" (decode-hex "60")))
+    (dotimes [i 24]
+      (let [string (apply str (repeat i "X"))
+            hex (apply str (format "%02X" (+ 0x60 i)) (repeat i "58"))]
+        (is (= string (decode-hex hex)))))
+    (is (= "X" (decode-hex "780158")))
+    (is (= "XX" (decode-hex "7900025858")))
+    (is (= "XXX" (decode-hex "7A00000003585858")))
+    (is (= "XXXX" (decode-hex "7B000000000000000458585858"))))
+  (testing "Arrays"
+    (is (= [] (decode-hex "80")))
+    (dotimes [i 24]
+      (let [nums (vec (repeat i 0))
+            hex (apply str (format "%02X" (+ 0x80 i)) (repeat i "00"))]
+        (is (= nums (decode-hex hex)))))
+    (is (= [0] (decode-hex "980100")))
+    (is (= [0] (decode-hex "99000100")))
+    (is (= [0] (decode-hex "9A0000000100")))
+    (is (= [0] (decode-hex "9B000000000000000100"))))
+  (testing "Maps"
+    (is (= {} (decode-hex "A0")))
+    (dotimes [i 24]
+      (let [m (into {} (map (juxt identity identity)) (range i))
+            hex (->> (range i)
+                     (mapcat (juxt identity identity))
+                     (cons (+ 0xA0 i))
+                     (map #(format "%02X" %))
+                     (apply str))]
+        (is (= m (decode-hex hex)))))
+    (is (= {0 0} (decode-hex "B8010000")))
+    (is (= {0 0} (decode-hex "B900010000")))
+    (is (= {0 0} (decode-hex "BA000000010000")))
+    (is (= {0 0} (decode-hex "BB00000000000000010000"))))
+  (testing "Tagged Values"
+    ; 0-4, 27, 30, 32, 35, 37, 39, 55799 are all handled by built-in types.
+    ; 5-23
+    (doseq [i (range 5 24)]
+      (is (= (data/tagged-value i 0) (decode-hex (str (format "%02X" (+ 0xC0 i)) "00")))))
+    (is (= (data/tagged-value 5 0) (decode-hex "D80500")))
+    (is (= (data/tagged-value 5 0) (decode-hex "D9000500")))
+    (is (= (data/tagged-value 5 0) (decode-hex "DA0000000500")))
+    (is (= (data/tagged-value 5 0) (decode-hex "DB000000000000000500")))
+    (is (cbor-error? ::codec/illegal-stream
+          (decode-hex "DF00"))))
+  (testing "Simple Values"
+    (doseq [v (range 20)]
+      (is (= (data/simple-value v) (cbor/decode (byte-array [(+ 0xE0 v)])))))
+    (is (false? (decode-hex "F4")))
+    (is (true? (decode-hex "F5")))
+    (is (nil? (decode-hex "F6")))
+    (is (= data/undefined (decode-hex "F7")))
+    (is (= (data/simple-value 117) (decode-hex "F875")))
+    (is (= 1.5 (decode-hex "F93E00")))
+    (is (= (float 100000.0) (decode-hex "FA47C35000")))
+    (is (= 1.1 (decode-hex "FB3FF199999999999A"))))
+  (testing "Illegal Headers"
+    (is (cbor-error? {:type :clj-cbor.header/reserved-info-code
+                      :data {:header 157
+                             :info 29}}
+          (decode-hex "9D")))))
