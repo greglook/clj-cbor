@@ -108,11 +108,6 @@
 ;; major-type readers are built on. In particular, these help deal with the
 ;; four data types which can be _streamed_ with indefinite lengths.
 
-(def ^:private ^:const break
-  "Encoded byte representing the _break_ simple value."
-  (short 0xFF))
-
-
 (defn- read-chunks
   "Reads chunks from the input in a streaming fashion, combining them with the
   given reducing function. All chunks must have the given major type and
@@ -120,7 +115,7 @@
   [decoder ^DataInputStream input stream-type reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header break)
+      (if (== header 0xFF)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -153,7 +148,7 @@
   [decoder ^DataInputStream input reducer]
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
-      (if (== header break)
+      (if (== header 0xFF)
         ; Break code, finish up result.
         (reducer state)
         ; Read next value.
@@ -183,6 +178,20 @@
 ;; Additional information 24 means the value is represented in an additional
 ;; `uint8`, 25 means a `uint16`, 26 means a `uint32`, and 27 means a `uint64`.
 
+(def ^:private min-integer
+  "The minimum integer value representable as a native type."
+  (-> BigInteger/ONE
+      (.shiftLeft 64)
+      (.negate)))
+
+
+(def ^:private max-integer
+  "The maximum integer value representable as a native type."
+  (-> BigInteger/ONE
+      (.shiftLeft 64)
+      (.subtract BigInteger/ONE)))
+
+
 (defn- representable-integer?
   "Determines whether the given value is small enough to represent using
   the normal integer major-type.
@@ -191,9 +200,7 @@
   the JVM's lack of unsigned types, so some values that are represented in CBOR
   as 8-byte integers must be represented by `BigInt` in memory."
   [value]
-  (and (integer? value)
-       (<= (*  2N Long/MIN_VALUE) value)
-       (>  (* -2N Long/MIN_VALUE) value)))
+  (and (integer? value) (<= min-integer value max-integer)))
 
 
 (defn- write-integer
@@ -347,9 +354,9 @@
   (let [hlen (header/write out :data-map (count xm))]
     (reduce
       (fn encode-entry
-        [sum [k v]]
-        (let [klen (write-value encoder out k)
-              vlen (write-value encoder out v)]
+        [^long sum [k v]]
+        (let [^long klen (write-value encoder out k)
+              ^long vlen (write-value encoder out v)]
           (+ sum klen vlen)))
       hlen
       xm)))
@@ -368,9 +375,11 @@
       (sort-by first compare-bytes)
       (reduce
         (fn encode-entry
-          [sum [k v]]
-          (.write out ^bytes k)
-          (+ sum (count k) (write-value encoder out v)))
+          [^long sum [^bytes k v]]
+          (.write out k)
+          (let [klen (alength k)
+                ^long vlen (write-value encoder out v)]
+            (+ sum klen vlen)))
         hlen))))
 
 
@@ -469,9 +478,9 @@
       (sort compare-bytes)
       (reduce
         (fn encode-entry
-          [sum v]
-          (.write out ^bytes v)
-          (+ sum (count v)))
+          [^long sum ^bytes v]
+          (.write out v)
+          (+ sum (alength v)))
         (+ tag-hlen array-hlen)))))
 
 
@@ -512,7 +521,7 @@
   ([encoder ^DataOutputStream out tag value]
    (let [hlen (header/write out :tagged-value tag)
          vlen (write-value encoder out value)]
-     (+ hlen vlen))))
+     (+ hlen ^long vlen))))
 
 
 (defn- read-tagged
@@ -576,7 +585,7 @@
   determined by class."
   [encoder ^DataOutputStream out n]
   (cond
-    (zero? n)
+    (zero? (double n))
       (do (header/write-leader out :simple-value 25)
           (.writeShort out float16/zero)
           3)
@@ -586,7 +595,7 @@
           3)
     (Double/isInfinite n)
       (do (header/write-leader out :simple-value 25)
-          (.writeShort out (if (pos? n)
+          (.writeShort out (if (pos? (double n))
                              float16/positive-infinity
                              float16/negative-infinity))
           3)

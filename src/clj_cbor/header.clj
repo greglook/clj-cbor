@@ -77,37 +77,44 @@
   "Writes a header byte for the given major-type, plus extra bytes to encode
   the given integer code. Always writes the smallest possible representation.
   Returns the number of bytes written."
+  ^long
   [^DataOutputStream out mtype i]
   (cond
     (neg? i)
-      (error/*handler*
-        ::negative-info-code
-        (str "Cannot write negative integer code: " i)
-        {:code i})
+    (error/*handler*
+      ::negative-info-code
+      (str "Cannot write negative integer code: " i)
+      {:code i})
+
     (<= i 23)
-      (do (write-leader out mtype i)
-          1)
+    (do (write-leader out mtype i)
+        1)
+
     (<= i 0xFF)
-      (do (write-leader out mtype 24)
-          (write-byte out i)
-          2)
+    (do (write-leader out mtype 24)
+        (write-byte out i)
+        2)
+
     (<= i 0xFFFF)
-      (do (write-leader out mtype 25)
-          (write-short out i)
-          3)
+    (do (write-leader out mtype 25)
+        (write-short out i)
+        3)
+
     (<= i 0xFFFFFFFF)
-      (do (write-leader out mtype 26)
-          (write-int out i)
-          5)
+    (do (write-leader out mtype 26)
+        (write-int out i)
+        5)
+
     (<= i (* -2N Long/MIN_VALUE))
-      (do (write-leader out mtype 27)
-          (write-long out i)
-          9)
+    (do (write-leader out mtype 27)
+        (write-long out i)
+        9)
+
     :else
-      (error/*handler*
-        ::overflow-info-code
-        (str "Cannot write integer code requiring 9 bytes of space: " i)
-        {:code i})))
+    (error/*handler*
+      ::overflow-info-code
+      (str "Cannot write integer code requiring 9 bytes of space: " i)
+      {:code i})))
 
 
 
@@ -127,7 +134,7 @@
 
 (def ^:private two-64
   "Constant holding `2^64` for integer manipulation."
-  (.shiftLeft (BigInteger/ONE) 64))
+  (.shiftLeft BigInteger/ONE 64))
 
 
 (defn read-byte
