@@ -22,15 +22,9 @@
    :simple-value])
 
 
-(def major-type-codes
+(def ^:private major-type-codes
   "Map of major type keywords to code values."
   (zipmap major-types (range)))
-
-
-(def info-codes
-  "Sequence of valid integer codes that can follow a major type. Includes the
-  inline values `[0, 24)` and the four extra byte code keywords."
-  (vec (concat (range 24) [:byte :short :int :long])))
 
 
 
