@@ -33,12 +33,11 @@
    {:plugins
     [[lein-cloverage "1.0.10"]]
     :dependencies
-    [[org.clojure/test.check "0.9.0"]]}
+    [[org.clojure/test.check "0.9.0"]
+     [org.clojure/tools.namespace "0.2.11"]]}
 
    :repl
-   {:source-paths ["dev"]
-    :dependencies
-    [[org.clojure/tools.namespace "0.2.11"]]}
+   {:source-paths ["dev"]}
 
    :bench
    {:source-paths ["dev"]

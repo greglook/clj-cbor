@@ -24,7 +24,7 @@
 
 (def stress-data
   "Stress-testing data, mostly borrowed from `ptaoussanis/nippy`."
-  {:bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
+  {;:bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
    :nil       nil
    :true      true
    :false     false
@@ -35,7 +35,7 @@
    :kw-ns     ::keyword
    :sym       'foo
    :sym-ns    'foo/bar
-   :regex     #"^(https?:)?//(www\?|\?)?"
+   ;:regex     #"^(https?:)?//(www\?|\?)?"
 
    :lotsa-small-numbers  (vec (range 200))
    :lotsa-small-keywords (->> (java.util.Locale/getISOLanguages)
@@ -156,8 +156,6 @@
   [codec-type data]
   (let [start (System/nanoTime)
         {:keys [version encoder decoder]} (get codecs codec-type)]
-    (printf "Benchmarking codec %s...\n" (name codec-type))
-    (flush)
     (try
       (let [encoded (encoder data)
             decoded (decoder encoded)
@@ -166,8 +164,11 @@
             decode-stats (crit/quick-benchmark (decoder encoded) {})
             decode-mean (-> decode-stats :mean first (* 1000))
             elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-        (printf "Finished %s in %.3f ms (mean encode: %.3fµs, decode: %.3fµs)\n"
-                (name codec-type) elapsed (* 1000 encode-mean) (* 1000 decode-mean))
+        (printf "  + %-15s  %7.3f µs  %7.3f µs  %6s bytes\n"
+                (name codec-type)
+                (* 1000 encode-mean)
+                (* 1000 decode-mean)
+                (count encoded))
         (flush)
         {:codec codec-type
          :version version
@@ -350,15 +351,29 @@
                         (vec))]
         (printf "Benchmarking codecs %s against %d blocks\n"
                 (str/join ", " targets) (count blocks))
+        (doseq [codec-type targets]
+          (printf "Warming up %s...\n" (name codec-type))
+          (flush)
+          (let [codec (get codecs codec-type)
+                encoder (:encoder codec)
+                decoder (:decoder codec)
+                encoded (encoder stress-data)]
+            (crit/warmup-for-jit 1000000000 (fn [] (encoder stress-data)))
+            (crit/warmup-for-jit 1000000000 (fn [] (decoder encoded)))))
         (doseq [[i block] (map-indexed vector blocks)]
-          (printf "Testing block %d/%d (%.1f%%) %s (%d bytes)\n"
-                  (inc i) (count blocks) (* 100.0 (/ i (count blocks)))
-                  (multihash/base58 (:id block)) (:size block))
+          (printf "\nTesting block %s (%d/%d %.1f%%)\n"
+                  (multihash/base58 (:id block))
+                  (inc i) (count blocks) (* 100.0 (/ i (count blocks))))
+          (flush)
           (let [test-data (with-open [input (block/open (block/get store (:id block)))]
-                            (first (cbor/decode input)))]
+                            (cbor/decode input))]
+            (printf "  Loaded %d bytes of data\n" (:size block))
+            (printf "  %-17s  %10s  %10s  %12s\n"
+                    "Codec" "Encode" "Decode" "Size")
+            (flush)
             (doseq [codec-type targets]
               (if (contains? (get benched codec-type) (:id block))
-                (printf "Skipping %s (already tested)\n" codec-type)
+                (printf "  - %-15s\n" (name codec-type))
                 (let [result (bench-codec codec-type test-data)
                       out-line (tsv-report-line (:id block) (:size block) result)]
                   (spit data-file (str out-line "\n") :append true)))))))
