@@ -4,24 +4,7 @@
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error])
   (:import
-    (java.io
-      ByteArrayInputStream
-      DataInputStream)
-    (java.util
-      Collection
-      List
-      Map
-      Set)
-    java.util.regex.Pattern
     javax.xml.bind.DatatypeConverter))
-
-
-(defn ->data-input
-  "Convert a sequence of bytes into a `DataInputStream`."
-  [bs]
-  (-> (byte-array bs)
-      (ByteArrayInputStream.)
-      (DataInputStream.)))
 
 
 (defn bytes=
@@ -58,7 +41,7 @@
 
 
 
-;; ## Hex Conversion Functions
+;; ## Hex Conversion
 
 (defn bin->hex
   ^String
@@ -91,63 +74,6 @@
    (encoded-hex (cbor/cbor-codec) value))
   ([encoder value]
    (bin->hex (cbor/encode encoder value))))
-
-
-
-;; ## Equivalence Testing
-
-(defmulti equivalent
-  (fn [a b] (class a)))
-
-(defmethod equivalent :default
-  [a b]
-  (= a b))
-
-(defmethod equivalent (class (byte-array 0))
-  [a b]
-  (bytes= a b))
-
-(defmethod equivalent Character
-  [a b]
-  (= (str a) (str b)))
-
-(defmethod equivalent Pattern
-  [a b]
-  (= (str a) (str b)))
-
-(defmethod equivalent Number
-  [a b]
-  (if (Double/isNaN a)
-    (Double/isNaN b)
-    (= a b)))
-
-(defmethod equivalent List
-  [a b]
-  (and (= (count a) (count b))
-       (every? true? (map equivalent a b))))
-
-(defmethod equivalent Set
-  [a b]
-  (and (= (count a) (count b))
-       (every? #(equivalent % (get b %)) a)))
-
-(defmethod equivalent Map
-  [a b]
-  (and (= (count a) (count b))
-       (first
-         (reduce
-           (fn [[decision remnant] [k v]]
-             (let [[match-k match-v] (or (find remnant k)
-                                         (first (filter (comp (partial equivalent k) key)
-                                                        remnant)))]
-               (if (some? match-k)
-                 [(and decision
-                       (equivalent k match-k)
-                       (equivalent v match-v))
-                  (dissoc remnant match-k)]
-                 (reduced [false nil]))))
-           [(= (count a) (count b)) b]
-           a))))
 
 
 
