@@ -4,6 +4,7 @@
     [clj-cbor.error :as error]
     [clojure.string :as str])
   (:import
+    clojure.lang.BigInt
     (java.io
       DataInputStream
       DataOutputStream)))
@@ -30,59 +31,90 @@
 ;; ## Encoding Functions
 
 (defn write-leader
-  "Writes a header byte for the given major-type and additional info numbers.
-  Returns the number of bytes written."
+  "Writes a header byte for the given major-type and additional info numbers."
   [^DataOutputStream out mtype info]
   (let [header (-> (bit-and (major-type-codes mtype) 0x07)
                    (bit-shift-left 5)
                    (bit-or (bit-and (long info) 0x1F)))]
-    (.writeByte out header))
-  1)
+    (.writeByte out header)))
+
+
+(defn write-byte
+  "Write an unsigned byte (8-bit) value to the data output stream."
+  [^DataOutputStream out i]
+  (.writeByte out i))
+
+
+(defn write-short
+  "Write an unsigned short (16-bit) value to the data output stream."
+  [^DataOutputStream out i]
+  (.writeShort out i))
+
+
+(defn write-int
+  "Write an unsigned int (32-bit) value to the data output stream. Coerces the
+  value into a signed representation before writing if necessary."
+  [^DataOutputStream out i]
+  (.writeInt
+    out
+    (if (<= i Integer/MAX_VALUE)
+      i
+      (+ Integer/MIN_VALUE (- (dec i) Integer/MAX_VALUE)))))
+
+
+(defn write-long
+  "Write a long (32-bit) value to the data output stream. Coerces the value
+  into a signed representation before writing if necessary."
+  [^DataOutputStream out i]
+  (.writeLong
+    out
+    (if (<= i Long/MAX_VALUE)
+      i
+      (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))))
 
 
 (defn write
   "Writes a header byte for the given major-type, plus extra bytes to encode
   the given integer code. Always writes the smallest possible representation.
   Returns the number of bytes written."
+  ^long
   [^DataOutputStream out mtype i]
   (cond
     (neg? i)
-      (error/*handler*
-        ::negative-info-code
-        (str "Cannot write negative integer code: " i)
-        {:code i})
+    (error/*handler*
+      ::negative-info-code
+      (str "Cannot write negative integer code: " i)
+      {:code i})
+
     (<= i 23)
-      (do (write-leader out mtype i)
-          1)
+    (do (write-leader out mtype i)
+        1)
+
     (<= i 0xFF)
-      (do (write-leader out mtype 24)
-          (.writeByte out i)
-          2)
+    (do (write-leader out mtype 24)
+        (write-byte out i)
+        2)
+
     (<= i 0xFFFF)
-      (do (write-leader out mtype 25)
-          (.writeShort out i)
-          3)
-    (<= i Integer/MAX_VALUE)
-      (do (write-leader out mtype 26)
-          (.writeInt out i)
-          5)
+    (do (write-leader out mtype 25)
+        (write-short out i)
+        3)
+
     (<= i 0xFFFFFFFF)
-      (do (write-leader out mtype 26)
-          (.writeInt out (+ Integer/MIN_VALUE (- (dec i) Integer/MAX_VALUE)))
-          5)
-    (<= i Long/MAX_VALUE)
-      (do (write-leader out mtype 27)
-          (.writeLong out i)
-          9)
+    (do (write-leader out mtype 26)
+        (write-int out i)
+        5)
+
     (<= i (* -2N Long/MIN_VALUE))
-      (do (write-leader out mtype 27)
-          (.writeLong out (+ Long/MIN_VALUE (- (dec i) Long/MAX_VALUE)))
-          9)
+    (do (write-leader out mtype 27)
+        (write-long out i)
+        9)
+
     :else
-      (error/*handler*
-        ::overflow-info-code
-        (str "Cannot write integer code requiring 9 bytes of space: " i)
-        {:code i})))
+    (error/*handler*
+      ::overflow-info-code
+      (str "Cannot write integer code requiring 9 bytes of space: " i)
+      {:code i})))
 
 
 
@@ -100,47 +132,63 @@
    (bit-and header 0x1F)])
 
 
-(defn- read-unsigned-long
-  "Reads an unsigned long value from the input stream. If the value overflows
-  into the negative, it is promoted to a bigint."
-  [^DataInputStream input]
-  (let [value (.readLong input)]
-    (if (neg? value)
-      ; Overflow, promote to BigInt.
-      (->>
-        [(bit-and 0xFF (bit-shift-right value  0))
-         (bit-and 0xFF (bit-shift-right value  8))
-         (bit-and 0xFF (bit-shift-right value 16))
-         (bit-and 0xFF (bit-shift-right value 24))
-         (bit-and 0xFF (bit-shift-right value 32))
-         (bit-and 0xFF (bit-shift-right value 40))
-         (bit-and 0xFF (bit-shift-right value 48))
-         (bit-and 0xFF (bit-shift-right value 56))]
-        (byte-array)
-        (java.math.BigInteger. 1)
-        (bigint))
-      ; Value fits in a long, return directly.
-      value)))
+(def ^:private two-64
+  "Constant holding `2^64` for integer manipulation."
+  (.shiftLeft BigInteger/ONE 64))
+
+
+(defn read-byte
+  "Read an unsigned byte (8-bit) value from the data input stream. Promotes the
+  value to a long for consistency."
+  [^DataInputStream in]
+  (long (.readUnsignedByte in)))
+
+
+(defn read-short
+  "Read an unsigned short (16-bit) value from the data input stream. Promotes
+  the value to a long for consistency."
+  [^DataInputStream in]
+  (long (.readUnsignedShort in)))
+
+
+(defn read-int
+  "Read an unsigned int (32-bit) value from the data input stream. Promotes the
+  value to a long for consistency."
+  [^DataInputStream in]
+  (bit-and (long (.readInt in)) 0xFFFFFFFF))
+
+
+(defn read-long
+  "Read an unsigned long (64-bit) value from the data input stream. Handles
+  overflowing values by promoting them to a bigint.
+
+  https://tools.ietf.org/html/rfc7049#section-1.2"
+  [^DataInputStream in]
+  (let [i (.readLong in)]
+    (if (neg? i)
+      (-> (BigInteger/valueOf i)
+          (.add two-64)
+          (BigInt/fromBigInteger))
+      i)))
 
 
 (defn read-code
   "Reads a size value from the initial bytes of the input stream. Returns
   either a number, the keyword `:indefinite`, or calls the error handler on
   reserved info codes."
-  [^DataInputStream input ^long info]
+  [^DataInputStream in ^long info]
   (if (< info 24)
     ; Info codes less than 24 directly represent the number.
     info
     ; Otherwise, signify the number of bytes following.
     (case info
-      24 (long (.readUnsignedByte input))
-      25 (long (.readUnsignedShort input))
-      26 (long (bit-and (.readInt input) 0xFFFFFFFF))
-      27 (read-unsigned-long input)
-      (28 29 30)
-        (error/*handler*
-          ::reserved-info-code
-          (format "Additional information int code %d is reserved."
-                  info)
-          {:info info})
+      24 (read-byte in)
+      25 (read-short in)
+      26 (read-int in)
+      27 (read-long in)
+      (28 29 30) (error/*handler*
+                   ::reserved-info-code
+                   (format "Additional information int code %d is reserved."
+                           info)
+                   {:info info})
       31 :indefinite)))

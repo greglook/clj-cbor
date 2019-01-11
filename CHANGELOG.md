@@ -9,6 +9,28 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ...
 
+## [0.7.0] - 2019-01-10
+
+This is a performance-focused release that introduced a number of changes to
+speed up decoding performance. The main change is the switch to a _jump table_
+for the initial header byte.
+[#9](https://github.com/greglook/clj-cbor/issues/9)
+[#11](https://github.com/greglook/clj-cbor/pull/11)
+
+For a representative data sample of about ~97 KB, this brings the benchmarked
+decoding time from 8.454 ms to 4.089 ms, or about twice as fast!
+
+### Changed
+- Upgrade to Clojure 1.10.0.
+- Many operations in the codec are type-hinted to use primitive operations where
+  possible.
+- CBOR arrays and maps are built up using transients for performance.
+- Decoding logic now uses a jump table.
+
+### Fixed
+- A tagged-value major type with a streaming info code now results in a
+  `::codec/illegal-stream` error.
+
 ## [0.6.0] - 2017-12-23
 
 ### Changed
@@ -119,7 +141,8 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/greglook/clj-cbor/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/greglook/clj-cbor/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/greglook/clj-cbor/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/greglook/clj-cbor/compare/0.4.0...0.4.1

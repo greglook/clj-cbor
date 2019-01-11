@@ -3,7 +3,6 @@
   (:require
     [blocks.core :as block]
     [blocks.store.file :refer [file-block-store]]
-    [cognitect.transit :as transit]
     [clj-cbor.core :as cbor]
     [clj-cbor.test-utils :as util]
     [clojure.data.fressian :as fressian]
@@ -12,6 +11,7 @@
     [clojure.java.io :as io]
     [clojure.string :as str]
     [clojure.test.check.generators :as gen]
+    [cognitect.transit :as transit]
     [criterium.core :as crit]
     [multihash.core :as multihash]
     [taoensso.nippy :as nippy])
@@ -24,7 +24,7 @@
 
 (def stress-data
   "Stress-testing data, mostly borrowed from `ptaoussanis/nippy`."
-  {:bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
+  {;:bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
    :nil       nil
    :true      true
    :false     false
@@ -35,7 +35,7 @@
    :kw-ns     ::keyword
    :sym       'foo
    :sym-ns    'foo/bar
-   :regex     #"^(https?:)?//(www\?|\?)?"
+   ;:regex     #"^(https?:)?//(www\?|\?)?"
 
    :lotsa-small-numbers  (vec (range 200))
    :lotsa-small-keywords (->> (java.util.Locale/getISOLanguages)
@@ -108,23 +108,24 @@
     (transit/read reader)))
 
 
+; TODO: pull versions directly from project.clj to keep them up to date
 (def codecs
   "Map of codec definitions for the benchmarking harness."
   {:reader
    {:dependency 'org.clojure/clojure
-    :version "1.8.0"
+    :version "1.10.0"
     :encoder #(.getBytes (pr-str %) "UTF-8")
     :decoder #(read-string (String. ^bytes % "UTF-8"))}
 
    :cbor
    {:dependency 'mvxcvi/clj-cbor
-    :version "0.3.0"
+    :version "0.7.0"
     :encoder cbor/encode
-    :decoder (comp first cbor/decode)}
+    :decoder cbor/decode}
 
    :nippy
    {:dependency 'com.taoensso/nippy
-    :version "2.12.2"
+    :version "2.14.0"
     :encoder nippy/freeze
     :decoder nippy/thaw}
 
@@ -136,13 +137,13 @@
 
    :transit+json
    {:dependency 'com.cognitect/transit-clj
-    :version "0.8.297"
+    :version "0.8.313"
     :encoder (partial transit-encode :json)
     :decoder (partial transit-decode :json)}
 
    :transit+msgpack
    {:dependency 'com.cognitect/transit-clj
-    :version "0.8.297"
+    :version "0.8.313"
     :encoder (partial transit-encode :msgpack)
     :decoder (partial transit-decode :msgpack)}})
 
@@ -153,19 +154,21 @@
 (defn bench-codec
   "Benchmark a codec defined in `codecs` against the given `data` value."
   [codec-type data]
-  (let [start (System/nanoTime)]
-    (printf "Benchmarking codec %s...\n" (name codec-type))
-    (flush)
+  (let [start (System/nanoTime)
+        {:keys [version encoder decoder]} (get codecs codec-type)]
     (try
-      (let [{:keys [version encoder decoder]} (get codecs codec-type)
-            encoded (encoder data)
+      (let [encoded (encoder data)
             decoded (decoder encoded)
             encode-stats (crit/quick-benchmark (encoder data) {})
             encode-mean (-> encode-stats :mean first (* 1000))
             decode-stats (crit/quick-benchmark (decoder encoded) {})
             decode-mean (-> decode-stats :mean first (* 1000))
             elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-        (printf "Finished %s in %.3f ms\n" (name codec-type) elapsed)
+        (printf "  + %-15s  %7.3f µs  %7.3f µs  %6s bytes\n"
+                (name codec-type)
+                (* 1000 encode-mean)
+                (* 1000 decode-mean)
+                (count encoded))
         (flush)
         {:codec codec-type
          :version version
@@ -177,7 +180,20 @@
           (printf "Benchmark data doesn't round-trip: %s\n"
                   (.getMessage ex))
           (flush)
-          {:error (.getMessage ex)})))))
+          {:error (.getMessage ex)
+           :codec codec-type
+           :version version})))))
+
+
+(defn bench-adhoc
+  "Benchmark a set of codecs against some ad-hoc data structure."
+  ([data]
+   (bench-adhoc (keys codecs) data))
+  ([targets data]
+   (printf "  %-17s  %10s  %10s  %12s\n" "Codec" "Encode" "Decode" "Size")
+   (flush)
+   (doseq [codec-type targets]
+     (bench-codec codec-type data))))
 
 
 
@@ -279,7 +295,7 @@
 (defn- tsv-report-line
   [block-id block-size result]
   (->>
-    (if (:error result)
+    (if (contains? result :error)
       ["!" "!" "!"]
       [(:size result)
        (format "%.3f" (* 1000 (:encode result)))
@@ -310,12 +326,49 @@
       {})))
 
 
+(defn- parse-data-file
+  "Reads the written TSV and returns a sequence of maps for individual
+  codec/block tests."
+  [file]
+  (let [raw-text (slurp file)
+        lines (map #(str/split % #"\t") (str/split raw-text #"\n"))
+        header (mapv keyword (first lines))
+        rows (next lines)]
+    (map #(zipmap header %) rows)))
+
+
+(defn- print-spreadsheet-rows
+  "Print information suitable for uploading to the Google benchmark
+  spreadsheet. The `info` should be a map of block ids to collections of result
+  maps as output by `parse-data-file`."
+  [info targets]
+  (->>
+    targets
+    (mapcat (comp #(vector (str % "/size") (str % "/encode") (str % "/decode")) name))
+    (list* "block/id" "block/size")
+    (str/join "\t")
+    (println))
+  (doseq [[block-id results] info]
+    (let [codec-results (into {} (map (juxt (comp keyword :codec) identity)) results)]
+      (when (every? codec-results targets)
+        (->>
+          targets
+          (mapcat (comp (juxt :size :encode :decode) codec-results))
+          (list* block-id (:block-size (first results)))
+          (str/join "\t")
+          (println))))))
+
+
 
 ;; ## Entry Point
 
 (defn -main
   [& args]
-  (let [store (file-block-store "bench/samples")]
+  (let [store (file-block-store "bench/samples")
+        data-file (io/file "bench/data.tsv")]
+    (when-not (.exists data-file)
+      (io/make-parents data-file)
+      (spit data-file (str (tsv-header) "\n")))
     (case (first args)
       "stats"
       (report-sample-store store)
@@ -323,41 +376,57 @@
       "gen" ; n min-size max-size
       (let [n (Integer/parseInt (nth args 1 "100"))
             min-size (Integer/parseInt (nth args 2 "0"))
-            max-size (if (< 3 (count args))
-                       (Integer/parseInt (nth args 3 "200"))
-                       min-size)]
-        (generate-sample-data store min-size max-size))
+            max-size (Integer/parseInt (nth args 3 "200"))]
+        (generate-sample-data store n min-size max-size))
 
       "run" ; codec...
-      (let [data-file (io/file "bench/data.tsv")
-            targets (if-let [names (next args)]
+      (let [targets (if-let [names (next args)]
                       (map keyword names)
                       (keys codecs))
             benched (->> targets
                          (map #(vector % (get-in codecs [% :version])))
                          (map (juxt first (benched-blocks data-file)))
                          (into {}))
+            already-benched? (or (apply set/intersection (vals benched)) #{})
             blocks (->> (block/list store)
-                        (remove (comp (apply set/intersection (vals benched)) :id))
+                        (remove (comp already-benched? :id))
                         (shuffle)
                         (vec))]
         (printf "Benchmarking codecs %s against %d blocks\n"
                 (str/join ", " targets) (count blocks))
-        (when-not (.exists data-file)
-          (io/make-parents data-file)
-          (spit data-file (str (tsv-header) "\n")))
+        (doseq [codec-type targets]
+          (printf "Warming up %s...\n" (name codec-type))
+          (flush)
+          (let [codec (get codecs codec-type)
+                encoder (:encoder codec)
+                decoder (:decoder codec)
+                encoded (encoder stress-data)]
+            (crit/warmup-for-jit 1000000000 (fn [] (encoder stress-data)))
+            (crit/warmup-for-jit 1000000000 (fn [] (decoder encoded)))))
         (doseq [[i block] (map-indexed vector blocks)]
-          (printf "Testing block %d/%d (%.1f%%) %s (%d bytes)\n"
-                  (inc i) (count blocks) (* 100.0 (/ i (count blocks)))
-                  (multihash/base58 (:id block)) (:size block))
+          (printf "\nTesting block %s (%d/%d %.1f%%)\n"
+                  (multihash/base58 (:id block))
+                  (inc i) (count blocks) (* 100.0 (/ i (count blocks))))
+          (flush)
           (let [test-data (with-open [input (block/open (block/get store (:id block)))]
-                            (first (cbor/decode input)))]
+                            (cbor/decode input))]
+            (printf "  Loaded %d bytes of data\n" (:size block))
+            (printf "  %-17s  %10s  %10s  %12s\n"
+                    "Codec" "Encode" "Decode" "Size")
+            (flush)
             (doseq [codec-type targets]
               (if (contains? (get benched codec-type) (:id block))
-                (printf "Skipping %s (already tested)\n" codec-type)
+                (printf "  - %-15s\n" (name codec-type))
                 (let [result (bench-codec codec-type test-data)
                       out-line (tsv-report-line (:id block) (:size block) result)]
                   (spit data-file (str out-line "\n") :append true)))))))
+
+      "sheet" ; codec...
+      (let [targets (if-let [names (next args)]
+                      (map keyword names)
+                      (keys codecs))
+            results (group-by :block-id (parse-data-file data-file))]
+        (print-spreadsheet-rows results targets))
 
       ; No args
       nil
@@ -365,6 +434,7 @@
         (println "Usage: lein bench stats")
         (println "       lein bench gen [n] [min-size] [max-size]")
         (println "       lein bench run [codec ...]")
+        (println "       lein bench sheet [codec ...]")
         (System/exit 1))
 
       ; Unknown command.

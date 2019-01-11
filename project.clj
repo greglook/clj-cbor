@@ -1,4 +1,4 @@
-(defproject mvxcvi/clj-cbor "0.6.0"
+(defproject mvxcvi/clj-cbor "0.7.0"
   :description "Concise Binary Object Representation (RFC 7049)"
   :url "https://github.com/greglook/clj-cbor"
   :license {:name "Public Domain"
@@ -12,7 +12,7 @@
    "bench-repl" ["with-profile" "+bench" "repl"]}
 
   :dependencies
-  [[org.clojure/clojure "1.9.0"]]
+  [[org.clojure/clojure "1.10.0"]]
 
   :test-selectors
   {:default (complement :generative)
@@ -33,7 +33,8 @@
    {:plugins
     [[lein-cloverage "1.0.10"]]
     :dependencies
-    [[org.clojure/test.check "0.9.0"]]}
+    [[org.clojure/test.check "0.9.0"]
+     [org.clojure/tools.namespace "0.2.11"]]}
 
    :repl
    {:source-paths ["dev"]}
@@ -41,8 +42,8 @@
    :bench
    {:source-paths ["dev"]
     :dependencies
-    [[com.cognitect/transit-clj "0.8.300"]
+    [[com.cognitect/transit-clj "0.8.313"]
      [com.taoensso/nippy "2.14.0"]
      [criterium "0.4.4"]
-     [mvxcvi/blocks "1.0.0"]
+     [mvxcvi/blocks "1.1.0"]
      [org.clojure/data.fressian "0.2.1"]]}})
