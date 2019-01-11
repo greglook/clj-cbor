@@ -712,7 +712,7 @@
   conditional logic in many cases.
 
   See https://tools.ietf.org/html/rfc7049#appendix-B for details."
-  [decoder input ^long header]
+  [decoder ^DataInputStream input ^long header]
   (let [info (bit-and 0x1F header)]
     (case (int header)
       ; Positive Integers

@@ -168,7 +168,7 @@ Continuing the example, the library comes with read handlers for both `Date` and
 
 ## Performance
 
-As of `0.7.0`, this library is competitive with many other comparable
+As of `0.7.1`, this library is competitive with many other comparable
 serialization formats. Some benchmarking results can be found in
 [this spreadsheet](https://docs.google.com/spreadsheets/d/142LhWX5aCnOoF6v0T46RASULQDuG7JIckKiCohDPgq8/edit?usp=sharing).
 
