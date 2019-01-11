@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+## [0.7.0] - 2019-01-10
+
 This is a performance-focused release that introduced a number of changes to
 speed up decoding performance. The main change is the switch to a _jump table_
 for the initial header byte.
@@ -137,7 +141,8 @@ This release includes 100% test coverage!
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/greglook/clj-cbor/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/greglook/clj-cbor/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/greglook/clj-cbor/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/greglook/clj-cbor/compare/0.4.0...0.4.1
