@@ -320,12 +320,12 @@
   "Read a fixed length array from the input as a vector of elements."
   [decoder input ^long n]
   {:pre [(pos? n)]}
-  (loop [result (transient [])
-         idx 0]
-    (if (= idx n)
-      (persistent! result)
-      (recur (conj! result (read-value decoder input))
-             (unchecked-inc idx)))))
+  (let [objs (object-array n)]
+    (loop [idx 0]
+      (if (< idx n)
+        (do (aset objs idx (read-value decoder input))
+            (recur (unchecked-inc idx)))
+        (vec objs)))))
 
 
 
@@ -424,19 +424,19 @@
   "Read a fixed length map from the input as a sequence of entries."
   [decoder input ^long n]
   {:pre [(pos? n)]}
-  (loop [result (transient {})
-         idx 0]
-    (if (= idx n)
-      (persistent! result)
-      (let [k (read-value decoder input)]
-        (if (contains? result k)
-          (error/*handler*
-            ::duplicate-map-key
-            (str "Encoded map contains duplicate key: " (pr-str k))
-            {:map (persistent! result)
-             :key k})
-          (recur (assoc! result k (read-value decoder input))
-                 (unchecked-inc idx)))))))
+  (let [m (java.util.HashMap.)]
+    (loop [idx 0]
+      (if (< idx n)
+        (let [k (read-value decoder input)]
+          (if (.containsKey m k)
+            (error/*handler*
+              ::duplicate-map-key
+              (str "Encoded map contains duplicate key: " (pr-str k))
+              {:map (into {} m)
+               :key k})
+            (do (.put m k (read-value decoder input))
+                (recur (unchecked-inc idx)))))
+        (into {} m)))))
 
 
 
