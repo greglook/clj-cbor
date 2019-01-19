@@ -27,7 +27,7 @@ Leiningen, add the following dependency to your project definition:
 
 The `clj-cbor.core` namespace contains the high-level encoding and decoding
 functions. The simplest way to use this library is to require it and call them
-diretly with the data:
+directly with data:
 
 ```clojure
 => (require '[clj-cbor.core :as cbor])
