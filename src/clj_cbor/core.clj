@@ -130,8 +130,13 @@
 (defn- data-input-stream
   "Coerce the argument to a `DataInputStream`."
   [input]
-  (if (instance? DataInputStream input)
+  (condp instance? input
+    DataInputStream
     input
+
+    InputStream
+    (DataInputStream. input)
+
     (DataInputStream. (io/input-stream input))))
 
 
@@ -161,9 +166,14 @@
 (defn decode
   "Decode a single CBOR value from the input.
 
-  The input may be a byte array or coercible to an `input-stream`. Uses the
-  `default-codec` if none is provided. If at the end of the input, returns nil
-  or `eof-guard` if provided."
+  This uses the given codec or the `default-codec` if none is provided. If at
+  the end of the input, this returns `eof-guard` or nil.
+
+  The input must be an input stream or something coercible to one like a file
+  or byte array. Note that coercion will produce a `BufferedInputStream` if the
+  argument is not already a stream, so repeated reads will probably not behave
+  as expected! If you need incremental parsing, make sure you pass in something
+  that is already an `InputStream`."
   ([input]
    (decode default-codec input))
   ([decoder input]
@@ -179,9 +189,12 @@
 (defn decode-seq
   "Decode a sequence of CBOR values from the input.
 
-  The input may be a byte array or coercible to an `input-stream`. Uses the
-  `default-codec` if none is provided. This returns a lazy sequence, so take
-  care that the input stream is not closed before the entries are realized."
+  This uses the given codec or the `default-codec` if none is provided. The
+  returned sequence is lazy, so take care that the input stream is not closed
+  before the entries are realized.
+
+  The input must be an input stream or something coercible to one - see
+  `decode` for usage notes."
   ([input]
    (decode-seq default-codec input))
   ([decoder input]

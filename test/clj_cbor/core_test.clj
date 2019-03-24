@@ -5,7 +5,9 @@
     [clj-cbor.codec :as codec]
     [clj-cbor.test-utils :refer :all])
   (:import
-    java.io.File
+    (java.io
+      ByteArrayInputStream
+      File)
     java.time.Instant))
 
 
@@ -39,6 +41,14 @@
   (testing "interrupted data"
     (is (cbor-error? :clj-cbor.codec/end-of-input
           (decode-hex-all "D827623A61187BF563666F")))))
+
+
+(deftest lazy-decoding
+  (let [data (cbor/encode-seq [:a :b :c])
+        input (ByteArrayInputStream. data)]
+    (is (= :a (cbor/decode input)))
+    (is (= :b (cbor/decode input)))
+    (is (= [:c] (cbor/decode-seq input)))))
 
 
 (deftest slobber-utils
