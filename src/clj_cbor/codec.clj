@@ -306,7 +306,11 @@
   a definite length, so `xs` will be fully realized."
   [encoder ^DataOutputStream out xs]
   (let [hlen (header/write out :data-array (count xs))]
-    (reduce + hlen (map (partial write-value encoder out) xs))))
+    (reduce
+      (fn write-element
+        [len x]
+        (+ len (write-value encoder out x)))
+      hlen xs)))
 
 
 (defn- build-array
