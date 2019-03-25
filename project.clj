@@ -31,7 +31,7 @@
   :profiles
   {:dev
    {:plugins
-    [[lein-cloverage "1.0.10"]]
+    [[lein-cloverage "1.1.0"]]
     :dependencies
     [[org.clojure/test.check "0.9.0"]
      [org.clojure/tools.namespace "0.2.11"]]}
@@ -42,7 +42,8 @@
    :bench
    {:source-paths ["dev"]
     :dependencies
-    [[com.cognitect/transit-clj "0.8.313"]
+    [[com.clojure-goes-fast/clj-async-profiler "0.3.0"]
+     [com.cognitect/transit-clj "0.8.313"]
      [com.taoensso/nippy "2.14.0"]
      [criterium "0.4.4"]
      [mvxcvi/blocks "1.1.0"]

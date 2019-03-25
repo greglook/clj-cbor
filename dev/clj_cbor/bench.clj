@@ -3,6 +3,7 @@
   (:require
     [blocks.core :as block]
     [blocks.store.file :refer [file-block-store]]
+    [clj-async-profiler.core :as prof]
     [clj-cbor.core :as cbor]
     [clj-cbor.test-utils :as util]
     [clojure.data.fressian :as fressian]
@@ -77,7 +78,35 @@
 
 
 
-;; Codec Definitions
+;; ## Flame Graphs
+
+(defn massage-stack
+  "Collapse a stack frame in a profiling run."
+  [stack]
+  (-> s
+      (str/replace #"^.+user\$eval\d+\$fn__\d+\.invoke;" "eval;")
+      (str/replace #"clj_cbor\.codec\.CBORCodec\.write_value;(((clj\-cbor\.codec|clojure\.core|clojure\.core\.protocols)/[^;]+;)+clj_cbor\.codec\.CBORCodec\.write_value;)+"
+                   "clj_cbor.codec.CBORCodec.write_value ...;")))
+
+
+(comment
+  (def reddit-data
+    (clojure.edn/read-string  (slurp "bench/reddit.edn")))
+
+  ; For example:
+  (prof/profile
+    {:event :cpu
+     :transform massage-stack}
+    (dotimes [i 5000]
+      (cbor/encode reddit-data)))
+
+  ; - Should also support `:alloc` profiling
+  ; - Collapse stack frames, in particular recursive encode/decode
+  ,,,)
+
+
+
+;; ## Codec Definitions
 
 (defn fressian-encode
   [data]
