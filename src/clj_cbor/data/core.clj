@@ -46,3 +46,9 @@
   "Predicate which tests whether `x` is a CBOR tagged value."
   [x]
   (instance? TaggedValue x))
+
+
+(def set-tag
+  "Tag code used to identify sets of unique values. Hard-coded here to support
+  canonical encoding."
+  258)

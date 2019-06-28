@@ -11,6 +11,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Add [clj-async-profiler](https://github.com/clojure-goes-fast/clj-async-profiler)
   support in the benchmarking code to produce flame graphs for finding hotspots.
 
+### Removed
+- Codecs no longer support a configurable set tag; it is now fixed at 258
+  matching the IANA registry.
+
 ### Fixed
 - `decode` will not try to coerce inputs which are already input streams
   anymore. This fixes incremental/lazy decoding behavior.

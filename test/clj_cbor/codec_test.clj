@@ -190,7 +190,7 @@
 
 
 (deftest set-collections
-  (with-codec {:set-tag 258}
+  (with-codec {}
     (check-roundtrip #{} "D9010280")
     (check-roundtrip #{1 2 3} "D9010283010302"))
   (testing "read handler"
