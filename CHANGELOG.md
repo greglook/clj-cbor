@@ -7,7 +7,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Added
+- Add [clj-async-profiler](https://github.com/clojure-goes-fast/clj-async-profiler)
+  support in the benchmarking code to produce flame graphs for finding hotspots.
+
+### Fixed
+- `decode` will not try to coerce inputs which are already input streams
+  anymore. This fixes incremental/lazy decoding behavior.
+  [#13](https://github.com/greglook/clj-cbor/issues/13)
+- `encode` will not try to coerce outputs to an output stream anymore. Now an
+  exception is thrown when a bad argument is given. This prevents lost writes
+  when the final buffer is not flushed correctly.
+  [#14](https://github.com/greglook/clj-cbor/pull/14)
 
 ## [0.7.1] - 2019-01-10
 
