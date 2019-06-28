@@ -2865,7 +2865,7 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.7.1</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
+</script><title>mvxcvi/clj-cbor -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/greglook/clj-cbor">mvxcvi/clj-cbor</a></h1><h2 class="project-version">0.7.2</h2><br /><p>Concise Binary Object Representation (RFC 7049)</p>
 </div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.10.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#clj-cbor.header">clj-cbor.header</a></li><li><a href="#clj-cbor.error">clj-cbor.error</a></li><li><a href="#clj-cbor.core">clj-cbor.core</a></li><li><a href="#clj-cbor.codec">clj-cbor.codec</a></li><li><a href="#clj-cbor.tags.clojure">clj-cbor.tags.clojure</a></li><li><a href="#clj-cbor.tags.text">clj-cbor.tags.text</a></li><li><a href="#clj-cbor.tags.time">clj-cbor.tags.time</a></li><li><a href="#clj-cbor.tags.content">clj-cbor.tags.content</a></li><li><a href="#clj-cbor.tags.numbers">clj-cbor.tags.numbers</a></li><li><a href="#clj-cbor.data.simple">clj-cbor.data.simple</a></li><li><a href="#clj-cbor.data.float16">clj-cbor.data.float16</a></li><li><a href="#clj-cbor.data.tagged">clj-cbor.data.tagged</a></li><li><a href="#clj-cbor.data.core">clj-cbor.data.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.header" name="clj-cbor.header"><h1 class="project-name">clj-cbor.header</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for reading and writing CBOR headers.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.header
   (:require
@@ -3091,14 +3091,19 @@ the embedded item and return the parsed data value.</li>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Coerce the argument to a <code>DataOutputStream</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- data-output-stream
   ^DataOutputStream
-  [input]
-  (if (instance? DataOutputStream input)
-    input
-    (DataOutputStream. (io/output-stream input))))</pre></td></tr><tr><td class="docs"><p>Encode a single value as CBOR data.</p>
+  [output]
+  (condp instance? output
+    DataOutputStream
+    output
+    OutputStream
+    (DataOutputStream. output)
+    (throw (IllegalArgumentException.
+             (str &quot;Cannot coerce argument to an OutputStream: &quot;
+                  (pr-str output))))))</pre></td></tr><tr><td class="docs"><p>Encode a single value as CBOR data.</p>
 
-<p>  In the full argument form, this writes a value to an output stream and
-  returns the number of bytes written. If output is omitted, the function
-  returns a byte array instead. Uses the <code>default-codec</code> if none is provided.</p>
+<p>  Writes the value bytes to the provided output stream, or returns the value
+  as a byte array if no output is given. The <code>default-codec</code> is used to encode
+  the value if none is provided.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn encode
   ([value]
    (encode default-codec value))
@@ -3107,14 +3112,14 @@ the embedded item and return the parsed data value.</li>
      (with-open [output (data-output-stream buffer)]
        (encode encoder output value))
      (.toByteArray buffer)))
-  ([encoder ^OutputStream output value]
+  ([encoder output value]
    (let [data-output (data-output-stream output)]
      (codec/write-value encoder data-output value))))</pre></td></tr><tr><td class="docs"><p>Encode a sequence of values as CBOR data. This eagerly consumes the
   input sequence.</p>
 
-<p>  In the full argument form, this writes a value to an output stream and
-  returns the number of bytes written. If output is omitted, the function
-  returns a byte array instead. Uses the <code>default-codec</code> if none is provided.</p>
+<p>  Writes the value bytes to the provided output stream, or returns the value
+  as a byte array if no output is given. The <code>default-codec</code> is used to encode
+  the value if none is provided.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn encode-seq
   ([values]
    (encode-seq default-codec values))
@@ -3123,14 +3128,17 @@ the embedded item and return the parsed data value.</li>
      (with-open [output (data-output-stream buffer)]
        (encode-seq encoder output values))
      (.toByteArray buffer)))
-  ([encoder ^OutputStream output values]
+  ([encoder output values]
    (let [data-output (data-output-stream output)]
      (transduce (map (partial encode encoder data-output)) + 0 values))))</pre></td></tr><tr><td class="docs"><h2>Decoding Functions</h2>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Coerce the argument to a <code>DataInputStream</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- data-input-stream
   [input]
-  (if (instance? DataInputStream input)
+  (condp instance? input
+    DataInputStream
     input
+    InputStream
+    (DataInputStream. input)
     (DataInputStream. (io/input-stream input))))</pre></td></tr><tr><td class="docs"><p>Attempts to read a header byte from the input stream. If there is no more
   input, the <code>guard</code> value is returned.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- maybe-read-header
@@ -3150,9 +3158,14 @@ the embedded item and return the parsed data value.</li>
         &quot;Input data ended while parsing a CBOR value.&quot;
         {:header header}))))</pre></td></tr><tr><td class="docs"><p>Decode a single CBOR value from the input.</p>
 
-<p>  The input may be a byte array or coercible to an <code>input-stream</code>. Uses the
-  <code>default-codec</code> if none is provided. If at the end of the input, returns nil
-  or <code>eof-guard</code> if provided.</p>
+<p>  This uses the given codec or the <code>default-codec</code> if none is provided. If at
+  the end of the input, this returns <code>eof-guard</code> or nil.</p>
+
+<p>  The input must be an input stream or something coercible to one like a file
+  or byte array. Note that coercion will produce a <code>BufferedInputStream</code> if the
+  argument is not already a stream, so repeated reads will probably not behave
+  as expected! If you need incremental parsing, make sure you pass in something
+  that is already an <code>InputStream</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn decode
   ([input]
    (decode default-codec input))
@@ -3165,9 +3178,12 @@ the embedded item and return the parsed data value.</li>
        eof-guard
        (try-read-value decoder input header)))))</pre></td></tr><tr><td class="docs"><p>Decode a sequence of CBOR values from the input.</p>
 
-<p>  The input may be a byte array or coercible to an <code>input-stream</code>. Uses the
-  <code>default-codec</code> if none is provided. This returns a lazy sequence, so take
-  care that the input stream is not closed before the entries are realized.</p>
+<p>  This uses the given codec or the <code>default-codec</code> if none is provided. The
+  returned sequence is lazy, so take care that the input stream is not closed
+  before the entries are realized.</p>
+
+<p>  The input must be an input stream or something coercible to one - see
+  <code>decode</code> for usage notes.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn decode-seq
   ([input]
    (decode-seq default-codec input))
@@ -3439,7 +3455,11 @@ code.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- write-array
   [encoder ^DataOutputStream out xs]
   (let [hlen (header/write out :data-array (count xs))]
-    (reduce + hlen (map (partial write-value encoder out) xs))))</pre></td></tr><tr><td class="docs"><p>Reducing function which builds a vector to represent a data array.</p>
+    (reduce
+      (fn write-element
+        [len x]
+        (+ len (write-value encoder out x)))
+      hlen xs)))</pre></td></tr><tr><td class="docs"><p>Reducing function which builds a vector to represent a data array.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- build-array
   ([] [])
   ([xs] xs)
@@ -3614,7 +3634,7 @@ the codec setting and the selection of a canonical writer vs a regular one.</p>
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (if (= tag (:set-tag decoder))
+    (if (= tag data/set-tag)
       (read-set decoder value)
       (try
         (if-let [handler ((:read-handlers decoder) tag)]
@@ -3740,7 +3760,7 @@ content data; all the information is in the initial bytes.</p>
     (seq? x)    (write-array codec out x)
     (vector? x) (write-array codec out x)
     (map? x)    (write-map codec out x)
-    (set? x)    (write-set codec out (:set-tag codec) x)
+    (set? x)    (write-set codec out data/set-tag x)
     :else       nil))</pre></td></tr><tr><td class="docs"><h3>Decoding Functions</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Use a jump-table to decode the next value from the input.</p>
 
@@ -3921,7 +3941,7 @@ content data; all the information is in the initial bytes.</p>
          :info info}))))</pre></td></tr><tr><td class="docs"><h2>Codec Record</h2>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defrecord CBORCodec
-  [dispatch write-handlers read-handlers set-tag]
+  [dispatch write-handlers read-handlers]
   Encoder
   (write-value
     [this out x]
@@ -3942,7 +3962,6 @@ content data; all the information is in the initial bytes.</p>
     {:dispatch class
      :write-handlers {}
      :read-handlers {}
-     :set-tag 258
      :canonical false
      :strict false}))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#clj-cbor.tags.clojure" name="clj-cbor.tags.clojure"><h1 class="project-name">clj-cbor.tags.clojure</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Read and write handler support for Clojure types.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns clj-cbor.tags.clojure
@@ -4432,7 +4451,10 @@ many decimal fractions in binary floating point.</p>
   (tagged/-&gt;TaggedValue tag value nil))</pre></td></tr><tr><td class="docs"><p>Predicate which tests whether <code>x</code> is a CBOR tagged value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn tagged-value?
   [x]
-  (instance? TaggedValue x))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_clj-cbor.header">clj-cbor.header</li><li class="floating-toc-li" id="floating-toc_clj-cbor.error">clj-cbor.error</li><li class="floating-toc-li" id="floating-toc_clj-cbor.core">clj-cbor.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.codec">clj-cbor.codec</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.clojure">clj-cbor.tags.clojure</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.text">clj-cbor.tags.text</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.time">clj-cbor.tags.time</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.content">clj-cbor.tags.content</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.numbers">clj-cbor.tags.numbers</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.simple">clj-cbor.data.simple</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.float16">clj-cbor.data.float16</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.tagged">clj-cbor.data.tagged</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.core">clj-cbor.data.core</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+  (instance? TaggedValue x))</pre></td></tr><tr><td class="docs"><p>Tag code used to identify sets of unique values. Hard-coded here to support
+  canonical encoding.</p>
+</td><td class="codes"><pre class="brush: clojure">(def set-tag
+  258)</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_clj-cbor.header">clj-cbor.header</li><li class="floating-toc-li" id="floating-toc_clj-cbor.error">clj-cbor.error</li><li class="floating-toc-li" id="floating-toc_clj-cbor.core">clj-cbor.core</li><li class="floating-toc-li" id="floating-toc_clj-cbor.codec">clj-cbor.codec</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.clojure">clj-cbor.tags.clojure</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.text">clj-cbor.tags.text</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.time">clj-cbor.tags.time</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.content">clj-cbor.tags.content</li><li class="floating-toc-li" id="floating-toc_clj-cbor.tags.numbers">clj-cbor.tags.numbers</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.simple">clj-cbor.data.simple</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.float16">clj-cbor.data.float16</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.tagged">clj-cbor.data.tagged</li><li class="floating-toc-li" id="floating-toc_clj-cbor.data.core">clj-cbor.data.core</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
