@@ -5,7 +5,9 @@
     [clj-cbor.codec :as codec]
     [clj-cbor.test-utils :refer :all])
   (:import
-    java.io.File
+    (java.io
+      ByteArrayInputStream
+      File)
     java.time.Instant))
 
 
@@ -29,6 +31,11 @@
     (is (= {Long :y} (:write-handlers codec)))))
 
 
+(deftest encode-output-guard
+  (is (thrown-with-msg? IllegalArgumentException #"coerce argument to an OutputStream"
+        (cbor/encode cbor/default-codec :not-an-output-stream 123))))
+
+
 (deftest multi-value-coding
   (is (= [true 123 :abc] (cbor/decode-seq (cbor/encode-seq [true 123 :abc])))))
 
@@ -39,6 +46,14 @@
   (testing "interrupted data"
     (is (cbor-error? :clj-cbor.codec/end-of-input
           (decode-hex-all "D827623A61187BF563666F")))))
+
+
+(deftest lazy-decoding
+  (let [data (cbor/encode-seq [:a :b :c])
+        input (ByteArrayInputStream. data)]
+    (is (= :a (cbor/decode input)))
+    (is (= :b (cbor/decode input)))
+    (is (= [:c] (cbor/decode-seq input)))))
 
 
 (deftest slobber-utils

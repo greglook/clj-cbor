@@ -79,5 +79,5 @@
 
 
 (defspec ^:generative round-trip-equivalence 100
-  (prop/for-all [x gen/any-printable]
+  (prop/for-all [x (gen/scale #(max 20 %) gen/any-printable)]
     (equivalent? x (cbor/decode (cbor/encode x)))))

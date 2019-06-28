@@ -306,7 +306,11 @@
   a definite length, so `xs` will be fully realized."
   [encoder ^DataOutputStream out xs]
   (let [hlen (header/write out :data-array (count xs))]
-    (reduce + hlen (map (partial write-value encoder out) xs))))
+    (reduce
+      (fn write-element
+        [len x]
+        (+ len (write-value encoder out x)))
+      hlen xs)))
 
 
 (defn- build-array
@@ -529,7 +533,7 @@
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
         value (read-value decoder input)]
-    (if (= tag (:set-tag decoder))
+    (if (= tag data/set-tag)
       (read-set decoder value)
       (try
         (if-let [handler ((:read-handlers decoder) tag)]
@@ -698,7 +702,7 @@
     (seq? x)    (write-array codec out x)
     (vector? x) (write-array codec out x)
     (map? x)    (write-map codec out x)
-    (set? x)    (write-set codec out (:set-tag codec) x)
+    (set? x)    (write-set codec out data/set-tag x)
     :else       nil))
 
 
@@ -906,7 +910,7 @@
 ;; ## Codec Record
 
 (defrecord CBORCodec
-  [dispatch write-handlers read-handlers set-tag]
+  [dispatch write-handlers read-handlers]
 
   Encoder
 
@@ -935,6 +939,5 @@
     {:dispatch class
      :write-handlers {}
      :read-handlers {}
-     :set-tag 258
      :canonical false
      :strict false}))
