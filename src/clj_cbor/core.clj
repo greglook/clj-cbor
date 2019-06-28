@@ -81,26 +81,33 @@
 (defn- data-output-stream
   "Coerce the argument to a `DataOutputStream`."
   ^DataOutputStream
-  [^OutputStream input]
-  (cond-> input
+  [output]
+  (condp instance? output
+    DataOutputStream
+    output
 
-    (not (instance? DataOutputStream input))
-    (DataOutputStream.)))
+    OutputStream
+    (DataOutputStream. output)
+
+    (throw (IllegalArgumentException.
+             (str "Cannot coerce argument to an OutputStream: "
+                  (pr-str output))))))
+
 
 (defn encode
   "Encode a single value as CBOR data.
 
-  In the full argument form, this writes a value to an output stream and
-  returns the number of bytes written. If output is omitted, the function
-  returns a byte array instead. Uses the `default-codec` if none is provided."
+  Writes the value bytes to the provided output stream, or returns the value
+  as a byte array if no output is given. The `default-codec` is used to encode
+  the value if none is provided."
   ([value]
    (encode default-codec value))
   ([encoder value]
    (let [buffer (ByteArrayOutputStream.)]
-     (with-open [output (DataOutputStream. buffer)]
+     (with-open [output (data-output-stream buffer)]
        (encode encoder output value))
      (.toByteArray buffer)))
-  ([encoder ^OutputStream output value]
+  ([encoder output value]
    (let [data-output (data-output-stream output)]
      (codec/write-value encoder data-output value))))
 
@@ -109,17 +116,17 @@
   "Encode a sequence of values as CBOR data. This eagerly consumes the
   input sequence.
 
-  In the full argument form, this writes a value to an output stream and
-  returns the number of bytes written. If output is omitted, the function
-  returns a byte array instead. Uses the `default-codec` if none is provided."
+  Writes the value bytes to the provided output stream, or returns the value
+  as a byte array if no output is given. The `default-codec` is used to encode
+  the value if none is provided."
   ([values]
    (encode-seq default-codec values))
   ([encoder values]
    (let [buffer (ByteArrayOutputStream.)]
-     (with-open [output (DataOutputStream. buffer)]
+     (with-open [output (data-output-stream buffer)]
        (encode-seq encoder output values))
      (.toByteArray buffer)))
-  ([encoder ^OutputStream output values]
+  ([encoder output values]
    (let [data-output (data-output-stream output)]
      (transduce (map (partial encode encoder data-output)) + 0 values))))
 

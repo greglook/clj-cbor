@@ -31,6 +31,11 @@
     (is (= {Long :y} (:write-handlers codec)))))
 
 
+(deftest encode-output-guard
+  (is (thrown-with-msg? IllegalArgumentException #"coerce argument to an OutputStream"
+        (cbor/encode cbor/default-codec :not-an-output-stream 123))))
+
+
 (deftest multi-value-coding
   (is (= [true 123 :abc] (cbor/decode-seq (cbor/encode-seq [true 123 :abc])))))
 
