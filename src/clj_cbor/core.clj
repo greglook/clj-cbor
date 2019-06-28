@@ -81,11 +81,11 @@
 (defn- data-output-stream
   "Coerce the argument to a `DataOutputStream`."
   ^DataOutputStream
-  [input]
-  (if (instance? DataOutputStream input)
-    input
-    (DataOutputStream. (io/output-stream input))))
+  [^OutputStream input]
+  (cond-> input
 
+    (not (instance? DataOutputStream input))
+    (DataOutputStream.)))
 
 (defn encode
   "Encode a single value as CBOR data.
@@ -97,7 +97,7 @@
    (encode default-codec value))
   ([encoder value]
    (let [buffer (ByteArrayOutputStream.)]
-     (with-open [output (data-output-stream buffer)]
+     (with-open [output (DataOutputStream. buffer)]
        (encode encoder output value))
      (.toByteArray buffer)))
   ([encoder ^OutputStream output value]
@@ -116,7 +116,7 @@
    (encode-seq default-codec values))
   ([encoder values]
    (let [buffer (ByteArrayOutputStream.)]
-     (with-open [output (data-output-stream buffer)]
+     (with-open [output (DataOutputStream. buffer)]
        (encode-seq encoder output values))
      (.toByteArray buffer)))
   ([encoder ^OutputStream output values]
