@@ -922,7 +922,8 @@
         (error/*handler*
           ::unsupported-type
           (str "No known encoding for object: " (pr-str x))
-          {:value x})))
+          {:value x 
+           :type (type x})))
 
 
   Decoder
