@@ -923,7 +923,7 @@
           ::unsupported-type
           (str "No known encoding for object: " (pr-str x))
           {:value x 
-           :type (type x})))
+           :type (type x)})))
 
 
   Decoder
