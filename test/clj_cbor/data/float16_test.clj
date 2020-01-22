@@ -1,7 +1,7 @@
 (ns clj-cbor.data.float16-test
   (:require
-    [clojure.test :refer :all]
-    [clj-cbor.data.float16 :as float16]))
+    [clj-cbor.data.float16 :as float16]
+    [clojure.test :refer :all]))
 
 
 (deftest float-decoding

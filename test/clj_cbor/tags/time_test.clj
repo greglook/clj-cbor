@@ -1,12 +1,12 @@
 (ns clj-cbor.tags.time-test
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.tags.time :refer :all]
-    [clj-cbor.test-utils :refer :all])
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all])
   (:import
-    java.util.Date
-    java.time.Instant))
+    java.time.Instant
+    java.util.Date))
 
 
 (deftest epoch-datetimes

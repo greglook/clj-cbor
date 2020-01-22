@@ -8,7 +8,8 @@
     (clj_cbor.data.simple
       SimpleValue
       Undefined)
-    clj_cbor.data.tagged.TaggedValue))
+    (clj_cbor.data.tagged
+      TaggedValue)))
 
 
 ;; ## Simple Values

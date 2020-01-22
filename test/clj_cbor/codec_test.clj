@@ -1,11 +1,11 @@
 (ns clj-cbor.codec-test
   "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.codec :as codec]
     [clj-cbor.core :as cbor]
     [clj-cbor.data.core :as data]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all]))
 
 
 (deftest byte-utils

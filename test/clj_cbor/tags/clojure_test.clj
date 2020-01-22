@@ -1,9 +1,9 @@
 (ns clj-cbor.tags.clojure-test
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.tags.clojure :refer :all]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all]))
 
 
 (deftest keywords

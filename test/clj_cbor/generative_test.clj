@@ -1,13 +1,13 @@
 (ns clj-cbor.generative-test
   "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
+    [clj-cbor.core :as cbor]
+    [clj-cbor.data.core :as data]
+    [clj-cbor.test-utils :refer :all]
     [clojure.test :refer :all]
     [clojure.test.check.clojure-test :refer [defspec]]
     [clojure.test.check.generators :as gen]
-    [clojure.test.check.properties :as prop]
-    [clj-cbor.core :as cbor]
-    [clj-cbor.data.core :as data]
-    [clj-cbor.test-utils :refer :all])
+    [clojure.test.check.properties :as prop])
   (:import
     (java.util
       Collection

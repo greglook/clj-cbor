@@ -1,9 +1,9 @@
 (ns clj-cbor.tags.numbers-test
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.tags.numbers :refer :all]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all]))
 
 
 (deftest bignums
@@ -32,7 +32,6 @@
                :read-handlers number-read-handlers}
     (check-roundtrip 273.15M "C48221196AB3")
     (check-roundtrip 3.14159M "C482241A0004CB2F")))
-
 
 
 (deftest rationals

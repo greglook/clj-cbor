@@ -1,9 +1,9 @@
 (ns clj-cbor.header-test
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.header :as header]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all]))
 
 
 (defn check-header-int

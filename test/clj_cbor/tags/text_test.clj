@@ -1,9 +1,9 @@
 (ns clj-cbor.tags.text-test
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
     [clj-cbor.tags.text :refer :all]
-    [clj-cbor.test-utils :refer :all])
+    [clj-cbor.test-utils :refer :all]
+    [clojure.test :refer :all])
   (:import
     java.net.URI
     java.util.UUID))

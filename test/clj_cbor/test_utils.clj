@@ -1,8 +1,8 @@
 (ns clj-cbor.test-utils
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.core :as cbor]
-    [clj-cbor.error :as error])
+    [clj-cbor.error :as error]
+    [clojure.test :refer :all])
   (:import
     javax.xml.bind.DatatypeConverter))
 
