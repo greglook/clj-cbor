@@ -36,7 +36,7 @@
    {:source-paths ["dev"]}
 
    :bench
-   {:source-paths ["dev"]
+   {:source-paths ["bench"]
     :dependencies
     [[com.clojure-goes-fast/clj-async-profiler "0.4.1"]
      [com.cognitect/transit-clj "1.0.324"]

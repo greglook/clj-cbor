@@ -3,6 +3,7 @@
   (:require
     [clj-cbor.core :as cbor]
     [clj-cbor.data.core :as data]
+    [clj-cbor.test-utils :refer :all]
     [clojure.java.io :as io]
     [clojure.repl :refer :all]
     [clojure.stacktrace :refer [print-cause-trace]]

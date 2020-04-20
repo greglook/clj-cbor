@@ -1,7 +1,8 @@
 /target
 /classes
 /checkouts
-/bench
+/bench/data
+/bench/samples
 /.clj-kondo/.cache
 /.lein-*
 /.nrepl-port
