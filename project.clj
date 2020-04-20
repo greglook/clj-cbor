@@ -23,11 +23,6 @@
    :show-external true
    :ignore-ns #{clojure user}}
 
-  :codox
-  {:metadata {:doc/format :markdown}
-   :source-uri "https://github.com/greglook/clj-cbor/blob/master/{filepath}#L{line}"
-   :output-path "target/doc/api"}
-
   :profiles
   {:dev
    {:plugins
