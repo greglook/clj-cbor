@@ -53,7 +53,9 @@
 (defmulti equivalent?
   "True if the two values are 'equivalent' after accounting for various
   idiosyncracies like Character support, NaN, and Patterns."
-  (fn [a _] (class a)))
+  (fn dispatch
+    [a _b]
+    (class a)))
 
 
 (defmethod equivalent? :default
@@ -94,7 +96,7 @@
   [a b]
   (and (instance? Set b)
        (= (count a) (count b))
-       (every? #(equivalent? % (get b %)) a)))
+       (every? #(seq (filter (partial equivalent? %) b)) a)))
 
 
 (defmethod equivalent? Map

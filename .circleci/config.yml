@@ -54,6 +54,7 @@ jobs:
       - run: lein deps
       - run: lein check
       - run: lein test
+      - run: lein test :generative
       - save_cache:
           key: v1-test-{{ checksum "project.clj" }}
           paths:
