@@ -22,6 +22,7 @@
   This is interpreted as an unsigned integer `n` in network byte order."
   2)
 
+
 (def ^:const negative-bignum-tag
   "Tag 3 is for negative bignums. These are encoded the same as for positive
   bignums (tag 2), but the value of the bignum is `-1 - n`."

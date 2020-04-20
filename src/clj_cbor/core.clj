@@ -29,8 +29,8 @@
 
   Arguments may be a map or a sequence of key/value pairs. Valid options are:
 
-  - `:write-dispatch` function which is called to provide a dispatch value
-    based on the data to be rendered. (default: `class`)
+  - `:dispatch` function which is called to provide a dispatch value based on
+    the data to be encoded. (default: `class`)
   - `:write-handlers` lookup function from dispatch values to handlers which
     take some data to be encoded and return a transformed version of it
     (typically a tagged value).
@@ -165,7 +165,8 @@
   (try
     (codec/read-value* decoder input header)
     (catch EOFException _
-      (error/*handler* :clj-cbor.codec/end-of-input
+      (error/*handler*
+        :clj-cbor.codec/end-of-input
         "Input data ended while parsing a CBOR value."
         {:header header}))))
 

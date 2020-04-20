@@ -2,9 +2,8 @@ clj-cbor
 ========
 
 [![CircleCI](https://circleci.com/gh/greglook/clj-cbor.svg?style=shield&circle-token=21efcbc50fe431aa2efc22413ba1f4407fec6283)](https://circleci.com/gh/greglook/clj-cbor)
-[![codecov](https://codecov.io/gh/greglook/clj-cbor/branch/develop/graph/badge.svg)](https://codecov.io/gh/greglook/clj-cbor)
-[![API documentation](https://img.shields.io/badge/doc-API-blue.svg)](https://greglook.github.io/clj-cbor/api/)
-[![Literate documentation](https://img.shields.io/badge/doc-marginalia-blue.svg)](https://greglook.github.io/clj-cbor/marginalia/uberdoc.html)
+[![codecov](https://codecov.io/gh/greglook/clj-cbor/branch/master/graph/badge.svg)](https://codecov.io/gh/greglook/clj-cbor)
+[![cljdoc lib](https://img.shields.io/badge/cljdoc-lib-blue.svg)](https://cljdoc.org/d/mvxcvi/clj-cbor/)
 
 This library is a native Clojure implementation of the [Concise Binary Object Representation](http://cbor.io/)
 format specified in [RFC 7049](https://tools.ietf.org/html/rfc7049).

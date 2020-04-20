@@ -1,0 +1,10 @@
+{:linters
+ {:consistent-alias
+  {:level :warning
+   :aliases {clojure.java.io io
+             clojure.set set
+             clojure.string str}}
+
+  :unresolved-symbol
+  {:exclude [(clojure.test/is [cbor-error?])
+             (clojure.test.check.clojure-test/defspec)]}}}

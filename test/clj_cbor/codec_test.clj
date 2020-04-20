@@ -1,11 +1,12 @@
 (ns clj-cbor.codec-test
   "Decoding tests. Test examples are from RFC 7049 Appendix A."
   (:require
-    [clojure.test :refer :all]
     [clj-cbor.codec :as codec]
     [clj-cbor.core :as cbor]
     [clj-cbor.data.core :as data]
-    [clj-cbor.test-utils :refer :all]))
+    [clj-cbor.test-utils
+     :refer [bytes= check-roundtrip decode-hex encoded-hex with-codec]]
+    [clojure.test :refer [deftest testing is are]]))
 
 
 (deftest byte-utils
@@ -281,7 +282,7 @@
       (is (cbor-error? ::codec/unknown-tag
             (decode-hex codec "CC08")))))
   (testing "handler error"
-    (let [handler (fn [t v] (throw (Exception. "BOOM")))
+    (let [handler (fn [_ _] (throw (Exception. "BOOM")))
           codec (cbor/cbor-codec :read-handlers {0 handler})]
       (is (cbor-error? ::codec/tag-handling-error
             (decode-hex codec "C00F")))))

@@ -1,0 +1,7 @@
+;; vim: filetype=clojure
+{:padding-lines 2
+ :max-consecutive-blank-lines 3
+ :single-import-break-width 80
+ :file-ignore #{".git" "target"}
+ :indents {cbor-error? [[:block 1]]
+           prop/for-all [[:block 1]]}}

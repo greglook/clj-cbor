@@ -1,9 +1,9 @@
 (ns clj-cbor.core-test
   (:require
-    [clojure.test :refer :all]
-    [clj-cbor.core :as cbor]
     [clj-cbor.codec :as codec]
-    [clj-cbor.test-utils :refer :all])
+    [clj-cbor.core :as cbor]
+    [clj-cbor.test-utils :refer [decode-hex-all]]
+    [clojure.test :refer [deftest testing is]])
   (:import
     (java.io
       ByteArrayInputStream

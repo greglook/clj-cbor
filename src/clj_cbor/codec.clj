@@ -1,11 +1,10 @@
 (ns clj-cbor.codec
   "Main CBOR codec implementation."
   (:require
-    [clj-cbor.error :as error]
-    [clj-cbor.header :as header]
     [clj-cbor.data.core :as data]
     [clj-cbor.data.float16 :as float16]
-    [clojure.string :as str])
+    [clj-cbor.error :as error]
+    [clj-cbor.header :as header])
   (:import
     clj_cbor.data.simple.SimpleValue
     clj_cbor.data.tagged.TaggedValue
@@ -205,7 +204,7 @@
 
 (defn- write-integer
   "Writes an integer value."
-  [encoder ^DataOutputStream out n]
+  [^DataOutputStream out n]
   (if (neg? n)
     (header/write out :negative-integer (-' -1 n))
     (header/write out :unsigned-integer n)))
@@ -224,7 +223,7 @@
 
 (defn- write-byte-string
   "Writes an array of bytes to the output string as a CBOR byte string."
-  [encoder ^DataOutputStream out bs]
+  [^DataOutputStream out bs]
   (let [hlen (header/write out :byte-string (count bs))]
     (.write out ^bytes bs)
     (+ hlen (count bs))))
@@ -261,7 +260,7 @@
 
 (defn- write-text-string
   "Write a string of characters to the output as a CBOR text string."
-  [encoder ^DataOutputStream out ts]
+  [^DataOutputStream out ts]
   (let [text (.getBytes ^String ts "UTF-8")
         hlen (header/write out :text-string (count text))]
     (.write out text)
@@ -565,21 +564,21 @@
 
 (defn- write-boolean
   "Writes a boolean simple value to the output."
-  [encoder ^DataOutputStream out x]
+  [^DataOutputStream out x]
   (.writeByte out (if x 0xF5 0xF4))
   1)
 
 
 (defn- write-null
   "Writes a 'null' simple value to the output."
-  [encoder ^DataOutputStream out]
+  [^DataOutputStream out]
   (.writeByte out 0xF6)
   1)
 
 
 (defn- write-undefined
   "Writes an 'undefined' simple value to the output."
-  [encoder ^DataOutputStream out]
+  [^DataOutputStream out]
   (.writeByte out 0xF7)
   1)
 
@@ -588,7 +587,7 @@
   "Writes a floating-point value to the output. Special values zero, NaN, and
   +/- Infinity are represented as 16-bit numbers, otherwise the encoding is
   determined by class."
-  [encoder ^DataOutputStream out n]
+  [^DataOutputStream out n]
   (cond
     (zero? (double n))
     (do (header/write-leader out :simple-value 25)
@@ -621,7 +620,7 @@
 (defn- write-simple
   "Writes a generic simple value for the given code and returns the number of
   bytes written. Does not handle floating-point or reserved values."
-  [encoder ^DataOutputStream out ^SimpleValue x]
+  [^DataOutputStream out ^SimpleValue x]
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
@@ -661,22 +660,22 @@
   of bytes written. Returns nil if `x` is not a native type."
   [codec out x]
   (cond
-    ; Special and simple values
-    (nil? x) (write-null codec out)
-    (boolean? x) (write-boolean codec out x)
-    (= data/undefined x) (write-undefined codec out)
-    (data/simple-value? x) (write-simple codec out x)
+    ;; Special and simple values
+    (nil? x) (write-null out)
+    (boolean? x) (write-boolean out x)
+    (= data/undefined x) (write-undefined out)
+    (data/simple-value? x) (write-simple out x)
 
-    ; Numbers
-    (representable-integer? x) (write-integer codec out x)
-    (float? x) (write-float codec out x)
+    ;; Numbers
+    (representable-integer? x) (write-integer out x)
+    (float? x) (write-float out x)
 
-    ; Byte and text strings
-    (char? x) (write-text-string codec out (str x))
-    (string? x) (write-text-string codec out x)
-    (bytes? x) (write-byte-string codec out x)
+    ;; Byte and text strings
+    (char? x) (write-text-string out (str x))
+    (string? x) (write-text-string out x)
+    (bytes? x) (write-byte-string out x)
 
-    ; Tag extensions
+    ;; Tag extensions
     (data/tagged-value? x) (write-tagged codec out x)
 
     :else nil))
@@ -791,8 +790,8 @@
       0x40 (byte-array 0)
 
       (0x41 0x42 0x43 0x44 0x45 0x46 0x47
-       0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F
-       0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57)
+            0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F
+            0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57)
       (read-bytes input info)
 
       0x58 (read-bytes input (header/read-byte input))
@@ -805,8 +804,8 @@
       0x60 ""
 
       (0x61 0x62 0x63 0x64 0x65 0x66 0x67
-       0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F
-       0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77)
+            0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F
+            0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77)
       (read-text input info)
 
       0x78 (read-text input (header/read-byte input))
@@ -829,8 +828,8 @@
             (read-value decoder input)]
 
       (0x85 0x86 0x87
-       0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F
-       0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97)
+            0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F
+            0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97)
       (read-array decoder input info)
 
       0x98 (read-array decoder input (header/read-byte input))
@@ -846,8 +845,8 @@
             (read-value decoder input)}
 
       (0xA2 0xA3 0xA4 0xA5 0xA6 0xA7
-       0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF
-       0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7)
+            0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF
+            0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7)
       (read-map decoder input info)
 
       0xB8 (read-map decoder input (header/read-byte input))
@@ -859,9 +858,9 @@
 
       ; Tagged Values
       (0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7
-       0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF
-       0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7
-       0xD8 0xD9 0xDA 0xDB)
+            0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF
+            0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7
+            0xD8 0xD9 0xDA 0xDB)
       (read-tagged decoder input info)
 
       0xDF
@@ -872,8 +871,8 @@
 
       ; Simple Values
       (0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7
-       0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF
-       0xF0 0xF1 0xF2 0xF3)
+            0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF
+            0xF0 0xF1 0xF2 0xF3)
       (unknown-simple decoder info)
 
       0xF4 false

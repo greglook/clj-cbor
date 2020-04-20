@@ -8,8 +8,8 @@
     [clj-cbor.test-utils :as util]
     [clojure.data.fressian :as fressian]
     [clojure.edn :as edn]
-    [clojure.set :as set]
     [clojure.java.io :as io]
+    [clojure.set :as set]
     [clojure.string :as str]
     [clojure.test.check.generators :as gen]
     [cognitect.transit :as transit]
@@ -266,7 +266,6 @@
             bucket-count))
   (flush)
   histogram)
-
 
 
 (defn- report-sample-store
