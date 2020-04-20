@@ -681,15 +681,21 @@
     :else nil))
 
 
+(defn- handler-dispatch
+  "Determine the 'dispatch value' used to select the write handler for the
+  given value."
+  [codec x]
+  (when-let [dispatch (:dispatch codec)]
+    (dispatch x)))
+
+
 (defn- write-handled
   "Writes the value `x` using a write-handler, if one is returned by the
   `write-handlers` lookup function. Returns the number of bytes written, or nil
   if no handler was found."
   [codec out x]
-  (let [dispatch (:dispatch codec)
-        write-handlers (:write-handlers codec)]
-    (when-let [formatter (write-handlers (dispatch x))]
-      ; TODO: better error reporting
+  (when-let [write-handlers (:write-handlers codec)]
+    (when-let [formatter (write-handlers (handler-dispatch codec x))]
       (write-value codec out (formatter x)))))
 
 
@@ -921,8 +927,9 @@
         (error/*handler*
           ::unsupported-type
           (str "No known encoding for object: " (pr-str x))
-          {:value x 
-           :type (type x)})))
+          {:value x
+           :class (class x)
+           :dispatch (handler-dispatch this x)})))
 
 
   Decoder
