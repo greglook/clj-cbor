@@ -2,9 +2,10 @@
 /classes
 /checkouts
 /bench
+/.clj-kondo/.cache
+/.lein-*
+/.nrepl-port
 pom.xml
 pom.xml.asc
 *.jar
 *.class
-/.lein-*
-/.nrepl-port

@@ -2,8 +2,8 @@
   (:require
     [clj-cbor.codec :as codec]
     [clj-cbor.core :as cbor]
-    [clj-cbor.test-utils :refer :all]
-    [clojure.test :refer :all])
+    [clj-cbor.test-utils :refer [decode-hex-all]]
+    [clojure.test :refer [deftest testing is]])
   (:import
     (java.io
       ByteArrayInputStream

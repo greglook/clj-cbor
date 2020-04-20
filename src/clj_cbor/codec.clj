@@ -4,8 +4,7 @@
     [clj-cbor.data.core :as data]
     [clj-cbor.data.float16 :as float16]
     [clj-cbor.error :as error]
-    [clj-cbor.header :as header]
-    [clojure.string :as str])
+    [clj-cbor.header :as header])
   (:import
     clj_cbor.data.simple.SimpleValue
     clj_cbor.data.tagged.TaggedValue
@@ -205,7 +204,7 @@
 
 (defn- write-integer
   "Writes an integer value."
-  [encoder ^DataOutputStream out n]
+  [^DataOutputStream out n]
   (if (neg? n)
     (header/write out :negative-integer (-' -1 n))
     (header/write out :unsigned-integer n)))
@@ -224,7 +223,7 @@
 
 (defn- write-byte-string
   "Writes an array of bytes to the output string as a CBOR byte string."
-  [encoder ^DataOutputStream out bs]
+  [^DataOutputStream out bs]
   (let [hlen (header/write out :byte-string (count bs))]
     (.write out ^bytes bs)
     (+ hlen (count bs))))
@@ -261,7 +260,7 @@
 
 (defn- write-text-string
   "Write a string of characters to the output as a CBOR text string."
-  [encoder ^DataOutputStream out ts]
+  [^DataOutputStream out ts]
   (let [text (.getBytes ^String ts "UTF-8")
         hlen (header/write out :text-string (count text))]
     (.write out text)
@@ -565,21 +564,21 @@
 
 (defn- write-boolean
   "Writes a boolean simple value to the output."
-  [encoder ^DataOutputStream out x]
+  [^DataOutputStream out x]
   (.writeByte out (if x 0xF5 0xF4))
   1)
 
 
 (defn- write-null
   "Writes a 'null' simple value to the output."
-  [encoder ^DataOutputStream out]
+  [^DataOutputStream out]
   (.writeByte out 0xF6)
   1)
 
 
 (defn- write-undefined
   "Writes an 'undefined' simple value to the output."
-  [encoder ^DataOutputStream out]
+  [^DataOutputStream out]
   (.writeByte out 0xF7)
   1)
 
@@ -588,7 +587,7 @@
   "Writes a floating-point value to the output. Special values zero, NaN, and
   +/- Infinity are represented as 16-bit numbers, otherwise the encoding is
   determined by class."
-  [encoder ^DataOutputStream out n]
+  [^DataOutputStream out n]
   (cond
     (zero? (double n))
     (do (header/write-leader out :simple-value 25)
@@ -621,7 +620,7 @@
 (defn- write-simple
   "Writes a generic simple value for the given code and returns the number of
   bytes written. Does not handle floating-point or reserved values."
-  [encoder ^DataOutputStream out ^SimpleValue x]
+  [^DataOutputStream out ^SimpleValue x]
   (let [n (.n x)]
     (cond
       (<= 0 n 23)
@@ -661,22 +660,22 @@
   of bytes written. Returns nil if `x` is not a native type."
   [codec out x]
   (cond
-    ; Special and simple values
-    (nil? x) (write-null codec out)
-    (boolean? x) (write-boolean codec out x)
-    (= data/undefined x) (write-undefined codec out)
-    (data/simple-value? x) (write-simple codec out x)
+    ;; Special and simple values
+    (nil? x) (write-null out)
+    (boolean? x) (write-boolean out x)
+    (= data/undefined x) (write-undefined out)
+    (data/simple-value? x) (write-simple out x)
 
-    ; Numbers
-    (representable-integer? x) (write-integer codec out x)
-    (float? x) (write-float codec out x)
+    ;; Numbers
+    (representable-integer? x) (write-integer out x)
+    (float? x) (write-float out x)
 
-    ; Byte and text strings
-    (char? x) (write-text-string codec out (str x))
-    (string? x) (write-text-string codec out x)
-    (bytes? x) (write-byte-string codec out x)
+    ;; Byte and text strings
+    (char? x) (write-text-string out (str x))
+    (string? x) (write-text-string out x)
+    (bytes? x) (write-byte-string out x)
 
-    ; Tag extensions
+    ;; Tag extensions
     (data/tagged-value? x) (write-tagged codec out x)
 
     :else nil))

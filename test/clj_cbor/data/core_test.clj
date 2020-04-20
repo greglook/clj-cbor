@@ -1,8 +1,7 @@
 (ns clj-cbor.data.core-test
   (:require
     [clj-cbor.data.core :as data]
-    [clj-cbor.test-utils :refer :all]
-    [clojure.test :refer :all]))
+    [clojure.test :refer [deftest is]]))
 
 
 (deftest simple-value-construction

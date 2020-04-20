@@ -1,13 +1,11 @@
 (ns clj-cbor.data.core
   "Type definitions and keyword identifiers for CBOR data types."
   (:require
-    [clj-cbor.data.float16 :as float16]
     [clj-cbor.data.simple :as simple]
     [clj-cbor.data.tagged :as tagged])
   (:import
     (clj_cbor.data.simple
-      SimpleValue
-      Undefined)
+      SimpleValue)
     (clj_cbor.data.tagged
       TaggedValue)))
 

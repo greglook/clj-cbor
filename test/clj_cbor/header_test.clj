@@ -1,9 +1,8 @@
 (ns clj-cbor.header-test
   (:require
-    [clj-cbor.core :as cbor]
     [clj-cbor.header :as header]
-    [clj-cbor.test-utils :refer :all]
-    [clojure.test :refer :all]))
+    [clj-cbor.test-utils :refer [bin->hex]]
+    [clojure.test :refer [deftest testing is]]))
 
 
 (defn check-header-int

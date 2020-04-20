@@ -1,8 +1,7 @@
 (ns clj-cbor.header
   "Functions for reading and writing CBOR headers."
   (:require
-    [clj-cbor.error :as error]
-    [clojure.string :as str])
+    [clj-cbor.error :as error])
   (:import
     clojure.lang.BigInt
     (java.io

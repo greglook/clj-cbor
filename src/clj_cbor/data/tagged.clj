@@ -11,12 +11,14 @@
     [this]
     (str tag "(" value ")"))
 
+
   (equals
     [this that]
     (boolean (or (identical? this that)
                  (and (instance? TaggedValue that)
                       (= tag (.tag ^TaggedValue that))
                       (= value (.value ^TaggedValue that))))))
+
 
   (hashCode
     [this]
@@ -26,6 +28,7 @@
   clojure.lang.IObj
 
   (meta [this] _meta)
+
 
   (withMeta
     [this meta-map]

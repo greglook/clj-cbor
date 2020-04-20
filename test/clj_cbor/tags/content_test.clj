@@ -1,9 +1,8 @@
 (ns clj-cbor.tags.content-test
   (:require
     [clj-cbor.core :as cbor]
-    [clj-cbor.tags.content :refer :all]
-    [clj-cbor.test-utils :refer :all]
-    [clojure.test :refer :all]))
+    [clj-cbor.test-utils :refer [decode-hex encoded-hex]]
+    [clojure.test :refer [deftest is]]))
 
 
 (deftest self-described

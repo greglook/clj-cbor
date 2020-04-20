@@ -2,7 +2,7 @@
   (:require
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error]
-    [clojure.test :refer :all])
+    [clojure.test :refer [assert-expr do-report is]])
   (:import
     javax.xml.bind.DatatypeConverter))
 

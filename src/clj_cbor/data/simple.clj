@@ -13,9 +13,11 @@
     [this]
     "undefined")
 
+
   (equals
     [this that]
     (boolean (or (identical? this that) (instance? Undefined that))))
+
 
   (hashCode
     [this]
@@ -25,6 +27,7 @@
   clojure.lang.IObj
 
   (meta [this] _meta)
+
 
   (withMeta
     [this meta-map]
@@ -43,11 +46,13 @@
     [this]
     (str "simple(" n ")"))
 
+
   (equals
     [this that]
     (boolean (or (identical? this that)
                  (and (instance? SimpleValue that)
                       (= n (.n ^SimpleValue that))))))
+
 
   (hashCode
     [this]
@@ -57,6 +62,7 @@
   clojure.lang.IObj
 
   (meta [this] _meta)
+
 
   (withMeta
     [this meta-map]
