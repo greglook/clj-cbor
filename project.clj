@@ -8,7 +8,8 @@
   :pedantic? :abort
 
   :aliases
-  {"bench" ["with-profile" "+bench" "run" "-m" "clj-cbor.bench"]
+  {"coverage" ["with-profile" "+coverage" "cloverage"]
+   "bench" ["with-profile" "+bench" "run" "-m" "clj-cbor.bench"]
    "bench-repl" ["with-profile" "+bench" "repl"]}
 
   :dependencies
@@ -34,6 +35,10 @@
 
    :repl
    {:source-paths ["dev"]}
+
+   :coverage
+   {:plugins
+    [[lein-cloverage "1.1.2"]]}
 
    :bench
    {:source-paths ["bench"]
