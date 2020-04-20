@@ -2,14 +2,14 @@
   (:require
     [clj-cbor.core :as cbor]
     [clj-cbor.error :as error]
+    [clojure.string :as str]
     [clojure.test :refer [assert-expr do-report is]])
   (:import
     (java.util
       List
       Map
       Set)
-    java.util.regex.Pattern
-    javax.xml.bind.DatatypeConverter))
+    java.util.regex.Pattern))
 
 
 ;; ## Test Assertions
@@ -118,19 +118,48 @@
 
 ;; ## Hex Conversion
 
+(defn- byte->hex
+  "Convert a single byte value to a two-character hex string."
+  [b]
+  (let [hex (Integer/toHexString
+              (if (neg? b)
+                (+ b 256)
+                b))]
+    (if (= 1 (count hex))
+      (str "0" hex)
+      hex)))
+
+
+(defn- hex->byte
+  "Convert a two-character hex string to a byte value."
+  [octet]
+  (let [b (Integer/parseInt octet 16)]
+    (if (< 127 b)
+      (- b 256)
+      b)))
+
+
 (defn bin->hex
+  "Convert a byte array to a hex string."
   ^String
   [^bytes value]
-  (DatatypeConverter/printHexBinary value))
+  (str/upper-case (apply str (map byte->hex value))))
 
 
 (defn hex->bin
+  "Convert a hex string to a byte array."
   ^bytes
-  [^String value]
-  (DatatypeConverter/parseHexBinary value))
+  [^String hex]
+  (let [length (/ (count hex) 2)
+        data (byte-array length)]
+    (dotimes [i length]
+      (let [octet (subs hex (* 2 i) (* 2 (inc i)))]
+        (aset-byte data i (hex->byte octet))))
+    data))
 
 
 (defn decode-hex
+  "Decode a single CBOR value from a hex string."
   ([string]
    (decode-hex (cbor/cbor-codec) string))
   ([decoder string]
@@ -138,6 +167,7 @@
 
 
 (defn decode-hex-all
+  "Decode all CBOR values from a hex string."
   ([string]
    (decode-hex-all (cbor/cbor-codec) string))
   ([decoder string]
@@ -145,6 +175,7 @@
 
 
 (defn encoded-hex
+  "Encode the value as CBOR and convert to a hex string."
   ([value]
    (encoded-hex (cbor/cbor-codec) value))
   ([encoder value]
