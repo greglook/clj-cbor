@@ -5,7 +5,6 @@
     [blocks.store.file :refer [file-block-store]]
     [clj-async-profiler.core :as prof]
     [clj-cbor.core :as cbor]
-    [clj-cbor.test-utils :as util]
     [clojure.data.fressian :as fressian]
     [clojure.edn :as edn]
     [clojure.java.io :as io]
@@ -83,7 +82,7 @@
 (defn massage-stack
   "Collapse a stack frame in a profiling run."
   [stack]
-  (-> s
+  (-> stack
       (str/replace #"^.+user\$eval\d+\$fn__\d+\.invoke;" "eval;")
       (str/replace #"clj_cbor\.codec\.CBORCodec\.write_value;(((clj\-cbor\.codec|clojure\.core|clojure\.core\.protocols)/[^;]+;)+clj_cbor\.codec\.CBORCodec\.write_value;)+"
                    "clj_cbor.codec.CBORCodec.write_value ...;")))
@@ -97,7 +96,7 @@
   (prof/profile
     {:event :cpu
      :transform massage-stack}
-    (dotimes [i 5000]
+    (dotimes [_ 5000]
       (cbor/encode reddit-data)))
 
   ; - Should also support `:alloc` profiling
@@ -183,16 +182,14 @@
 (defn bench-codec
   "Benchmark a codec defined in `codecs` against the given `data` value."
   [codec-type data]
-  (let [start (System/nanoTime)
-        {:keys [version encoder decoder]} (get codecs codec-type)]
+  (let [{:keys [version encoder decoder]} (get codecs codec-type)]
     (try
       (let [encoded (encoder data)
-            decoded (decoder encoded)
+            _decoded (decoder encoded)
             encode-stats (crit/quick-benchmark (encoder data) {})
             encode-mean (-> encode-stats :mean first (* 1000))
             decode-stats (crit/quick-benchmark (decoder encoded) {})
-            decode-mean (-> decode-stats :mean first (* 1000))
-            elapsed (/ (- (System/nanoTime) start) 1000000.0)]
+            decode-mean (-> decode-stats :mean first (* 1000))]
         (printf "  + %-15s  %7.3f µs  %7.3f µs  %6s bytes\n"
                 (name codec-type)
                 (* 1000 encode-mean)
@@ -205,13 +202,12 @@
          :encode encode-mean
          :decode decode-mean})
       (catch Exception ex
-        (let [elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-          (printf "Benchmark data doesn't round-trip: %s\n"
-                  (.getMessage ex))
-          (flush)
-          {:error (.getMessage ex)
-           :codec codec-type
-           :version version})))))
+        (printf "Benchmark data doesn't round-trip: %s\n"
+                (ex-message ex))
+        (flush)
+        {:error (ex-message ex)
+         :codec codec-type
+         :version version}))))
 
 
 (defn bench-adhoc
