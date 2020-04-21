@@ -8,7 +8,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Added
+- Errors about unhandled types now contain more type information about the
+  value that could not be encoded.
+  [#15](https://github.com/greglook/clj-cbor/pull/15)
 
 
 ## [0.7.2] - 2019-06-28
