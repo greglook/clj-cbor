@@ -16,7 +16,8 @@
 
   (equals
     [this that]
-    (boolean (or (identical? this that) (instance? Undefined that))))
+    (or (identical? this that)
+        (instance? Undefined that)))
 
 
   (hashCode
@@ -26,7 +27,9 @@
 
   clojure.lang.IObj
 
-  (meta [this] _meta)
+  (meta
+    [this]
+    _meta)
 
 
   (withMeta
@@ -49,19 +52,28 @@
 
   (equals
     [this that]
-    (boolean (or (identical? this that)
-                 (and (instance? SimpleValue that)
-                      (= n (.n ^SimpleValue that))))))
+    (or (identical? this that)
+        (and (instance? SimpleValue that)
+             (= n (.-n ^SimpleValue that)))))
 
 
   (hashCode
     [this]
-    (hash [(class this) n]))
+    (hash-combine (hash (class this)) n))
+
+
+  Comparable
+
+  (compareTo
+    [this that]
+    (compare n (.-n ^SimpleValue that)))
 
 
   clojure.lang.IObj
 
-  (meta [this] _meta)
+  (meta
+    [this]
+    _meta)
 
 
   (withMeta

@@ -14,10 +14,10 @@
 
   (equals
     [this that]
-    (boolean (or (identical? this that)
-                 (and (instance? TaggedValue that)
-                      (= tag (.tag ^TaggedValue that))
-                      (= value (.value ^TaggedValue that))))))
+    (or (identical? this that)
+        (and (instance? TaggedValue that)
+             (= tag (.tag ^TaggedValue that))
+             (= value (.value ^TaggedValue that)))))
 
 
   (hashCode
@@ -27,7 +27,9 @@
 
   clojure.lang.IObj
 
-  (meta [this] _meta)
+  (meta
+    [this]
+    _meta)
 
 
   (withMeta
