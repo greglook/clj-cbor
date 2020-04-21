@@ -7,7 +7,8 @@
   (:import
     (java.io
       ByteArrayInputStream
-      File)
+      File
+      IOException)
     java.time.Instant))
 
 
@@ -29,6 +30,25 @@
     (is (satisfies? codec/Decoder codec))
     (is (= {0 :x} (:read-handlers codec)))
     (is (= {Long :y} (:write-handlers codec)))))
+
+
+(deftest superclass-dispatch
+  (let [dispatch (cbor/dispatch-superclasses
+                   IOException
+                   RuntimeException
+                   Exception)]
+    (is (= IOException (dispatch (IOException. "couldn't input/output")))
+        "directly matching class should return")
+    (is (= IOException (dispatch (IOException. "couldn't input/output")))
+        "second call should be cached")
+    (is (= RuntimeException (dispatch (NullPointerException.)))
+        "subclasses should return the first superclass")
+    (is (= RuntimeException (dispatch (NullPointerException.)))
+        "subclasses should return the first superclass")
+    (is (= Exception (dispatch (InterruptedException.)))
+        "subclasses should return the first superclass")
+    (is (= Long (dispatch 123))
+        "should default to the argument class")))
 
 
 (deftest encode-output-guard

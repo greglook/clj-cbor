@@ -75,6 +75,29 @@
     :read-handlers default-read-handlers))
 
 
+(defn dispatch-superclasses
+  "Construct a codec dispatch function which will return the named classes
+  whenever one of their instances is encountered.
+
+  This lets you use a single superclass to match all of its subclasses. The
+  classes are tested in the order given; if none match, this returns the
+  value's own class."
+  [& classes]
+  (let [cache (atom {})]
+    (fn dispatch
+      [x]
+      (or (get @cache (class x))
+          (let [result (loop [classes classes]
+                         (if (seq classes)
+                           (let [cls (first classes)]
+                             (if (instance? cls x)
+                               cls
+                               (recur (rest classes))))
+                           (class x)))]
+            (swap! cache assoc (class x) result)
+            result)))))
+
+
 
 ;; ## Encoding Functions
 

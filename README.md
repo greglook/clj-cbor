@@ -146,10 +146,12 @@ For further information about registered tag semantics, consult the
 
 ### Write Handlers
 
-A write handler is a function which takes a typed value and returns an encodable
-representation. In most cases the representation is a CBOR tagged value. The tag
-conveys the type semantic and generally the expected form that the
-representation takes.
+A write handler is a function which takes a typed value and returns an
+encodable representation. In most cases, the representation is a CBOR tagged
+value. The tag conveys the type semantic and generally the expected form that
+the representation takes. Write handlers are selected by a dispatch function,
+which defaults to `class`. The `clj-cbor.core/dispatch-superclasses` function
+can be used to construct an inheritance-based dispatcher.
 
 In some cases, multiple types will map to the same tag. For example, by default
 this library maps both `java.util.Date` and the newer `java.time.Instant` types

@@ -12,6 +12,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Errors about unhandled types now contain more type information about the
   value that could not be encoded.
   [#15](https://github.com/greglook/clj-cbor/pull/15)
+- The `clj-cbor.core/dispatch-superclasses` function can be used to support
+  inheritance-based write handler selection.
+  [#12](https://github.com/greglook/clj-cbor/issues/12)
 
 
 ## [0.7.2] - 2019-06-28
