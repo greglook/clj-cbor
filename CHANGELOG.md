@@ -8,6 +8,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+
+## [1.0.0] - 2020-04-20
+
 ### Added
 - Errors about unhandled types now contain more type information about the
   value that could not be encoded.
@@ -177,7 +182,8 @@ This release includes 100% test coverage!
 Initial project release.
 
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/0.7.2...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/greglook/clj-cbor/compare/0.7.2...1.0.0
 [0.7.2]: https://github.com/greglook/clj-cbor/compare/0.7.1...0.7.2
 [0.7.1]: https://github.com/greglook/clj-cbor/compare/0.6.0...0.7.1
 [0.6.0]: https://github.com/greglook/clj-cbor/compare/0.5.0...0.6.0
