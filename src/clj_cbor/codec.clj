@@ -531,11 +531,12 @@
   "Read a tagged value from the input stream."
   [decoder ^DataInputStream input info]
   (let [tag (header/read-code input info)
-        value (read-value decoder input)]
+        value (read-value decoder input)
+        read-handlers (:read-handlers decoder)]
     (if (= tag data/set-tag)
       (read-set decoder value)
       (try
-        (if-let [handler ((:read-handlers decoder) tag)]
+        (if-let [handler (read-handlers tag)]
           ;; TODO: better error reporting
           (handler value)
           (if (:strict decoder)
@@ -704,11 +705,23 @@
   written, or nil if `x` is not a collection."
   [codec out x]
   (cond
-    (seq? x)    (write-array codec out x)
-    (vector? x) (write-array codec out x)
-    (map? x)    (write-map codec out x)
-    (set? x)    (write-set codec out data/set-tag x)
-    :else       nil))
+    (vector? x)
+    (write-array codec out x)
+
+    (instance? java.util.Map x)
+    (write-map codec out x)
+
+    (instance? java.util.Set x)
+    (write-set codec out data/set-tag x)
+
+    ;; TODO: differentiate for streaming support?
+    ;(seq? x) or (instance? Iterable x)
+    ;(write-array-stream codec out x)
+
+    (instance? java.util.List x)
+    (write-array codec out x)
+
+    :else nil))
 
 
 ;; ### Decoding Functions

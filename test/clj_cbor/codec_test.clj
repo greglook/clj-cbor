@@ -147,6 +147,17 @@
     (check-roundtrip [1 2 3] "83010203")
     (check-roundtrip [1 [2 3] [4 5]] "8301820203820405")
     (check-roundtrip (range 1 26) "98190102030405060708090A0B0C0D0E0F101112131415161718181819"))
+  (testing "java compatibility"
+    (is (= "80" (encoded-hex (java.util.ArrayList.))))
+    (is (= "83010203"
+           (encoded-hex (doto (java.util.ArrayList.)
+                          (.add 1)
+                          (.add 2)
+                          (.add 3)))))
+    (is (= "820708"
+           (encoded-hex (doto (java.util.LinkedList.)
+                          (.add 7)
+                          (.add 8))))))
   (testing "streaming"
     (is (true? (:cbor/streaming (meta (decode-hex "9FFF")))))
     (is (= [] (decode-hex "9FFF")))
@@ -165,6 +176,11 @@
     (check-roundtrip ["a" {"b" "c"}] "826161A161626163")
     (check-roundtrip {"a" "A", "b" "B", "c" "C", "d" "D", "e" "E"}
                      "A56161614161626142616361436164614461656145"))
+  (testing "java compatibility"
+    (is (= "A0" (encoded-hex (java.util.HashMap.))))
+    (is (=  "A201020304" (encoded-hex (doto (java.util.TreeMap.)
+                                        (.put 1 2)
+                                        (.put 3 4))))))
   (testing "streaming"
     (is (true? (:cbor/streaming (meta (decode-hex "BFFF")))))
     (is (= {} (decode-hex "BFFF")))
@@ -204,7 +220,14 @@
   (testing "canonical mode"
     (let [codec (cbor/cbor-codec :canonical true)]
       (is (= "D90102840018406161820304"
-             (encoded-hex codec #{[3 4] 0 64 "a"}))))))
+             (encoded-hex codec #{[3 4] 0 64 "a"})))))
+  (testing "java compatibility"
+    (is (= "D9010280" (encoded-hex (java.util.HashSet.))))
+    (is (= "D9010283010203"
+           (encoded-hex (doto (java.util.TreeSet.)
+                          (.add 1)
+                          (.add 2)
+                          (.add 3)))))))
 
 
 (deftest floating-point-numbers

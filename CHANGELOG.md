@@ -8,7 +8,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+### Addeed
+- The base logic in the codec will write any collection supporting the standard
+  Java `List`, `Map`, and `Set` interfaces as the corresponding CBOR types.
+  Previously, this only worked directly on Clojure's collection types.
 
 
 ## [1.0.0] - 2020-04-20
