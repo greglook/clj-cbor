@@ -87,7 +87,7 @@
                        (+ b 256)
                        b)))]
     (if (= xlen ylen)
-      ; Same length - compare content.
+      ;; Same length - compare content.
       (loop [i 0]
         (if (< i xlen)
           (let [xi (get-byte x i)
@@ -96,7 +96,7 @@
               (recur (inc i))
               (compare xi yi)))
           0))
-      ; Compare lengths.
+      ;; Compare lengths.
       (compare xlen ylen))))
 
 
@@ -115,12 +115,12 @@
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
       (if (== header 0xFF)
-        ; Break code, finish up result.
+        ;; Break code, finish up result.
         (reducer state)
-        ; Read next value.
+        ;; Read next value.
         (let [[chunk-type info] (header/decode header)]
           (cond
-            ; Illegal element type.
+            ;; Illegal element type.
             (not= stream-type chunk-type)
             (error/*handler*
               ::illegal-chunk-type
@@ -129,14 +129,14 @@
               {:stream-type stream-type
                :chunk-type chunk-type})
 
-            ; Illegal indefinite-length chunk.
+            ;; Illegal indefinite-length chunk.
             (= info 31)
             (error/*handler*
               ::illegal-stream
               (str stream-type " stream chunks must have a definite length")
               {:stream-type stream-type})
 
-            ; Reduce state with next value.
+            ;; Reduce state with next value.
             :else
             (recur (reducer state (read-value* decoder input header)))))))))
 
@@ -148,9 +148,9 @@
   (loop [state (reducer)]
     (let [header (.readUnsignedByte input)]
       (if (== header 0xFF)
-        ; Break code, finish up result.
+        ;; Break code, finish up result.
         (reducer state)
-        ; Read next value.
+        ;; Read next value.
         (recur (reducer state (read-value* decoder input header)))))))
 
 
@@ -411,15 +411,15 @@
   ([[m k :as state] e]
    (if (= 1 (count state))
      (if (contains? m e)
-       ; Duplicate key error.
+       ;; Duplicate key error.
        (error/*handler*
          ::duplicate-map-key
          (str "Encoded map contains duplicate key: "
               (pr-str e))
          {:map m, :key e})
-       ; Save key and wait for value.
+       ;; Save key and wait for value.
        [m e])
-     ; Add completed entry to map.
+     ;; Add completed entry to map.
      [(assoc m k e)])))
 
 
@@ -536,7 +536,7 @@
       (read-set decoder value)
       (try
         (if-let [handler ((:read-handlers decoder) tag)]
-          ; TODO: better error reporting
+          ;; TODO: better error reporting
           (handler value)
           (if (:strict decoder)
             (error/*handler*
@@ -724,7 +724,7 @@
   [decoder ^DataInputStream input ^long header]
   (let [info (bit-and 0x1F header)]
     (case (int header)
-      ; Positive Integers
+      ;; Positive Integers
       0x00  0
       0x01  1
       0x02  2
@@ -758,7 +758,7 @@
              "Encoded integers cannot have indefinite length."
              {:code info})
 
-      ; Negative Integers
+      ;; Negative Integers
       0x20  -1
       0x21  -2
       0x22  -3
@@ -792,7 +792,7 @@
              "Encoded integers cannot have indefinite length."
              {:code info})
 
-      ; Byte Strings
+      ;; Byte Strings
       0x40 (byte-array 0)
 
       (0x41 0x42 0x43 0x44 0x45 0x46 0x47
@@ -806,7 +806,7 @@
       0x5B (read-bytes input (header/read-long input))
       0x5F (read-chunks decoder input :byte-string concat-bytes)
 
-      ; Text Strings
+      ;; Text Strings
       0x60 ""
 
       (0x61 0x62 0x63 0x64 0x65 0x66 0x67
@@ -820,7 +820,7 @@
       0x7B (read-text input (header/read-long input))
       0x7F (read-chunks decoder input :text-string concat-text)
 
-      ; Arrays
+      ;; Arrays
       0x80 []
       0x81 [(read-value decoder input)]
       0x82 [(read-value decoder input)
@@ -845,7 +845,7 @@
       0x9F (-> (read-value-stream decoder input build-array)
                (vary-meta assoc :cbor/streaming true))
 
-      ; Maps
+      ;; Maps
       0xA0 {}
       0xA1 {(read-value decoder input)
             (read-value decoder input)}
@@ -862,7 +862,7 @@
       0xBF (-> (read-value-stream decoder input build-map)
                (vary-meta assoc :cbor/streaming true))
 
-      ; Tagged Values
+      ;; Tagged Values
       (0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7
             0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF
             0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7
@@ -875,7 +875,7 @@
         "Encoded tags cannot have indefinite length."
         {:code info})
 
-      ; Simple Values
+      ;; Simple Values
       (0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7
             0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF
             0xF0 0xF1 0xF2 0xF3)
@@ -903,7 +903,7 @@
         "Break encountered outside streaming context."
         {})
 
-      ; Otherwise, must be some reserved info code.
+      ;; Otherwise, must be some reserved info code.
       (error/*handler*
         ::header/reserved-info-code
         (format "Additional information int code %d is reserved."
