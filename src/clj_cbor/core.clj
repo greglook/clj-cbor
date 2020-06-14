@@ -53,6 +53,7 @@
          tags.content/content-write-handlers
          tags.num/number-write-handlers
          tags.time/epoch-time-write-handlers
+         tags.time/epoch-date-write-handlers
          tags.text/text-write-handlers))
 
 
@@ -65,6 +66,7 @@
          tags.content/content-read-handlers
          tags.num/number-read-handlers
          tags.time/instant-read-handlers
+         tags.time/local-date-read-handlers
          tags.text/text-read-handlers))
 
 

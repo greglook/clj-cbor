@@ -138,7 +138,9 @@ support for the following types:
 |    35 | Text string    | `Pattern` | Regular expression strings |
 |    37 | Byte string    | `UUID` | Binary-encoded UUID values |
 |    39 | Text string    | `Symbol`/`Keyword` | Identifiers |
+|   100 | Integer        | `LocalDate` | Epoch-based local calendar date |
 |   258 | Array          | `Set` | Sets of unique entries |
+|  1004 | Text string    | `LocalDate` | String-based local calendar date |
 | 55799 | Varies         | N/A | Self-describe CBOR |
 
 For further information about registered tag semantics, consult the

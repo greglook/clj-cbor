@@ -8,10 +8,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### Addeed
+### Added
 - The base logic in the codec will write any collection supporting the standard
   Java `List`, `Map`, and `Set` interfaces as the corresponding CBOR types.
   Previously, this only worked directly on Clojure's collection types.
+- Local calendar dates are supported using the proposed tags 100 (epoch) and
+  1004 (string), mapped to the `java.time.LocalDate` type.
 
 
 ## [1.0.0] - 2020-04-20
