@@ -81,7 +81,7 @@
 (defmethod equivalent? Double
   [a b]
   (if (Double/isNaN a)
-    (Double/isNaN b)
+    (and (number? b) (Double/isNaN b))
     (= a b)))
 
 

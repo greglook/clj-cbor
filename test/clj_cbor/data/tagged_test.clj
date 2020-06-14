@@ -15,6 +15,8 @@
           "should be reflexive")
       (is (= ratio-value (->TaggedValue 30 [1 3] nil))
           "different instances of the same value should be equal")
+      (is (not= ratio-value (->TaggedValue 30 [1 4] nil))
+          "different values of the same tag should not be equal")
       (is (not= uri-value ratio-value)
           "different simple values should not be equal")
       (is (not= uri-value :foo)
