@@ -133,7 +133,7 @@ support for the following types:
 |     3 | Byte string    | `BigInt` | Negative bignum |
 |     4 | Array(2)       | `BigDecimal` | Decimal fraction |
 |    27 | Array(2)       | `TaggedLiteral` | Constructor support for Clojure tagged literal values |
-|    30 | Array(2)       | `Ratio` | Rational fractions, represented as numberator and denominator numbers |
+|    30 | Array(2)       | `Ratio` | Rational fractions, represented as numerator and denominator numbers |
 |    32 | Text string    | `URI` | Uniform Resource Identifier strings |
 |    35 | Text string    | `Pattern` | Regular expression strings |
 |    37 | Byte string    | `UUID` | Binary-encoded UUID values |

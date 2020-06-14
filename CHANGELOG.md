@@ -8,6 +8,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+
+## [1.1.0] - 2020-06-14
+
 ### Added
 - The base logic in the codec will write any collection supporting the standard
   Java `List`, `Map`, and `Set` interfaces as the corresponding CBOR types.
@@ -187,7 +192,8 @@ This release includes 100% test coverage!
 Initial project release.
 
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/greglook/clj-cbor/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/greglook/clj-cbor/compare/0.7.2...1.0.0
 [0.7.2]: https://github.com/greglook/clj-cbor/compare/0.7.1...0.7.2
 [0.7.1]: https://github.com/greglook/clj-cbor/compare/0.6.0...0.7.1
