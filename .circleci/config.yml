@@ -17,10 +17,10 @@ jobs:
       - run:
           name: Install cljstyle
           environment:
-            CLJSTYLE_VERSION: 0.12.1
+            CLJSTYLE_VERSION: 0.15.0
           command: |
-            wget https://github.com/greglook/cljstyle/releases/download/${CLJSTYLE_VERSION}/cljstyle_${CLJSTYLE_VERSION}_linux.tar.gz
-            tar -xzf cljstyle_${CLJSTYLE_VERSION}_linux.tar.gz
+            wget https://github.com/greglook/cljstyle/releases/download/${CLJSTYLE_VERSION}/cljstyle_${CLJSTYLE_VERSION}_linux.zip
+            unzip cljstyle_${CLJSTYLE_VERSION}_linux.zip
       - run:
           name: Check source formatting
           command: "./cljstyle check --stats style-stats.tsv"
@@ -35,7 +35,7 @@ jobs:
       - run:
           name: Install clj-kondo
           environment:
-            CLJ_KONDO_VERSION: 2019.12.14
+            CLJ_KONDO_VERSION: 2021.10.19
           command: |
             wget https://github.com/borkdude/clj-kondo/releases/download/v${CLJ_KONDO_VERSION}/clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
             unzip clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
@@ -52,13 +52,13 @@ jobs:
             - v1-test-{{ checksum "project.clj" }}
             - v1-test-
       - run: lein deps
-      - run: lein check
-      - run: lein test
-      - run: lein test :generative
       - save_cache:
           key: v1-test-{{ checksum "project.clj" }}
           paths:
             - ~/.m2
+      - run: lein check
+      - run: lein test
+      - run: lein test :generative
 
   coverage:
     executor: clojure
@@ -71,7 +71,7 @@ jobs:
             - v1-test-
       - run:
           name: Generate test coverage
-          command: lein coverage --codecov
+          command: lein cloverage --codecov
       - save_cache:
           paths:
             - ~/.m2
@@ -80,8 +80,19 @@ jobs:
           path: target/coverage
           destination: coverage
       - run:
-          name: Publish Coverage
-          command: 'bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json'
+          name: Install codecov
+          command: |
+            sudo apt-get update && sudo apt-get install gpg
+            curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+            curl -Os https://uploader.codecov.io/latest/linux/codecov
+            curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+            curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+            gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+            shasum -a 256 -c codecov.SHA256SUM
+            chmod +x codecov
+      - run:
+          name: Publish coverage report
+          command: './codecov -f target/coverage/codecov.json'
 
 
 # Workflow definitions
