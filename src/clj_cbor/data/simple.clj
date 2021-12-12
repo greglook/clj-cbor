@@ -10,7 +10,7 @@
   Object
 
   (toString
-    [this]
+    [_]
     "undefined")
 
 
@@ -28,12 +28,12 @@
   clojure.lang.IObj
 
   (meta
-    [this]
+    [_]
     _meta)
 
 
   (withMeta
-    [this meta-map]
+    [_ meta-map]
     (Undefined. meta-map)))
 
 
@@ -45,7 +45,7 @@
   Object
 
   (toString
-    [this]
+    [_]
     (str "simple(" n ")"))
 
 
@@ -64,17 +64,17 @@
   Comparable
 
   (compareTo
-    [this that]
+    [_ that]
     (compare n (.-n ^SimpleValue that)))
 
 
   clojure.lang.IObj
 
   (meta
-    [this]
+    [_]
     _meta)
 
 
   (withMeta
-    [this meta-map]
+    [_ meta-map]
     (SimpleValue. n meta-map)))

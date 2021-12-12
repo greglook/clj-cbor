@@ -8,7 +8,7 @@
   Object
 
   (toString
-    [this]
+    [_]
     (str tag "(" value ")"))
 
 
@@ -28,10 +28,10 @@
   clojure.lang.IObj
 
   (meta
-    [this]
+    [_]
     _meta)
 
 
   (withMeta
-    [this meta-map]
+    [_ meta-map]
     (TaggedValue. tag value meta-map)))
