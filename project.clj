@@ -12,8 +12,11 @@
    "bench" ["with-profile" "+bench" "run" "-m" "clj-cbor.bench"]
    "bench-repl" ["with-profile" "+bench" "repl"]}
 
+  :plugins
+  [[lein-cloverage "1.2.2"]]
+
   :dependencies
-  [[org.clojure/clojure "1.10.1"]]
+  [[org.clojure/clojure "1.10.3"]]
 
   :test-selectors
   {:default (complement :generative)
@@ -26,26 +29,20 @@
 
   :profiles
   {:dev
-   {:plugins
-    [[lein-cloverage "1.1.2"]]
-    :dependencies
-    [[org.clojure/test.check "1.0.0"]
-     [org.clojure/tools.reader "1.3.2"]
-     [org.clojure/tools.namespace "1.0.0"]]}
+   {:dependencies
+    [[org.clojure/test.check "1.1.1"]
+     [org.clojure/tools.reader "1.3.6"]
+     [org.clojure/tools.namespace "1.2.0"]]}
 
    :repl
    {:source-paths ["dev"]}
 
-   :coverage
-   {:plugins
-    [[lein-cloverage "1.1.2"]]}
-
    :bench
    {:source-paths ["bench"]
     :dependencies
-    [[com.clojure-goes-fast/clj-async-profiler "0.4.1"]
+    [[com.clojure-goes-fast/clj-async-profiler "0.5.1"]
      [com.cognitect/transit-clj "1.0.324"]
-     [com.taoensso/nippy "2.14.0"]
-     [criterium "0.4.5"]
+     [com.taoensso/nippy "3.1.1"]
+     [criterium "0.4.6"]
      [mvxcvi/blocks "1.1.0"]
      [org.clojure/data.fressian "1.0.0"]]}})
