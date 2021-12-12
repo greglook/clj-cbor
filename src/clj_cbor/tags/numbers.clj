@@ -65,7 +65,6 @@
       (bigint)))
 
 
-
 ;; ## Decimal Fractions
 
 ;; Decimal fractions combine an integer mantissa with a base-10 scaling factor.
@@ -97,7 +96,6 @@
     (BigDecimal. (biginteger mantissa) (int (- exponent)))))
 
 
-
 ;; ## Ratios
 
 (def ^:const ratio-tag
@@ -121,7 +119,6 @@
                     {:value value})))
   (let [[numerator denominator] value]
     (Ratio. (biginteger numerator) (biginteger denominator))))
-
 
 
 ;; ## Codec Formatter/Handler Maps

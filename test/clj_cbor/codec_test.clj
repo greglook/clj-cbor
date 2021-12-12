@@ -380,8 +380,8 @@
     (is (= {0 0} (decode-hex "BA000000010000")))
     (is (= {0 0} (decode-hex "BB00000000000000010000"))))
   (testing "Tagged Values"
-    ; 0-4, 27, 30, 32, 35, 37, 39, 55799 are all handled by built-in types.
-    ; 5-23
+    ;; 0-4, 27, 30, 32, 35, 37, 39, 55799 are all handled by built-in types.
+    ;; 5-23
     (doseq [i (range 5 24)]
       (is (= (data/tagged-value i 0) (decode-hex (str (format "%02X" (+ 0xC0 i)) "00")))))
     (is (= (data/tagged-value 5 0) (decode-hex "D80500")))

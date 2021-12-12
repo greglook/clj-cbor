@@ -121,7 +121,6 @@
   (Date/from (parse-string-instant value)))
 
 
-
 ;; ## Dates
 
 ;; A local date represents a specific calendar day, without regard to any
@@ -141,7 +140,6 @@
   The tagged integer is an unsigned or negative value indicating the number of
   days since the epoch date 1970-01-01."
   100)
-
 
 
 ;; ### java.time.LocalDate
@@ -180,7 +178,6 @@
                          (class value))
                     {:value value})))
   (LocalDate/parse value))
-
 
 
 ;; ## Codec Maps

@@ -37,7 +37,6 @@
     (symbol value)))
 
 
-
 ;; ## Tagged Literals
 
 (def ^:const generic-object-tag
@@ -63,7 +62,6 @@
                          (class value))
                     {:value value})))
   (tagged-literal (symbol (first value)) (second value)))
-
 
 
 ;; ## Codec Formatter/Handler Maps

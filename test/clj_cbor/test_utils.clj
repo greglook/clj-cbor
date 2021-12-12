@@ -40,7 +40,6 @@
             :actual nil})))))
 
 
-
 ;; ## Value Equivalence
 
 (defn bytes=
@@ -115,7 +114,6 @@
            (empty? b)))))
 
 
-
 ;; ## Hex Conversion
 
 (defn- byte->hex
@@ -180,7 +178,6 @@
    (encoded-hex (cbor/cbor-codec) value))
   ([encoder value]
    (bin->hex (cbor/encode encoder value))))
-
 
 
 ;; ## Dynamic Codec

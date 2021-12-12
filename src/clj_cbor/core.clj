@@ -100,7 +100,6 @@
             result)))))
 
 
-
 ;; ## Encoding Functions
 
 (defn- data-output-stream
@@ -154,7 +153,6 @@
   ([encoder output values]
    (let [data-output (data-output-stream output)]
      (transduce (map (partial encode encoder data-output)) + 0 values))))
-
 
 
 ;; ## Decoding Functions
@@ -237,7 +235,6 @@
      (take-while
        #(not (identical? eof-guard %))
        (repeatedly read-data!)))))
-
 
 
 ;; ## Utility Functions

@@ -14,7 +14,6 @@
   codec-exception!)
 
 
-
 ;; ## Error Hierarchy
 
 ;; Encoding errors.
@@ -22,6 +21,7 @@
 (derive :clj-cbor.header/overflow-info-code ::encoding-error)
 (derive :clj-cbor.codec/illegal-simple-type ::encoding-error)
 (derive :clj-cbor.codec/unsupported-type    ::encoding-error)
+
 
 ;; Decoding errors.
 (derive :clj-cbor.header/reserved-info-code ::decoding-error)

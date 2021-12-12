@@ -45,7 +45,6 @@
   (read-value* decoder input (.readUnsignedByte input)))
 
 
-
 ;; ## Byte Utilities
 
 (defn- read-bytes
@@ -100,7 +99,6 @@
       (compare xlen ylen))))
 
 
-
 ;; ## Reader Functions
 
 ;; These functions provide some data-reading capabilities which later
@@ -152,7 +150,6 @@
         (reducer state)
         ;; Read next value.
         (recur (reducer state (read-value* decoder input header)))))))
-
 
 
 ;; ## Major Types
@@ -210,7 +207,6 @@
     (header/write out :unsigned-integer n)))
 
 
-
 ;; ### Byte Strings
 
 ;; Byte strings are represented by major type 2. The string's length in bytes
@@ -239,7 +235,6 @@
   ([buffer v]
    (.write ^ByteArrayOutputStream buffer ^bytes v)
    buffer))
-
 
 
 ;; ### Text Strings
@@ -285,7 +280,6 @@
    buffer))
 
 
-
 ;; ### Data Arrays
 
 ;; Arrays of data items are encoded using major type 4. Arrays are used to
@@ -329,7 +323,6 @@
         (do (aset objs idx (read-value decoder input))
             (recur (unchecked-inc idx)))
         (vec objs)))))
-
 
 
 ;; ### Data Maps
@@ -442,7 +435,6 @@
         (into {} m)))))
 
 
-
 ;; ### Sets
 
 ;; Sets are represented as arrays of elements tagged with code 258.
@@ -512,7 +504,6 @@
       {:value value})))
 
 
-
 ;; ### Tagged Values
 
 ;; Major type 6 is used for optional semantic tagging of other CBOR values.
@@ -550,7 +541,6 @@
             ::tag-handling-error
             (.getMessage ex)
             (assoc (ex-data ex) ::error ex)))))))
-
 
 
 ;; ### Simple Values
@@ -651,7 +641,6 @@
     (data/simple-value value)))
 
 
-
 ;; ## Codec Implementation
 
 ;; ### Encoding Functions
@@ -715,8 +704,8 @@
     (write-set codec out data/set-tag x)
 
     ;; TODO: differentiate for streaming support?
-    ;(seq? x) or (instance? Iterable x)
-    ;(write-array-stream codec out x)
+    ;; (seq? x) or (instance? Iterable x)
+    ;; (write-array-stream codec out x)
 
     (instance? java.util.List x)
     (write-array codec out x)

@@ -32,7 +32,6 @@
   (instance? SimpleValue x))
 
 
-
 ;; ## Tagged Values
 
 (defn tagged-value

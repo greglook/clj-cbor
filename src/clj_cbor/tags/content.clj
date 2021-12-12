@@ -4,7 +4,6 @@
     [clj-cbor.data.core :as data]))
 
 
-
 ;; ## Self-Describe CBOR
 
 ;; In many applications, it will be clear from the context that CBOR is being
@@ -26,7 +25,6 @@
 (defn format-self-described
   [value]
   (data/tagged-value self-describe-cbor-tag value))
-
 
 
 ;; ## Codec Formatter/Handler Maps

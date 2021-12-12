@@ -22,9 +22,12 @@
     java.nio.ByteBuffer))
 
 
+;; TODO: upgrade to blocks2 or rewrite this to not use blocks.
+
+
 (def stress-data
   "Stress-testing data, mostly borrowed from `ptaoussanis/nippy`."
-  {;:bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
+  {;; :bytes     (byte-array [(byte 1) (byte 2) (byte 3)])
    :nil       nil
    :true      true
    :false     false
@@ -35,7 +38,7 @@
    :kw-ns     ::keyword
    :sym       'foo
    :sym-ns    'foo/bar
-   ;:regex     #"^(https?:)?//(www\?|\?)?"
+   ;; :regex     #"^(https?:)?//(www\?|\?)?"
 
    :lotsa-small-numbers  (vec (range 200))
    :lotsa-small-keywords (->> (java.util.Locale/getISOLanguages)
@@ -76,7 +79,6 @@
    :date         (java.util.Date.)})
 
 
-
 ;; ## Flame Graphs
 
 (defn massage-stack
@@ -102,7 +104,6 @@
   ; - Should also support `:alloc` profiling
   ; - Collapse stack frames, in particular recursive encode/decode
   ,,,)
-
 
 
 ;; ## Codec Definitions
@@ -136,7 +137,7 @@
     (transit/read reader)))
 
 
-; TODO: pull versions directly from project.clj to keep them up to date
+;; TODO: pull versions directly from project.clj to keep them up to date
 (def codecs
   "Map of codec definitions for the benchmarking harness."
   {:reader
@@ -174,7 +175,6 @@
     :version "0.8.313"
     :encoder (partial transit-encode :msgpack)
     :decoder (partial transit-decode :msgpack)}})
-
 
 
 ;; ## Benchmarking Functions
@@ -219,7 +219,6 @@
    (flush)
    (doseq [codec-type targets]
      (bench-codec codec-type data))))
-
 
 
 ;; ## Size Histograms
@@ -274,20 +273,19 @@
        (print-size-histogram)))
 
 
-
 ;; ## Data Generation
 
 (defn generate-sample
   [size]
-  ; TODO: review supported vs generated types
-  ; byte-arrays
-  ; dates (read as dates)
-  ; bignums
-  ; bigdecs
-  ; sets (probably already generated)
-  ; ratio
-  ; URI
-  ; regex (not as keys in maps or sets)
+  ;; TODO: review supported vs generated types
+  ;; byte-arrays
+  ;; dates (read as dates)
+  ;; bignums
+  ;; bigdecs
+  ;; sets (probably already generated)
+  ;; ratio
+  ;; URI
+  ;; regex (not as keys in maps or sets)
   (let [any-data (gen/recursive-gen gen/container-type
                                     gen/simple-type-printable)]
     (gen/generate any-data size)))
@@ -302,7 +300,6 @@
        (map #(:size (block/store! store (cbor/encode %))))
        (into-size-histogram)
        (print-size-histogram)))
-
 
 
 ;; ## TSV Output
@@ -383,7 +380,6 @@
           (println))))))
 
 
-
 ;; ## Entry Point
 
 (defn -main
@@ -452,7 +448,7 @@
             results (group-by :block-id (parse-data-file data-file))]
         (print-spreadsheet-rows results targets))
 
-      ; No args
+      ;; No args
       nil
       (binding [*out* *err*]
         (println "Usage: lein bench stats")
@@ -461,7 +457,7 @@
         (println "       lein bench sheet [codec ...]")
         (System/exit 1))
 
-      ; Unknown command.
+      ;; Unknown command.
       (binding [*out* *err*]
         (println "Unknown command:" (first args))
         (System/exit 1)))))

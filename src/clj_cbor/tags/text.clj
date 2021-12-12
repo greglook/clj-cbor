@@ -32,7 +32,6 @@
   (URI. value))
 
 
-
 ;; ## Patterns
 
 (def ^:const pattern-tag
@@ -53,7 +52,6 @@
                          (class value))
                     {:value value})))
   (Pattern/compile value))
-
 
 
 ;; ## UUIDs
@@ -81,7 +79,6 @@
                     {:value value})))
   (let [data (ByteBuffer/wrap value)]
     (UUID. (.getLong data) (.getLong data))))
-
 
 
 ;; ## Codec Formatter/Handler Maps

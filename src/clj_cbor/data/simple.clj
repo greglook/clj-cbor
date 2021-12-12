@@ -37,7 +37,6 @@
     (Undefined. meta-map)))
 
 
-
 ;; ## Generic Simple Value
 
 (deftype SimpleValue

@@ -26,7 +26,6 @@
   (zipmap major-types (range)))
 
 
-
 ;; ## Encoding Functions
 
 (defn write-leader
@@ -116,7 +115,6 @@
       {:code i})))
 
 
-
 ;; ## Decoding Functions
 
 (defn decode
@@ -177,9 +175,9 @@
   reserved info codes."
   [^DataInputStream in ^long info]
   (if (< info 24)
-    ; Info codes less than 24 directly represent the number.
+    ;; Info codes less than 24 directly represent the number.
     info
-    ; Otherwise, signify the number of bytes following.
+    ;; Otherwise, signify the number of bytes following.
     (case info
       24 (read-byte in)
       25 (read-short in)
