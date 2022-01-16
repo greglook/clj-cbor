@@ -16,11 +16,16 @@ transmitting Clojure data in a more compact form.
 
 ## Installation
 
-Library releases are published on Clojars. To use the latest version with
-Leiningen, add the following dependency to your project definition:
+Library releases are published on Clojars. To use the latest version,
+add the following dependency to your project definition:
 
-[![Clojars Project](http://clojars.org/mvxcvi/clj-cbor/latest-version.svg)](http://clojars.org/mvxcvi/clj-cbor)
+### Leiningen
 
+Add `[mvxcvi/clj-cbor "1.1.0"]` to your `project.clj` file.
+
+### tools.deps
+
+Add `mvxcvi/clj-cbor {:mvn/version "1.1.0"}` to your `deps.edn` file.
 
 ## Usage
 
