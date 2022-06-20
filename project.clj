@@ -1,10 +1,10 @@
-(defproject mvxcvi/clj-cbor "1.1.1-SNAPSHOT"
+(defproject mvxcvi/clj-cbor "1.1.1"
   :description "Concise Binary Object Representation (RFC 7049)"
   :url "https://github.com/greglook/clj-cbor"
   :license {:name "Public Domain"
             :url "http://unlicense.org/"}
 
-  :deploy-branches ["master"]
+  :deploy-branches ["main"]
   :pedantic? :abort
 
   :aliases

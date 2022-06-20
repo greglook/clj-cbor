@@ -11,6 +11,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ...
 
 
+## [1.1.1] - 2022-06-20
+
+### Changed
+- Update Clojure to 1.11.1
+
+### Fixed
+- Exclude the new `parse-uuid` function in Clojure 1.11 to avoid a reference
+  collision warning.
+
+
 ## [1.1.0] - 2020-06-14
 
 ### Added
@@ -192,7 +202,8 @@ This release includes 100% test coverage!
 Initial project release.
 
 
-[Unreleased]: https://github.com/greglook/clj-cbor/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/greglook/clj-cbor/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/greglook/clj-cbor/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/greglook/clj-cbor/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/greglook/clj-cbor/compare/0.7.2...1.0.0
 [0.7.2]: https://github.com/greglook/clj-cbor/compare/0.7.1...0.7.2
