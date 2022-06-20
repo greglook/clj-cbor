@@ -16,7 +16,7 @@
   [[lein-cloverage "1.2.2"]]
 
   :dependencies
-  [[org.clojure/clojure "1.10.3"]]
+  [[org.clojure/clojure "1.11.1"]]
 
   :test-selectors
   {:default (complement :generative)
@@ -32,7 +32,7 @@
    {:dependencies
     [[org.clojure/test.check "1.1.1"]
      [org.clojure/tools.reader "1.3.6"]
-     [org.clojure/tools.namespace "1.2.0"]]}
+     [org.clojure/tools.namespace "1.3.0"]]}
 
    :repl
    {:source-paths ["dev"]}
@@ -41,7 +41,7 @@
    {:source-paths ["bench"]
     :dependencies
     [[com.clojure-goes-fast/clj-async-profiler "0.5.1"]
-     [com.cognitect/transit-clj "1.0.324"]
+     [com.cognitect/transit-clj "1.0.329"]
      [com.taoensso/nippy "3.1.1"]
      [criterium "0.4.6"]
      [mvxcvi/blocks "1.1.0"]

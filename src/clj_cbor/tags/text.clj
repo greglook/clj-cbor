@@ -1,6 +1,7 @@
 (ns clj-cbor.tags.text
   "Built-in tag support for the text extensions in RFC 7049. See section
   2.4.4."
+  (:refer-clojure :exclude [parse-uuid])
   (:require
     [clj-cbor.data.core :as data])
   (:import
